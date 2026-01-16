@@ -35,6 +35,10 @@ Base URL: `/api`
 ## Messaging
 - `GET /api/conversations` -> `Conversation[]`
 - `GET /api/conversations/:id/messages` -> `Message[]`
+- Notes: unread/online are placeholders for now; messages are returned newest-first limited to last 50.
+
+## Filtering Notes
+- `facilities[]` filter currently matches ANY facility provided (can be tightened to ALL later if needed).
 
 ## Types (reference)
 - `Listing`: `{ id, title, address?, city, country, lat?, lng?, pricePerNight, rating, reviewsCount, coverImage, images?, description?, beds, baths, category ('villa'|'hotel'|'apartment'), isFavorite, instantBook?, facilities?, ownerId?, createdAt? }`
