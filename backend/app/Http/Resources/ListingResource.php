@@ -26,7 +26,7 @@ class ListingResource extends JsonResource
             'rating' => (float) $this->rating,
             'reviewsCount' => $this->reviews_count,
             'coverImage' => $this->cover_image,
-            'images' => $this->whenLoaded('images', fn () => $this->images->pluck('url')),
+            'images' => $this->whenLoaded('images', fn () => $this->images->pluck('url'), fn () => $this->images()->pluck('url')),
             'description' => $this->description,
             'beds' => $this->beds,
             'baths' => $this->baths,

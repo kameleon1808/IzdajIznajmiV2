@@ -10,6 +10,8 @@ use App\Models\Listing;
 use App\Models\ListingImage;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
 
 class LandlordListingController extends Controller
@@ -38,7 +40,7 @@ class LandlordListingController extends Controller
         abort_unless($user && in_array($user->role, ['landlord', 'admin']), 403, 'Forbidden');
 
         $data = $request->validated();
-        $listing = DB::transaction(function () use ($data, $user) {
+        $listing = DB::transaction(function () use ($data, $user, $request) {
             $listing = Listing::create([
                 'owner_id' => $user->id,
                 'title' => $data['title'],
@@ -50,7 +52,6 @@ class LandlordListingController extends Controller
                 'price_per_night' => $data['pricePerNight'],
                 'rating' => $data['rating'] ?? 4.7,
                 'reviews_count' => $data['reviews_count'] ?? 0,
-                'cover_image' => $data['images'][0] ?? null,
                 'description' => $data['description'] ?? null,
                 'beds' => $data['beds'],
                 'baths' => $data['baths'],
@@ -58,7 +59,8 @@ class LandlordListingController extends Controller
                 'instant_book' => $data['instantBook'] ?? false,
             ]);
 
-            $this->syncImages($listing, $data['images'] ?? []);
+            $uploaded = $this->storeUploadedImages($request->file('images', []), $listing->id);
+            $this->syncImages($listing, $uploaded);
             $this->syncFacilities($listing, $data['facilities'] ?? []);
 
             return $listing->load(['images', 'facilities']);
@@ -94,14 +96,31 @@ class LandlordListingController extends Controller
             }
         }
 
-        DB::transaction(function () use ($listing, $data, $payload) {
+        DB::transaction(function () use ($listing, $data, $payload, $request) {
             if (!empty($payload)) {
                 $listing->update($payload);
             }
 
-            if (array_key_exists('images', $data)) {
-                $this->syncImages($listing, $data['images'] ?? []);
+            $existingUrls = $listing->images()->pluck('url')->all();
+            $keepUrls = collect($data['keepImageUrls'] ?? [])
+                ->filter()
+                ->values();
+
+            if ($keepUrls->isEmpty()) {
+                $keepUrls = collect($existingUrls)->diff($data['removeImageUrls'] ?? [])->values();
             }
+
+            $removed = collect($existingUrls)
+                ->diff($keepUrls)
+                ->merge($data['removeImageUrls'] ?? [])
+                ->unique()
+                ->values();
+
+            $newUploads = $this->storeUploadedImages($request->file('images', []), $listing->id);
+            $finalUrls = array_values(array_filter(array_merge($keepUrls->all(), $newUploads)));
+
+            $this->deleteImages($listing, $removed->all());
+            $this->syncImages($listing, $finalUrls);
 
             if (array_key_exists('facilities', $data)) {
                 $this->syncFacilities($listing, $data['facilities'] ?? []);
@@ -126,6 +145,33 @@ class LandlordListingController extends Controller
 
         if (!empty($images)) {
             $listing->update(['cover_image' => $images[0]]);
+        }
+    }
+
+    private function storeUploadedImages(array $files, int $listingId): array
+    {
+        $urls = [];
+        foreach ($files as $file) {
+            $name = Str::uuid()->toString().'.'.$file->getClientOriginalExtension();
+            $path = "listings/{$listingId}/{$name}";
+            Storage::disk('public')->putFileAs("listings/{$listingId}", $file, $name);
+            $urls[] = Storage::url($path);
+        }
+        return $urls;
+    }
+
+    private function deleteImages(Listing $listing, array $urls): void
+    {
+        foreach ($urls as $url) {
+            $path = parse_url($url, PHP_URL_PATH);
+            if (!$path) {
+                continue;
+            }
+            $relative = ltrim(str_replace('/storage/', '', $path), '/');
+            if (!str_starts_with($relative, "listings/{$listing->id}/")) {
+                continue;
+            }
+            Storage::disk('public')->delete($relative);
         }
     }
 

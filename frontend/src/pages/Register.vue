@@ -14,13 +14,20 @@ const router = useRouter()
 const name = ref('')
 const email = ref('')
 const password = ref('')
+const passwordConfirmation = ref('')
 const role = ref<Role>('tenant')
 const error = ref('')
 
 const onSubmit = async () => {
   error.value = ''
   try {
-    await auth.register({ name: name.value, email: email.value, password: password.value, role: role.value })
+    await auth.register({
+      name: name.value,
+      email: email.value,
+      password: password.value,
+      passwordConfirmation: passwordConfirmation.value,
+      role: role.value,
+    })
     toast.push({ title: 'Account created', type: 'success' })
     router.replace('/')
   } catch (err: any) {
@@ -48,6 +55,10 @@ const onSubmit = async () => {
       <div class="space-y-1">
         <p class="text-sm font-semibold text-slate-900">Password</p>
         <Input v-model="password" placeholder="••••••" type="password" />
+      </div>
+      <div class="space-y-1">
+        <p class="text-sm font-semibold text-slate-900">Confirm Password</p>
+        <Input v-model="passwordConfirmation" placeholder="••••••" type="password" />
       </div>
       <div class="space-y-1">
         <p class="text-sm font-semibold text-slate-900">Role</p>

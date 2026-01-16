@@ -6,6 +6,7 @@
 - Pokretanje (primer): `composer install && cp .env.example .env && php artisan key:generate && php artisan migrate:fresh --seed && php artisan serve`
 - Auth: Sanctum Bearer token; demo korisnici iz seedera (email + `password`).
 - CORS: dozvoljen `http://localhost:5173` za SPA.
+- Za slike: postavite `APP_URL=http://localhost:8000` i pokrenite `php artisan storage:link` (potrebno za /storage URL-ove).
 
 ## Frontend (Vue 3 + Vite)
 - Lokacija: `/frontend`

@@ -9,7 +9,7 @@ import ErrorBanner from '../components/ui/ErrorBanner.vue'
 import ListSkeleton from '../components/ui/ListSkeleton.vue'
 import { useAuthStore } from '../stores/auth'
 import { useListingsStore } from '../stores/listings'
-import { getListingById } from '../services'
+import { getListingById, isMockApi } from '../services'
 import type { Listing } from '../types'
 
 const router = useRouter()
@@ -37,6 +37,8 @@ const form = reactive({
   lat: '',
   lng: '',
 })
+const existingImages = ref<string[]>([])
+const newUploads = ref<{ file: File; preview: string }[]>([])
 
 const loadListing = async () => {
   if (!isEdit.value) return
@@ -45,6 +47,7 @@ const loadListing = async () => {
   try {
     const data = await getListingById(route.params.id as string)
     if (data) {
+      newUploads.value = []
       form.title = data.title
       form.pricePerNight = data.pricePerNight
       form.category = data.category
@@ -54,7 +57,7 @@ const loadListing = async () => {
       form.description = data.description || ''
       form.beds = data.beds
       form.baths = data.baths
-      form.images = data.images || (data.coverImage ? [data.coverImage] : [])
+      existingImages.value = data.images || (data.coverImage ? [data.coverImage] : [])
       form.facilities = data.facilities || []
       form.lat = data.lat?.toString() || ''
       form.lng = data.lng?.toString() || ''
@@ -82,20 +85,37 @@ const isValid = computed(() =>
 const onFilesChange = (event: Event) => {
   const files = (event.target as HTMLInputElement).files
   if (!files) return
-  const previews = Array.from(files).map((file) => URL.createObjectURL(file))
-  form.images = [...form.images, ...previews]
+  Array.from(files).forEach((file) => {
+    const preview = URL.createObjectURL(file)
+    newUploads.value.push({ file, preview })
+  })
 }
+
+const removeExisting = (url: string) => {
+  existingImages.value = existingImages.value.filter((img) => img !== url)
+}
+
+const removeUpload = (preview: string) => {
+  newUploads.value = newUploads.value.filter((item) => item.preview !== preview)
+}
+
+const totalImages = computed(() => existingImages.value.length + newUploads.value.length)
 
 const save = async () => {
   if (!isValid.value) return
   submitting.value = true
   error.value = ''
   try {
-    const payload = {
+    const payload: any = {
       ...form,
       lat: form.lat ? Number(form.lat) : undefined,
       lng: form.lng ? Number(form.lng) : undefined,
       ownerId: auth.user.id,
+      keepImageUrls: existingImages.value,
+      imagesFiles: newUploads.value.map((u) => u.file),
+    }
+    if (isMockApi) {
+      payload.images = existingImages.value.concat(newUploads.value.map((u) => u.preview))
     }
     if (isEdit.value) {
       await listingsStore.updateListingAction(route.params.id as string, payload)
@@ -248,8 +268,33 @@ const save = async () => {
             Upload
             <input type="file" multiple class="hidden" accept="image/*" @change="onFilesChange" />
           </label>
-          <div v-for="img in form.images" :key="img" class="h-28 w-28 overflow-hidden rounded-2xl border border-white/70">
+          <div
+            v-for="img in existingImages"
+            :key="img"
+            class="relative h-28 w-28 overflow-hidden rounded-2xl border border-white/70"
+          >
             <img :src="img" class="h-full w-full object-cover" />
+            <button
+              class="absolute right-1 top-1 rounded-full bg-white/90 px-2 py-1 text-xs font-semibold text-red-500 shadow-soft"
+              @click="removeExisting(img)"
+              type="button"
+            >
+              Remove
+            </button>
+          </div>
+          <div
+            v-for="item in newUploads"
+            :key="item.preview"
+            class="relative h-28 w-28 overflow-hidden rounded-2xl border border-white/70"
+          >
+            <img :src="item.preview" class="h-full w-full object-cover" />
+            <button
+              class="absolute right-1 top-1 rounded-full bg-white/90 px-2 py-1 text-xs font-semibold text-red-500 shadow-soft"
+              @click="removeUpload(item.preview)"
+              type="button"
+            >
+              Remove
+            </button>
           </div>
         </div>
       </div>
@@ -263,7 +308,7 @@ const save = async () => {
     </div>
 
     <EmptyState
-      v-if="!loading && !isEdit && !form.images.length"
+      v-if="!loading && !isEdit && !totalImages"
       title="Tip: add photos"
       subtitle="Listings with photos get more requests"
       :icon="MapPin"

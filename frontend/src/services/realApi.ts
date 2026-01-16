@@ -13,10 +13,12 @@ const mapListing = (data: any): Listing => ({
   pricePerNight: Number(data.pricePerNight ?? data.price_per_night ?? data.price ?? 0),
   rating: Number(data.rating ?? 0),
   reviewsCount: Number(data.reviewsCount ?? data.reviews_count ?? 0),
-  coverImage: data.coverImage ?? data.cover_image ?? data.images?.[0]?.url ?? '',
-  images: (data.images ?? data.listing_images ?? [])
-    .map((img: any) => (typeof img === 'string' ? img : img.url))
-    .filter(Boolean),
+  coverImage: data.coverImage ?? data.cover_image ?? (Array.isArray(data.images) && data.images[0]?.url) ?? '',
+  images: (() => {
+    const raw = data.images ?? data.listing_images ?? []
+    const arr = Array.isArray(raw) ? raw : Object.values(raw)
+    return arr.map((img: any) => (typeof img === 'string' ? img : img.url)).filter(Boolean)
+  })(),
   description: data.description ?? '',
   beds: Number(data.beds ?? 0),
   baths: Number(data.baths ?? 0),
@@ -82,6 +84,11 @@ const applyListingFilters = (filters?: ListingFilters) => {
   return params
 }
 
+const appendIfValue = (form: FormData, key: string, value: any) => {
+  if (value === undefined || value === null || value === '') return
+  form.append(key, value as any)
+}
+
 export const getPopularListings = async (filters?: ListingFilters): Promise<Listing[]> => {
   const params = applyListingFilters(filters)
   const { data } = await apiClient.get('/listings', { params })
@@ -125,45 +132,47 @@ export const getLandlordListings = async (): Promise<Listing[]> => {
   return list.map(mapListing)
 }
 
-export const createListing = async (payload: Partial<Listing>): Promise<Listing> => {
-  const body = {
-    title: payload.title,
-    pricePerNight: payload.pricePerNight,
-    category: payload.category,
-    address: payload.address,
-    city: payload.city,
-    country: payload.country,
-    description: payload.description,
-    beds: payload.beds,
-    baths: payload.baths,
-    images: payload.images,
-    facilities: payload.facilities,
-    lat: payload.lat,
-    lng: payload.lng,
-    instantBook: payload.instantBook,
-  }
-  const { data } = await apiClient.post('/landlord/listings', body)
+export const createListing = async (payload: any): Promise<Listing> => {
+  const form = new FormData()
+  appendIfValue(form, 'title', payload.title)
+  appendIfValue(form, 'pricePerNight', payload.pricePerNight)
+  appendIfValue(form, 'category', payload.category)
+  appendIfValue(form, 'address', payload.address)
+  appendIfValue(form, 'city', payload.city)
+  appendIfValue(form, 'country', payload.country)
+  appendIfValue(form, 'description', payload.description)
+  appendIfValue(form, 'beds', payload.beds)
+  appendIfValue(form, 'baths', payload.baths)
+  appendIfValue(form, 'lat', payload.lat)
+  appendIfValue(form, 'lng', payload.lng)
+  appendIfValue(form, 'instantBook', payload.instantBook)
+  payload.facilities?.forEach((f: any) => form.append('facilities[]', f))
+  payload.imagesFiles?.forEach((file: File) => form.append('images[]', file))
+
+  const { data } = await apiClient.post('/landlord/listings', form)
   return mapListing(data.data ?? data)
 }
 
-export const updateListing = async (id: string, payload: Partial<Listing>): Promise<Listing> => {
-  const body = {
-    title: payload.title,
-    pricePerNight: payload.pricePerNight,
-    category: payload.category,
-    address: payload.address,
-    city: payload.city,
-    country: payload.country,
-    description: payload.description,
-    beds: payload.beds,
-    baths: payload.baths,
-    images: payload.images,
-    facilities: payload.facilities,
-    lat: payload.lat,
-    lng: payload.lng,
-    instantBook: payload.instantBook,
-  }
-  const { data } = await apiClient.put(`/landlord/listings/${id}`, body)
+export const updateListing = async (id: string, payload: any): Promise<Listing> => {
+  const form = new FormData()
+  if (payload.title !== undefined) form.append('title', payload.title)
+  if (payload.pricePerNight !== undefined) form.append('pricePerNight', payload.pricePerNight)
+  if (payload.category !== undefined) form.append('category', payload.category)
+  if (payload.address !== undefined) form.append('address', payload.address)
+  if (payload.city !== undefined) form.append('city', payload.city)
+  if (payload.country !== undefined) form.append('country', payload.country)
+  if (payload.description !== undefined) form.append('description', payload.description)
+  if (payload.beds !== undefined) form.append('beds', payload.beds)
+  if (payload.baths !== undefined) form.append('baths', payload.baths)
+  if (payload.lat !== undefined) form.append('lat', payload.lat)
+  if (payload.lng !== undefined) form.append('lng', payload.lng)
+  if (payload.instantBook !== undefined) form.append('instantBook', payload.instantBook)
+  payload.facilities?.forEach((f: any) => form.append('facilities[]', f))
+  payload.keepImageUrls?.forEach((url: string) => form.append('keepImageUrls[]', url))
+  payload.removeImageUrls?.forEach((url: string) => form.append('removeImageUrls[]', url))
+  payload.imagesFiles?.forEach((file: File) => form.append('images[]', file))
+
+  const { data } = await apiClient.post(`/landlord/listings/${id}?_method=PUT`, form)
   return mapListing(data.data ?? data)
 }
 

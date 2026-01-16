@@ -70,14 +70,20 @@ export const useAuthStore = defineStore('auth', {
       }
       this.initialized = true
     },
-    async register(payload: { name: string; email: string; password: string; role?: Role }) {
+    async register(payload: { name: string; email: string; password: string; passwordConfirmation?: string; role?: Role }) {
       if (this.isMockMode) {
         this.loginAs(payload.role ?? 'tenant')
         return
       }
       this.loading = true
       try {
-        const { data } = await apiClient.post('/auth/register', payload)
+        const { data } = await apiClient.post('/auth/register', {
+          name: payload.name,
+          email: payload.email,
+          password: payload.password,
+          password_confirmation: payload.passwordConfirmation ?? payload.password,
+          role: payload.role ?? 'tenant',
+        })
         this.setSession(data.user, data.token)
       } finally {
         this.loading = false

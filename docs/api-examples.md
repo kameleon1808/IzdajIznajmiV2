@@ -18,6 +18,33 @@ curl -X POST http://localhost:8000/api/auth/login \
 curl http://localhost:8000/api/listings?category=villa&priceMin=100&priceMax=300
 ```
 
+### Create listing with images (Landlord)
+```bash
+curl -X POST http://localhost:8000/api/landlord/listings \
+  -H "Authorization: Bearer <TOKEN>" \
+  -F "title=New Stay" \
+  -F "pricePerNight=220" \
+  -F "category=villa" \
+  -F "city=Split" \
+  -F "country=Croatia" \
+  -F "address=Jadranska 12" \
+  -F "beds=3" \
+  -F "baths=2" \
+  -F "description=Beautiful place by the sea with pool and terrace" \
+  -F "facilities[]=Pool" \
+  -F "facilities[]=Wi-Fi" \
+  -F "images[]=@/path/to/photo1.jpg" \
+  -F "images[]=@/path/to/photo2.jpg"
+```
+
+### Update listing images (keep + add)
+```bash
+curl -X POST http://localhost:8000/api/landlord/listings/1?_method=PUT \
+  -H "Authorization: Bearer <TOKEN>" \
+  -F "keepImageUrls[]=http://localhost:8000/storage/listings/1/photo1.jpg" \
+  -F "images[]=@/path/to/new-photo.jpg"
+```
+
 ## Create Booking Request (Tenant)
 ```bash
 curl -X POST http://localhost:8000/api/booking-requests \

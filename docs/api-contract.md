@@ -12,10 +12,20 @@ Base URL: `/api`
   - Auth: landlord/admin.
   - Response: `Listing[]` filtered by `ownerId`.
 - `POST /api/landlord/listings`
-  - Body: `Omit<Listing,'id'|'isFavorite'|'reviewsCount'|'rating'|'coverImage'|'createdAt'> & { images: string[] }`
-  - Response: created `Listing`.
+  - Content-Type: `multipart/form-data`
+  - Fields: `title, pricePerNight, category, city, country, address, description, beds, baths, lat?, lng?, instantBook?`
+  - Arrays: `facilities[]` (names/ids), `images[]` (FILE uploads, image/*, max ~5MB, up to 10)
+  - Behavior: stores files to `/storage/listings/{id}/...`, returns URLs; `coverImage` = first uploaded.
+  - Response: created `Listing` with `images` (URLs).
 - `PUT /api/landlord/listings/:id`
-  - Body: partial `Listing` fields (title, pricePerNight, category, address, city, country, description, beds, baths, images, facilities, lat, lng).
+  - Content-Type: `multipart/form-data`
+  - Fields: partial Listing fields as above.
+  - Arrays:
+    - `keepImageUrls[]` (string URLs to keep),
+    - `removeImageUrls[]` (optional, URLs to delete),
+    - `images[]` (new FILE uploads),
+    - `facilities[]` (names/ids).
+  - Behavior: final image set = keepImageUrls + newly uploaded; removed files are deleted from disk. `coverImage` is first remaining.
   - Response: updated `Listing`.
 
 ## Booking Requests (Inquiry flow)

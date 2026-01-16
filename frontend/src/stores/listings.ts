@@ -9,6 +9,7 @@ import {
   searchListings,
   updateListing,
 } from '../services'
+import { useAuthStore } from './auth'
 import type { Listing, ListingFilters } from '../types'
 
 const defaultFilters: ListingFilters = {
@@ -46,6 +47,9 @@ type ListingFormInput = {
   lng?: number
   facilities?: string[]
   ownerId: string | number
+  imagesFiles?: File[]
+  keepImageUrls?: string[]
+  removeImageUrls?: string[]
 }
 
 export const useListingsStore = defineStore('listings', {
@@ -147,11 +151,12 @@ export const useListingsStore = defineStore('listings', {
         this.loading = false
       }
     },
-    async fetchLandlordListings(ownerId: string | number) {
+    async fetchLandlordListings(ownerId?: string | number) {
       this.landlordLoading = true
       this.landlordError = ''
       try {
-        const data = await getLandlordListings(ownerId)
+        const auth = useAuthStore()
+        const data = await getLandlordListings(ownerId ?? auth.user.id)
         this.landlordListings = this.syncFavorites(data)
       } catch (error) {
         this.landlordError = (error as Error).message || 'Failed to load landlord listings.'
@@ -164,7 +169,11 @@ export const useListingsStore = defineStore('listings', {
       this.landlordError = ''
       try {
         const created = await createListing(payload)
-        this.landlordListings = [created, ...this.landlordListings]
+        if (isMockApi) {
+          this.landlordListings = [created, ...this.landlordListings]
+        } else {
+          await this.fetchLandlordListings()
+        }
         return created
       } catch (error) {
         this.landlordError = (error as Error).message || 'Failed to create listing.'
@@ -175,8 +184,12 @@ export const useListingsStore = defineStore('listings', {
       this.landlordError = ''
       try {
         const updated = await updateListing(id, payload)
-        if (updated) {
-          this.landlordListings = this.landlordListings.map((item) => (item.id === id ? updated : item))
+        if (isMockApi) {
+          if (updated) {
+            this.landlordListings = this.landlordListings.map((item) => (item.id === id ? updated : item))
+          }
+        } else {
+          await this.fetchLandlordListings()
         }
         return updated
       } catch (error) {
