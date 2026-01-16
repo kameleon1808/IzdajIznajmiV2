@@ -1,0 +1,61 @@
+<script setup lang="ts">
+import { computed, onMounted, ref } from 'vue'
+import { Plus, Search as SearchIcon } from 'lucide-vue-next'
+import Input from '../components/ui/Input.vue'
+import { useChatStore } from '../stores/chat'
+import { useRouter } from 'vue-router'
+
+const chatStore = useChatStore()
+const router = useRouter()
+const query = ref('')
+
+onMounted(() => {
+  chatStore.fetchConversations()
+})
+
+const items = computed(() =>
+  chatStore.conversations.filter((c) => c.userName.toLowerCase().includes(query.value.toLowerCase())),
+)
+</script>
+
+<template>
+  <div class="space-y-4">
+    <Input v-model="query" placeholder="Search messages" :left-icon="SearchIcon" />
+
+    <div class="space-y-3">
+      <div
+        v-for="conv in items"
+        :key="conv.id"
+        class="flex items-center gap-3 rounded-2xl bg-white p-3 shadow-soft border border-white/60"
+        @click="router.push(`/messages/${conv.id}`)"
+      >
+        <div class="relative">
+          <img :src="conv.avatarUrl" alt="avatar" class="h-12 w-12 rounded-2xl object-cover" />
+          <span
+            v-if="conv.online"
+            class="absolute -right-1 -top-1 h-3 w-3 rounded-full border-2 border-white bg-primary"
+          ></span>
+        </div>
+        <div class="flex-1">
+          <div class="flex items-center justify-between">
+            <p class="font-semibold text-slate-900">{{ conv.userName }}</p>
+            <span class="text-xs text-muted">{{ conv.time }}</span>
+          </div>
+          <div class="flex items-center justify-between">
+            <p class="truncate text-sm text-muted">{{ conv.lastMessage }}</p>
+            <span v-if="conv.unreadCount" class="rounded-full bg-primary px-2 py-0.5 text-xs font-semibold text-white">
+              {{ conv.unreadCount }}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <button
+      class="fixed bottom-24 right-6 rounded-full bg-primary p-4 text-white shadow-card"
+      aria-label="new message"
+    >
+      <Plus class="h-5 w-5" />
+    </button>
+  </div>
+</template>
