@@ -2,36 +2,46 @@ import { apiClient } from './apiClient'
 import type { BookingRequest, Conversation, Listing, ListingFilters, Message } from '../types'
 import { useAuthStore } from '../stores/auth'
 
-const mapListing = (data: any): Listing => ({
-  id: String(data.id),
-  title: data.title,
-  address: data.address ?? '',
-  city: data.city,
-  country: data.country,
-  lat: data.lat != null ? Number(data.lat) : undefined,
-  lng: data.lng != null ? Number(data.lng) : undefined,
-  pricePerNight: Number(data.pricePerNight ?? data.price_per_night ?? data.price ?? 0),
-  rating: Number(data.rating ?? 0),
-  reviewsCount: Number(data.reviewsCount ?? data.reviews_count ?? 0),
-  coverImage: data.coverImage ?? data.cover_image ?? (Array.isArray(data.images) && data.images[0]?.url) ?? '',
-  images: (() => {
-    const raw = data.images ?? data.listing_images ?? []
-    const arr = Array.isArray(raw) ? raw : Object.values(raw)
-    return arr.map((img: any) => (typeof img === 'string' ? img : img.url)).filter(Boolean)
-  })(),
-  description: data.description ?? '',
-  beds: Number(data.beds ?? 0),
-  baths: Number(data.baths ?? 0),
-  category: data.category,
-  isFavorite: Boolean(data.isFavorite ?? false),
-  instantBook: Boolean(data.instantBook ?? data.instant_book ?? false),
-  facilities:
-    data.facilities?.map((f: any) => (typeof f === 'string' ? f : f.name)) ??
-    data.facilities ??
-    [],
-  ownerId: data.ownerId ?? data.owner_id,
-  createdAt: data.createdAt ?? data.created_at,
-})
+const mapListing = (data: any): Listing => {
+  const detailed = data.imagesDetailed ?? data.images ?? data.listing_images ?? []
+  const detailedArr = Array.isArray(detailed) ? detailed : Object.values(detailed)
+  const imagesDetailed = detailedArr.map((img: any) => ({
+    url: typeof img === 'string' ? img : img.url,
+    sortOrder: Number(img.sortOrder ?? img.sort_order ?? 0),
+    isCover: Boolean(img.isCover ?? img.is_cover ?? false),
+  }))
+  imagesDetailed.sort((a, b) => a.sortOrder - b.sortOrder)
+  const imagesSimple = imagesDetailed.map((i) => i.url).filter(Boolean)
+  const coverFromDetailed = imagesDetailed.find((i) => i.isCover)?.url ?? imagesSimple[0] ?? ''
+
+  return {
+    id: String(data.id),
+    title: data.title,
+    address: data.address ?? '',
+    city: data.city,
+    country: data.country,
+    lat: data.lat != null ? Number(data.lat) : undefined,
+    lng: data.lng != null ? Number(data.lng) : undefined,
+    pricePerNight: Number(data.pricePerNight ?? data.price_per_night ?? data.price ?? 0),
+    rating: Number(data.rating ?? 0),
+    reviewsCount: Number(data.reviewsCount ?? data.reviews_count ?? 0),
+    coverImage: data.coverImage ?? data.cover_image ?? coverFromDetailed ?? '',
+    images: imagesSimple,
+    imagesDetailed,
+    description: data.description ?? '',
+    beds: Number(data.beds ?? 0),
+    baths: Number(data.baths ?? 0),
+    category: data.category,
+    isFavorite: Boolean(data.isFavorite ?? false),
+    instantBook: Boolean(data.instantBook ?? data.instant_book ?? false),
+    facilities:
+      data.facilities?.map((f: any) => (typeof f === 'string' ? f : f.name)) ??
+      data.facilities ??
+      [],
+    ownerId: data.ownerId ?? data.owner_id,
+    createdAt: data.createdAt ?? data.created_at,
+  }
+}
 
 const mapBookingRequest = (data: any): BookingRequest => ({
   id: String(data.id),
@@ -89,21 +99,30 @@ const appendIfValue = (form: FormData, key: string, value: any) => {
   form.append(key, value as any)
 }
 
-export const getPopularListings = async (filters?: ListingFilters): Promise<Listing[]> => {
-  const params = applyListingFilters(filters)
-  const { data } = await apiClient.get('/listings', { params })
-  const list = (data.data ?? data) as any[]
-  return list.map(mapListing)
+const mapPaginated = (payload: any) => {
+  const data = payload.data ?? payload
+  if (Array.isArray(data)) {
+    return { items: data.map(mapListing), meta: null }
+  }
+  return {
+    items: (payload.data ?? []).map(mapListing),
+    meta: payload.meta ?? null,
+  }
 }
 
-export const getRecommendedListings = async (filters?: ListingFilters): Promise<Listing[]> =>
-  getPopularListings(filters)
-
-export const searchListings = async (query: string, filters?: ListingFilters): Promise<Listing[]> => {
-  const params = { ...applyListingFilters(filters), location: query || filters?.location }
+export const getPopularListings = async (filters?: ListingFilters, page = 1, perPage = 10) => {
+  const params = { ...applyListingFilters(filters), page, perPage }
   const { data } = await apiClient.get('/listings', { params })
-  const list = (data.data ?? data) as any[]
-  return list.map(mapListing)
+  return mapPaginated(data)
+}
+
+export const getRecommendedListings = async (filters?: ListingFilters, page = 1, perPage = 10) =>
+  getPopularListings(filters, page, perPage)
+
+export const searchListings = async (query: string, filters?: ListingFilters, page = 1, perPage = 10) => {
+  const params = { ...applyListingFilters(filters), location: query || filters?.location, page, perPage }
+  const { data } = await apiClient.get('/listings', { params })
+  return mapPaginated(data)
 }
 
 export const getListingById = async (id: string): Promise<Listing | null> => {
@@ -148,6 +167,7 @@ export const createListing = async (payload: any): Promise<Listing> => {
   appendIfValue(form, 'instantBook', payload.instantBook)
   payload.facilities?.forEach((f: any) => form.append('facilities[]', f))
   payload.imagesFiles?.forEach((file: File) => form.append('images[]', file))
+  if (payload.coverIndex !== undefined) form.append('coverIndex', payload.coverIndex)
 
   const { data } = await apiClient.post('/landlord/listings', form)
   return mapListing(data.data ?? data)
@@ -168,7 +188,9 @@ export const updateListing = async (id: string, payload: any): Promise<Listing> 
   if (payload.lng !== undefined) form.append('lng', payload.lng)
   if (payload.instantBook !== undefined) form.append('instantBook', payload.instantBook)
   payload.facilities?.forEach((f: any) => form.append('facilities[]', f))
-  payload.keepImageUrls?.forEach((url: string) => form.append('keepImageUrls[]', url))
+  if (payload.keepImages?.length) {
+    form.append('keepImages', JSON.stringify(payload.keepImages))
+  }
   payload.removeImageUrls?.forEach((url: string) => form.append('removeImageUrls[]', url))
   payload.imagesFiles?.forEach((file: File) => form.append('images[]', file))
 

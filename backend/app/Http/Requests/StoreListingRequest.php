@@ -25,6 +25,7 @@ class StoreListingRequest extends FormRequest
             'baths' => ['required', 'integer', 'min:1', 'max:50'],
             'images' => ['nullable', 'array', 'max:10'],
             'images.*' => ['image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+            'coverIndex' => ['sometimes', 'integer', 'min:0'],
             'facilities' => ['nullable', 'array'],
             'facilities.*' => ['string'],
             'lat' => ['nullable', 'numeric', 'between:-90,90'],

@@ -41,7 +41,7 @@ curl -X POST http://localhost:8000/api/landlord/listings \
 ```bash
 curl -X POST http://localhost:8000/api/landlord/listings/1?_method=PUT \
   -H "Authorization: Bearer <TOKEN>" \
-  -F "keepImageUrls[]=http://localhost:8000/storage/listings/1/photo1.jpg" \
+  -F "keepImages=[{\"url\":\"http://localhost:8000/storage/listings/1/photo1.jpg\",\"sortOrder\":0,\"isCover\":true}]" \
   -F "images[]=@/path/to/new-photo.jpg"
 ```
 

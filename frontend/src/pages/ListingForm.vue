@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ImagePlus, MapPin } from 'lucide-vue-next'
+import { ImagePlus, MapPin, MoveLeft, MoveRight, Star } from 'lucide-vue-next'
 import Badge from '../components/ui/Badge.vue'
 import Button from '../components/ui/Button.vue'
 import EmptyState from '../components/ui/EmptyState.vue'
@@ -11,6 +11,17 @@ import { useAuthStore } from '../stores/auth'
 import { useListingsStore } from '../stores/listings'
 import { getListingById, isMockApi } from '../services'
 import type { Listing } from '../types'
+
+type GalleryItem = {
+  key: string
+  url?: string
+  preview?: string
+  file?: File
+  isNew: boolean
+  isCover: boolean
+  sortOrder: number
+  keep: boolean
+}
 
 const router = useRouter()
 const route = useRoute()
@@ -32,13 +43,12 @@ const form = reactive({
   description: '',
   beds: 1,
   baths: 1,
-  images: [] as string[],
   facilities: [] as string[],
   lat: '',
   lng: '',
 })
-const existingImages = ref<string[]>([])
-const newUploads = ref<{ file: File; preview: string }[]>([])
+
+const gallery = ref<GalleryItem[]>([])
 
 const loadListing = async () => {
   if (!isEdit.value) return
@@ -47,7 +57,7 @@ const loadListing = async () => {
   try {
     const data = await getListingById(route.params.id as string)
     if (data) {
-      newUploads.value = []
+      gallery.value = []
       form.title = data.title
       form.pricePerNight = data.pricePerNight
       form.category = data.category
@@ -57,7 +67,18 @@ const loadListing = async () => {
       form.description = data.description || ''
       form.beds = data.beds
       form.baths = data.baths
-      existingImages.value = data.images || (data.coverImage ? [data.coverImage] : [])
+      const detailed: { url: string; sortOrder: number; isCover?: boolean }[] = data.imagesDetailed?.length
+        ? data.imagesDetailed
+        : (data.images || []).map((url: string, idx: number) => ({ url, sortOrder: idx, isCover: idx === 0 }))
+      const sorted = [...detailed].sort((a, b) => a.sortOrder - b.sortOrder)
+      gallery.value = sorted.map((img, idx) => ({
+        key: `existing-${idx}-${img.url}`,
+        url: img.url,
+        isNew: false,
+        isCover: img.isCover ?? idx === 0,
+        sortOrder: idx,
+        keep: true,
+      }))
       form.facilities = data.facilities || []
       form.lat = data.lat?.toString() || ''
       form.lng = data.lng?.toString() || ''
@@ -87,39 +108,81 @@ const onFilesChange = (event: Event) => {
   if (!files) return
   Array.from(files).forEach((file) => {
     const preview = URL.createObjectURL(file)
-    newUploads.value.push({ file, preview })
+    gallery.value.push({
+      key: `new-${preview}`,
+      preview,
+      file,
+      isNew: true,
+      isCover: gallery.value.every((g) => !g.isCover),
+      sortOrder: gallery.value.length,
+      keep: true,
+    })
   })
 }
 
-const removeExisting = (url: string) => {
-  existingImages.value = existingImages.value.filter((img) => img !== url)
+const activeGallery = computed<GalleryItem[]>(() => gallery.value.filter((g) => g.keep))
+
+const setCover = (key: string) => {
+  gallery.value = gallery.value.map((item) => ({ ...item, isCover: item.key === key ? true : false }))
 }
 
-const removeUpload = (preview: string) => {
-  newUploads.value = newUploads.value.filter((item) => item.preview !== preview)
+const removeItem = (key: string) => {
+  gallery.value = gallery.value.map((item) =>
+    item.key === key ? { ...item, keep: false, isCover: false } : item,
+  )
+  if (!gallery.value.some((g) => g.isCover && g.keep) && gallery.value.some((g) => g.keep)) {
+    const first = gallery.value.find((g) => g.keep)
+    if (first) first.isCover = true
+  }
 }
 
-const totalImages = computed(() => existingImages.value.length + newUploads.value.length)
+const move = (key: string, direction: -1 | 1) => {
+  const items: GalleryItem[] = [...activeGallery.value].sort((a, b) => a.sortOrder - b.sortOrder)
+  const index = items.findIndex((i) => i.key === key)
+  if (index === -1) return
+  const swapIndex = index + direction
+  if (swapIndex < 0 || swapIndex >= items.length) return
+  const temp = items[index] as GalleryItem
+  items[index] = items[swapIndex] as GalleryItem
+  items[swapIndex] = temp
+  items.forEach((item, idx) => (item.sortOrder = idx))
+  gallery.value = gallery.value.map((g) => {
+    const updated = items.find((i) => i.key === g.key)
+    return updated ? updated : g
+  })
+}
+
+const totalImages = computed(() => activeGallery.value.length)
 
 const save = async () => {
   if (!isValid.value) return
   submitting.value = true
   error.value = ''
+  const ordered = [...activeGallery.value].sort((a, b) => a.sortOrder - b.sortOrder)
+  ordered.forEach((item, idx) => (item.sortOrder = idx))
   try {
     const payload: any = {
       ...form,
       lat: form.lat ? Number(form.lat) : undefined,
       lng: form.lng ? Number(form.lng) : undefined,
       ownerId: auth.user.id,
-      keepImageUrls: existingImages.value,
-      imagesFiles: newUploads.value.map((u) => u.file),
+      keepImages: ordered
+        .filter((g) => !g.isNew)
+        .map((g) => ({
+          url: g.url,
+          sortOrder: g.sortOrder,
+          isCover: g.isCover,
+        })),
+      removeImageUrls: gallery.value.filter((g) => !g.keep && !g.isNew && g.url).map((g) => g.url),
+      imagesFiles: ordered.filter((g) => g.isNew && g.file).map((g) => g.file),
     }
     if (isMockApi) {
-      payload.images = existingImages.value.concat(newUploads.value.map((u) => u.preview))
+      payload.images = ordered.map((g) => g.url ?? g.preview ?? '')
     }
     if (isEdit.value) {
       await listingsStore.updateListingAction(route.params.id as string, payload)
     } else {
+      payload.coverIndex = ordered.findIndex((g) => g.isCover)
       await listingsStore.createListing(payload)
     }
     router.push('/landlord/listings')
@@ -269,32 +332,50 @@ const save = async () => {
             <input type="file" multiple class="hidden" accept="image/*" @change="onFilesChange" />
           </label>
           <div
-            v-for="img in existingImages"
-            :key="img"
-            class="relative h-28 w-28 overflow-hidden rounded-2xl border border-white/70"
+            v-for="(item, idx) in activeGallery"
+            :key="item.key"
+            class="relative h-32 w-32 overflow-hidden rounded-2xl border border-white/70 bg-white shadow-soft"
           >
-            <img :src="img" class="h-full w-full object-cover" />
-            <button
-              class="absolute right-1 top-1 rounded-full bg-white/90 px-2 py-1 text-xs font-semibold text-red-500 shadow-soft"
-              @click="removeExisting(img)"
-              type="button"
-            >
-              Remove
-            </button>
-          </div>
-          <div
-            v-for="item in newUploads"
-            :key="item.preview"
-            class="relative h-28 w-28 overflow-hidden rounded-2xl border border-white/70"
-          >
-            <img :src="item.preview" class="h-full w-full object-cover" />
-            <button
-              class="absolute right-1 top-1 rounded-full bg-white/90 px-2 py-1 text-xs font-semibold text-red-500 shadow-soft"
-              @click="removeUpload(item.preview)"
-              type="button"
-            >
-              Remove
-            </button>
+            <img :src="item.url || item.preview" class="h-full w-full object-cover" loading="lazy" />
+            <div class="absolute inset-x-1 top-1 flex items-center gap-1 text-[11px] font-semibold">
+              <span
+                class="rounded-full px-2 py-1"
+                :class="item.isCover ? 'bg-primary text-white' : 'bg-black/50 text-white'"
+              >
+                {{ item.isCover ? 'Cover' : 'Image' }}
+              </span>
+              <span class="ml-auto rounded-full bg-white/80 px-2 py-1 text-slate-800 shadow-soft">#{{ idx + 1 }}</span>
+            </div>
+            <div class="absolute bottom-1 left-1 right-1 flex items-center gap-1">
+              <button
+                class="rounded-full bg-white/90 p-2 text-primary shadow-soft"
+                type="button"
+                @click="move(item.key, -1)"
+              >
+                <MoveLeft class="h-4 w-4" />
+              </button>
+              <button
+                class="rounded-full bg-white/90 p-2 text-primary shadow-soft"
+                type="button"
+                @click="move(item.key, 1)"
+              >
+                <MoveRight class="h-4 w-4" />
+              </button>
+              <button
+                class="flex-1 rounded-full bg-primary/90 px-3 py-2 text-center text-xs font-semibold text-white shadow-soft"
+                type="button"
+                @click="setCover(item.key)"
+              >
+                <Star class="mr-1 inline h-4 w-4" /> Cover
+              </button>
+              <button
+                class="rounded-full bg-white/90 px-2 py-1 text-xs font-semibold text-red-500 shadow-soft"
+                @click="removeItem(item.key)"
+                type="button"
+              >
+                Remove
+              </button>
+            </div>
           </div>
         </div>
       </div>

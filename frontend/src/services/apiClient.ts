@@ -18,7 +18,6 @@ export const apiClient = axios.create({
   baseURL,
   timeout: 10000,
   headers: {
-    'Content-Type': 'application/json',
     Accept: 'application/json',
   },
   withCredentials: false,
@@ -28,6 +27,14 @@ apiClient.interceptors.request.use((config) => {
   const token = getToken()
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
+  }
+  if (config.data instanceof FormData) {
+    // Let the browser set the boundary for multipart
+    if (config.headers) {
+      delete config.headers['Content-Type']
+    }
+  } else {
+    config.headers['Content-Type'] = config.headers['Content-Type'] ?? 'application/json'
   }
   return config
 })

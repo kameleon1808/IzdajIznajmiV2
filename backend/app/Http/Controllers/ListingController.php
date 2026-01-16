@@ -11,7 +11,12 @@ class ListingController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $query = Listing::query()->with(['images', 'facilities']);
+        $query = Listing::query()->with([
+            'images' => function ($q) {
+                $q->orderBy('sort_order');
+            },
+            'facilities',
+        ]);
 
         if (($category = $request->string('category')->toString()) && $category !== 'all') {
             $query->where('category', $category);
@@ -51,9 +56,11 @@ class ListingController extends Controller
             });
         }
 
-        $listings = $query->orderByDesc('created_at')->get();
+        $perPage = (int) $request->input('perPage', 10);
+        $perPage = min(max($perPage, 1), 50);
+        $listings = $query->orderByDesc('created_at')->paginate($perPage);
 
-        return response()->json(ListingResource::collection($listings));
+        return ListingResource::collection($listings)->response();
     }
 
     public function show(Listing $listing): JsonResponse

@@ -48,7 +48,7 @@ type ListingFormInput = {
   facilities?: string[]
   ownerId: string | number
   imagesFiles?: File[]
-  keepImageUrls?: string[]
+  keepImages?: { url: string; sortOrder: number; isCover: boolean }[]
   removeImageUrls?: string[]
 }
 
@@ -61,8 +61,11 @@ export const useListingsStore = defineStore('listings', {
     landlordListings: [] as Listing[],
     filters: { ...defaultFilters },
     searchResults: [] as Listing[],
+    searchMeta: null as any,
+    searchPage: 1,
     recentSearches: ['Bali', 'Barcelona', 'Lisbon'],
     loading: false,
+    loadingMore: false,
     favoritesLoading: false,
     landlordLoading: false,
     error: '',
@@ -93,7 +96,8 @@ export const useListingsStore = defineStore('listings', {
       this.loading = true
       this.error = ''
       try {
-        const list = await getPopularListings()
+        const resp = await getPopularListings(this.filters, 1, 10)
+        const list = Array.isArray(resp) ? resp : resp.items
         this.popular = this.syncFavorites(list)
       } catch (error) {
         this.error = (error as Error).message || 'Failed to load popular listings.'
@@ -106,7 +110,8 @@ export const useListingsStore = defineStore('listings', {
       this.loading = true
       this.error = ''
       try {
-        const list = await getRecommendedListings(this.filters)
+        const resp = await getRecommendedListings(this.filters, 1, 10)
+        const list = Array.isArray(resp) ? resp : resp.items
         this.recommended = this.syncFavorites(list)
       } catch (error) {
         this.error = (error as Error).message || 'Failed to load listings.'
@@ -138,9 +143,12 @@ export const useListingsStore = defineStore('listings', {
     async search(query: string) {
       this.loading = true
       this.error = ''
+      this.searchPage = 1
       try {
-        const results = await searchListings(query, this.filters)
-        this.searchResults = this.syncFavorites(results)
+        const resp = await searchListings(query, this.filters, this.searchPage, 10)
+        const list = Array.isArray(resp) ? resp : resp.items
+        this.searchMeta = Array.isArray(resp) ? null : resp.meta
+        this.searchResults = this.syncFavorites(list)
         if (query.trim() && !this.recentSearches.includes(query)) {
           this.recentSearches = [query, ...this.recentSearches].slice(0, 5)
         }
@@ -149,6 +157,23 @@ export const useListingsStore = defineStore('listings', {
         this.searchResults = []
       } finally {
         this.loading = false
+      }
+    },
+    async loadMoreSearch(query: string) {
+      if (this.loadingMore) return
+      if (this.searchMeta && this.searchMeta.current_page >= this.searchMeta.last_page) return
+      this.loadingMore = true
+      try {
+        const nextPage = (this.searchMeta?.current_page ?? this.searchPage) + 1
+        const resp = await searchListings(query, this.filters, nextPage, 10)
+        const list = Array.isArray(resp) ? resp : resp.items
+        this.searchMeta = Array.isArray(resp) ? null : resp.meta
+        this.searchPage = nextPage
+        this.searchResults = this.syncFavorites([...this.searchResults, ...list])
+      } catch (error) {
+        this.error = (error as Error).message || 'Search failed.'
+      } finally {
+        this.loadingMore = false
       }
     },
     async fetchLandlordListings(ownerId?: string | number) {

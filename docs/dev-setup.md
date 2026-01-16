@@ -7,6 +7,7 @@
 - Auth: Sanctum Bearer token; demo korisnici iz seedera (email + `password`).
 - CORS: dozvoljen `http://localhost:5173` za SPA.
 - Za slike: postavite `APP_URL=http://localhost:8000` i pokrenite `php artisan storage:link` (potrebno za /storage URL-ove).
+- Image optimizacija (opciono, default uključeno): `IMAGE_OPTIMIZE=true`, `IMAGE_MAX_WIDTH=1600`, `IMAGE_WEBP_QUALITY=80`.
 
 ## Frontend (Vue 3 + Vite)
 - Lokacija: `/frontend`

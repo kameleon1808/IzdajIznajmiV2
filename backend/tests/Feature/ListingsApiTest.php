@@ -102,6 +102,7 @@ class ListingsApiTest extends TestCase
 
         $storagePath = str_replace('/storage/', '', parse_url($imageUrl, PHP_URL_PATH));
         Storage::disk('public')->assertExists($storagePath);
+        $this->assertEquals($imageUrl, $response->json('coverImage'));
     }
 
     public function test_landlord_can_update_images_keep_and_add(): void
@@ -155,6 +156,7 @@ class ListingsApiTest extends TestCase
 
         Storage::disk('public')->assertExists(str_replace('/storage/', '', parse_url($newUrl, PHP_URL_PATH)));
         Storage::disk('public')->assertExists($existingPath);
+        $this->assertEquals($existingUrl, $response->json('coverImage'));
     }
 
     public function test_update_removes_deleted_images(): void

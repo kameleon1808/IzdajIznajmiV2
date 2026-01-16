@@ -13,6 +13,7 @@ export interface Listing {
   reviewsCount: number
   coverImage: string
   images?: string[]
+  imagesDetailed?: { url: string; sortOrder: number; isCover: boolean }[]
   description?: string
   beds: number
   baths: number

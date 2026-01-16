@@ -11,6 +11,16 @@ class UpdateListingRequest extends FormRequest
         return true;
     }
 
+    protected function prepareForValidation(): void
+    {
+        if (is_string($this->keepImages)) {
+            $decoded = json_decode($this->keepImages, true);
+            if (is_array($decoded)) {
+                $this->merge(['keepImages' => $decoded]);
+            }
+        }
+    }
+
     public function rules(): array
     {
         return [
@@ -25,8 +35,10 @@ class UpdateListingRequest extends FormRequest
             'baths' => ['sometimes', 'integer', 'min:1', 'max:50'],
             'images' => ['sometimes', 'array', 'max:10'],
             'images.*' => ['image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
-            'keepImageUrls' => ['sometimes', 'array'],
-            'keepImageUrls.*' => ['string', 'max:2048'],
+            'keepImages' => ['sometimes', 'array'],
+            'keepImages.*.url' => ['required_with:keepImages', 'string', 'max:2048'],
+            'keepImages.*.sortOrder' => ['nullable', 'integer', 'min:0'],
+            'keepImages.*.isCover' => ['sometimes', 'boolean'],
             'removeImageUrls' => ['sometimes', 'array'],
             'removeImageUrls.*' => ['string', 'max:2048'],
             'facilities' => ['sometimes', 'array'],

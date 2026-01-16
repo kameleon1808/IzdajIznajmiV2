@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use Illuminate\Support\Collection;
 
 class ListingResource extends JsonResource
 {
@@ -26,7 +27,14 @@ class ListingResource extends JsonResource
             'rating' => (float) $this->rating,
             'reviewsCount' => $this->reviews_count,
             'coverImage' => $this->cover_image,
-            'images' => $this->whenLoaded('images', fn () => $this->images->pluck('url'), fn () => $this->images()->pluck('url')),
+            'images' => $this->imagesSimple(),
+            'imagesDetailed' => $this->whenLoaded('images', fn () => $this->images->map(function ($img) {
+                return [
+                    'url' => $img->url,
+                    'sortOrder' => $img->sort_order,
+                    'isCover' => (bool) $img->is_cover,
+                ];
+            })),
             'description' => $this->description,
             'beds' => $this->beds,
             'baths' => $this->baths,
@@ -37,5 +45,13 @@ class ListingResource extends JsonResource
             'ownerId' => $this->owner_id,
             'createdAt' => optional($this->created_at)->toISOString(),
         ];
+    }
+
+    private function imagesSimple(): Collection
+    {
+        if ($this->relationLoaded('images')) {
+            return $this->images->pluck('url');
+        }
+        return $this->images()->pluck('url');
     }
 }

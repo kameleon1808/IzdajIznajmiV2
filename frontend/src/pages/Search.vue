@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
+import { useDebounceFn } from '@vueuse/core'
 import { useRouter } from 'vue-router'
 import { Flame, History, MapPin, Search as SearchIcon, SlidersHorizontal } from 'lucide-vue-next'
 import ListingCardHorizontal from '../components/listing/ListingCardHorizontal.vue'
@@ -23,6 +24,8 @@ const localFilters = ref<ListingFilters>({
   priceRange: [...listingsStore.filters.priceRange] as [number, number],
   facilities: [...listingsStore.filters.facilities],
 })
+const currentQuery = ref('')
+const debouncedSearch = useDebounceFn(() => runSearch(), 300)
 
 onMounted(() => {
   listingsStore.fetchRecommended()
@@ -41,14 +44,22 @@ watch(filterOpen, (open) => {
 const results = computed(() => (searchQuery.value ? listingsStore.searchResults : listingsStore.filteredRecommended))
 const popular = computed(() => listingsStore.popular)
 const loading = computed(() => listingsStore.loading)
+const loadingMore = computed(() => listingsStore.loadingMore)
 const error = computed(() => listingsStore.error)
 
-const runSearch = () => listingsStore.search(searchQuery.value || '')
+const runSearch = () => {
+  currentQuery.value = searchQuery.value || ''
+  listingsStore.search(currentQuery.value)
+}
 const applyFilters = () => {
   listingsStore.setFilters(localFilters.value)
   filterOpen.value = false
   runSearch()
 }
+
+watch(searchQuery, () => {
+  debouncedSearch()
+})
 </script>
 
 <template>
@@ -117,6 +128,16 @@ const applyFilters = () => {
         subtitle="Try adjusting filters or search text"
         :icon="SearchIcon"
       />
+      <div class="flex justify-center">
+        <Button
+          v-if="listingsStore.searchMeta && listingsStore.searchMeta.current_page < listingsStore.searchMeta.last_page"
+          :loading="loadingMore"
+          variant="secondary"
+          @click="listingsStore.loadMoreSearch(currentQuery)"
+        >
+          Load more
+        </Button>
+      </div>
     </div>
   </div>
 
