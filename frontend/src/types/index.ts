@@ -3,18 +3,25 @@ export type ListingCategory = 'villa' | 'hotel' | 'apartment'
 export interface Listing {
   id: string
   title: string
+  address?: string
   city: string
   country: string
+  lat?: number
+  lng?: number
   pricePerNight: number
   rating: number
   reviewsCount: number
   coverImage: string
+  images?: string[]
+  description?: string
   beds: number
   baths: number
   category: ListingCategory
   isFavorite: boolean
   instantBook?: boolean
   facilities?: string[]
+  ownerId?: string | number
+  createdAt?: string
 }
 
 export interface Review {
@@ -36,6 +43,19 @@ export interface Booking {
   rating: number
   coverImage: string
   status: 'booked' | 'history'
+}
+
+export interface BookingRequest {
+  id: string
+  listingId: string
+  tenantId: string
+  landlordId: string
+  startDate?: string
+  endDate?: string
+  guests: number
+  message: string
+  status: 'pending' | 'accepted' | 'rejected' | 'cancelled'
+  createdAt: string
 }
 
 export interface Conversation {

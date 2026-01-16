@@ -7,6 +7,9 @@ import ModalSheet from '../components/ui/ModalSheet.vue'
 import Chip from '../components/ui/Chip.vue'
 import Input from '../components/ui/Input.vue'
 import Button from '../components/ui/Button.vue'
+import EmptyState from '../components/ui/EmptyState.vue'
+import ErrorBanner from '../components/ui/ErrorBanner.vue'
+import ListSkeleton from '../components/ui/ListSkeleton.vue'
 import { useListingsStore } from '../stores/listings'
 import type { ListingFilters } from '../types'
 
@@ -37,6 +40,8 @@ watch(filterOpen, (open) => {
 
 const results = computed(() => (searchQuery.value ? listingsStore.searchResults : listingsStore.filteredRecommended))
 const popular = computed(() => listingsStore.popular)
+const loading = computed(() => listingsStore.loading)
+const error = computed(() => listingsStore.error)
 
 const runSearch = () => listingsStore.search(searchQuery.value || '')
 const applyFilters = () => {
@@ -48,6 +53,7 @@ const applyFilters = () => {
 
 <template>
   <div class="space-y-5">
+    <ErrorBanner v-if="error" :message="error" />
     <Input
       v-model="searchQuery"
       class="w-full"
@@ -79,6 +85,7 @@ const applyFilters = () => {
       <button class="text-sm font-semibold text-primary" @click="router.push('/favorites')">See all</button>
     </div>
     <div class="grid grid-cols-1 gap-3">
+      <ListSkeleton v-if="loading && !popular.length" :count="2" />
       <ListingCardHorizontal
         v-for="item in popular"
         :key="item.id"
@@ -96,6 +103,7 @@ const applyFilters = () => {
       </div>
     </div>
     <div class="space-y-3">
+      <ListSkeleton v-if="loading && !results.length" :count="3" />
       <ListingCardHorizontal
         v-for="item in results"
         :key="item.id"
@@ -103,7 +111,12 @@ const applyFilters = () => {
         @toggle="listingsStore.toggleFavorite"
         @click="router.push(`/listing/${item.id}`)"
       />
-      <p v-if="!results.length" class="text-center text-muted">No results yet. Try another filter.</p>
+      <EmptyState
+        v-if="!loading && !results.length && !error"
+        title="No results yet"
+        subtitle="Try adjusting filters or search text"
+        :icon="SearchIcon"
+      />
     </div>
   </div>
 

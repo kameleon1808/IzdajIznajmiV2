@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { Plus, Search as SearchIcon } from 'lucide-vue-next'
+import EmptyState from '../components/ui/EmptyState.vue'
+import ErrorBanner from '../components/ui/ErrorBanner.vue'
 import Input from '../components/ui/Input.vue'
+import ListSkeleton from '../components/ui/ListSkeleton.vue'
 import { useChatStore } from '../stores/chat'
 import { useRouter } from 'vue-router'
 
@@ -16,13 +19,17 @@ onMounted(() => {
 const items = computed(() =>
   chatStore.conversations.filter((c) => c.userName.toLowerCase().includes(query.value.toLowerCase())),
 )
+const loading = computed(() => chatStore.loading)
+const error = computed(() => chatStore.error)
 </script>
 
 <template>
   <div class="space-y-4">
+    <ErrorBanner v-if="error" :message="error" />
     <Input v-model="query" placeholder="Search messages" :left-icon="SearchIcon" />
 
-    <div class="space-y-3">
+    <ListSkeleton v-if="loading" :count="3" />
+    <div v-else class="space-y-3">
       <div
         v-for="conv in items"
         :key="conv.id"
@@ -49,6 +56,12 @@ const items = computed(() =>
           </div>
         </div>
       </div>
+      <EmptyState
+        v-if="!items.length && !error"
+        title="No conversations"
+        subtitle="Start a chat with a host or tenant"
+        :icon="SearchIcon"
+      />
     </div>
 
     <button

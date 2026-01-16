@@ -2,6 +2,9 @@
 import { computed, onMounted, ref } from 'vue'
 import { Heart, Search as SearchIcon, SlidersHorizontal } from 'lucide-vue-next'
 import Chip from '../components/ui/Chip.vue'
+import EmptyState from '../components/ui/EmptyState.vue'
+import ErrorBanner from '../components/ui/ErrorBanner.vue'
+import ListSkeleton from '../components/ui/ListSkeleton.vue'
 import Input from '../components/ui/Input.vue'
 import { useListingsStore } from '../stores/listings'
 
@@ -22,10 +25,13 @@ const favorites = computed(() => {
     return matchCategory && matchQuery
   })
 })
+const loading = computed(() => listingsStore.favoritesLoading)
+const error = computed(() => listingsStore.error)
 </script>
 
 <template>
   <div class="space-y-4">
+    <ErrorBanner v-if="error" :message="error" />
     <Input
       v-model="query"
       placeholder="Search favorites"
@@ -40,7 +46,8 @@ const favorites = computed(() => {
       </Chip>
     </div>
 
-    <div class="grid grid-cols-2 gap-3">
+    <ListSkeleton v-if="loading" :count="4" />
+    <div v-else class="grid grid-cols-2 gap-3">
       <div
         v-for="item in favorites"
         :key="item.id"
@@ -65,6 +72,11 @@ const favorites = computed(() => {
       </div>
     </div>
 
-    <p v-if="!favorites.length" class="text-center text-muted">No favorites yet.</p>
+    <EmptyState
+      v-if="!favorites.length && !loading && !error"
+      title="No favorites yet"
+      subtitle="Tap the heart on a stay to save it"
+      :icon="Heart"
+    />
   </div>
 </template>

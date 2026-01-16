@@ -7,17 +7,23 @@ export const useBookingsStore = defineStore('bookings', {
     booked: [] as Booking[],
     history: [] as Booking[],
     loading: false,
+    error: '',
   }),
   actions: {
     async fetchBookings() {
       this.loading = true
-      const [booked, history] = await Promise.all([
-        getBookings('booked'),
-        getBookings('history'),
-      ])
-      this.booked = booked
-      this.history = history
-      this.loading = false
+      this.error = ''
+      try {
+        const [booked, history] = await Promise.all([getBookings('booked'), getBookings('history')])
+        this.booked = booked
+        this.history = history
+      } catch (error) {
+        this.error = (error as Error).message || 'Failed to load bookings.'
+        this.booked = []
+        this.history = []
+      } finally {
+        this.loading = false
+      }
     },
   },
 })

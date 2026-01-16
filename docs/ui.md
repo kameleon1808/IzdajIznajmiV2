@@ -30,11 +30,15 @@
 - `/settings/personal` Personal Info
 - `/settings/legal` Legal & Policies
 - `/settings/language` Language selector
+- `/landlord/listings` My Listings (landlord)
+- `/landlord/listings/new` Create Listing
+- `/landlord/listings/:id/edit` Edit Listing
 
 ## Mock API Shapes
-- `Listing`: `{ id, title, city, country, pricePerNight, rating, reviewsCount, coverImage, beds, baths, category ('villa'|'hotel'|'apartment'), isFavorite, instantBook?, facilities? }`
+- `Listing`: `{ id, title, address?, city, country, lat?, lng?, pricePerNight, rating, reviewsCount, coverImage, images?, description?, beds, baths, category ('villa'|'hotel'|'apartment'), isFavorite, instantBook?, facilities?, ownerId?, createdAt? }`
 - `Review`: `{ id, userName, avatarUrl, rating, text, date }`
 - `Booking`: `{ id, listingId, listingTitle, datesRange, guestsText, pricePerNight, rating, coverImage, status ('booked'|'history') }`
+- `BookingRequest`: `{ id, listingId, tenantId, landlordId, startDate?, endDate?, guests, message, status ('pending'|'accepted'|'rejected'|'cancelled'), createdAt }`
 - `Conversation`: `{ id, userName, avatarUrl, lastMessage, time, unreadCount, online }`
 - `Message`: `{ id, conversationId, from ('me'|'them'), text, time }`
 - `ListingFilters`: `{ category: 'all'|ListingCategory, guests, priceRange [min,max], instantBook, location, facilities[], rating }`

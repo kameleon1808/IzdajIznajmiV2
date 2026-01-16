@@ -1,20 +1,46 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Bell, ChevronRight, CreditCard, HelpCircle, Languages, LogOut, Shield } from 'lucide-vue-next'
+import { Bell, ChevronRight, CreditCard, HelpCircle, Languages, LogOut, Shield, Store } from 'lucide-vue-next'
+import Badge from '../components/ui/Badge.vue'
 import Button from '../components/ui/Button.vue'
 import ModalSheet from '../components/ui/ModalSheet.vue'
+import { useAuthStore, type Role } from '../stores/auth'
+import { useToastStore } from '../stores/toast'
 
 const router = useRouter()
 const showLogout = ref(false)
+const auth = useAuthStore()
+const toast = useToastStore()
+const selectedRole = ref<Role>(auth.user.role)
 
-const items = [
+const baseItems = [
   { label: 'Your Card', icon: CreditCard, action: () => {} },
   { label: 'Security', icon: Shield, action: () => {} },
   { label: 'Notification', icon: Bell, action: () => {} },
   { label: 'Languages', icon: Languages, action: () => router.push('/settings/language') },
   { label: 'Help & Support', icon: HelpCircle, action: () => router.push('/settings/legal') },
 ]
+
+const menuItems = computed(() => {
+  const extras = auth.user.role === 'landlord'
+    ? [{ label: 'My Listings', icon: Store, action: () => router.push('/landlord/listings') }]
+    : []
+  return [...extras, ...baseItems]
+})
+
+const switchRole = (role: Role) => {
+  selectedRole.value = role
+  auth.loginAs(role)
+  toast.push({ title: `Role: ${role}`, type: 'info' })
+}
+
+const handleLogout = () => {
+  auth.logout()
+  toast.push({ title: 'Logged out', type: 'info' })
+  showLogout.value = false
+  router.push('/')
+}
 </script>
 
 <template>
@@ -26,14 +52,30 @@ const items = [
         class="h-16 w-16 rounded-3xl object-cover"
       />
       <div>
-        <p class="text-lg font-semibold text-slate-900">Marina Perić</p>
-        <p class="text-sm text-muted">@marinatravels</p>
+        <p class="text-lg font-semibold text-slate-900">{{ auth.user.name }}</p>
+        <p class="text-sm text-muted">@{{ auth.user.id }}</p>
+        <Badge variant="pending" class="mt-1 inline-block capitalize">{{ auth.user.role }}</Badge>
+      </div>
+    </div>
+
+    <div class="rounded-2xl bg-surface p-2 shadow-soft border border-white/60">
+      <p class="px-2 text-xs font-semibold text-muted">Switch role (dev only)</p>
+      <div class="mt-2 grid grid-cols-3 gap-2">
+        <button
+          v-for="role in ['guest', 'tenant', 'landlord']"
+          :key="role"
+          class="rounded-xl px-3 py-2 text-sm font-semibold capitalize shadow-soft"
+          :class="selectedRole === role ? 'bg-primary text-white' : 'bg-white text-slate-800'"
+          @click="switchRole(role as Role)"
+        >
+          {{ role }}
+        </button>
       </div>
     </div>
 
     <div class="rounded-2xl bg-white p-2 shadow-soft border border-white/60">
       <button
-        v-for="item in items"
+        v-for="item in menuItems"
         :key="item.label"
         class="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left hover:bg-surface"
         @click="item.action()"
@@ -58,7 +100,7 @@ const items = [
     <p class="text-sm text-muted">You will be logged out of this device. Continue?</p>
     <div class="mt-4 flex gap-2">
       <Button variant="secondary" class="flex-1" @click="showLogout = false">Cancel</Button>
-      <Button variant="danger" class="flex-1" @click="showLogout = false">Logout</Button>
+      <Button variant="danger" class="flex-1" @click="handleLogout">Logout</Button>
     </div>
   </ModalSheet>
 </template>

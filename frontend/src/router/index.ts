@@ -4,7 +4,9 @@ import Chat from '../pages/Chat.vue'
 import Facilities from '../pages/Facilities.vue'
 import Favorites from '../pages/Favorites.vue'
 import Home from '../pages/Home.vue'
+import LandlordListings from '../pages/LandlordListings.vue'
 import ListingDetail from '../pages/ListingDetail.vue'
+import ListingForm from '../pages/ListingForm.vue'
 import MapPage from '../pages/Map.vue'
 import Messages from '../pages/Messages.vue'
 import Profile from '../pages/Profile.vue'
@@ -13,6 +15,8 @@ import Search from '../pages/Search.vue'
 import SettingsLanguage from '../pages/SettingsLanguage.vue'
 import SettingsLegal from '../pages/SettingsLegal.vue'
 import SettingsPersonalInfo from '../pages/SettingsPersonalInfo.vue'
+import { useAuthStore, type Role } from '../stores/auth'
+import { useToastStore } from '../stores/toast'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -38,14 +42,29 @@ const router = createRouter({
       component: Reviews,
       meta: { topBar: { type: 'back', title: 'Reviews' }, showTabs: false },
     },
-    { path: '/favorites', name: 'favorites', component: Favorites, meta: { topBar: { type: 'title', title: 'My Favorite' }, showTabs: true } },
-    { path: '/bookings', name: 'bookings', component: Bookings, meta: { topBar: { type: 'title', title: 'My Booking' }, showTabs: true } },
-    { path: '/messages', name: 'messages', component: Messages, meta: { topBar: { type: 'title', title: 'Messages' }, showTabs: true } },
+    {
+      path: '/favorites',
+      name: 'favorites',
+      component: Favorites,
+      meta: { topBar: { type: 'title', title: 'My Favorite' }, showTabs: true, roles: ['tenant'] },
+    },
+    {
+      path: '/bookings',
+      name: 'bookings',
+      component: Bookings,
+      meta: { topBar: { type: 'title', title: 'My Booking' }, showTabs: true, roles: ['tenant', 'landlord'] },
+    },
+    {
+      path: '/messages',
+      name: 'messages',
+      component: Messages,
+      meta: { topBar: { type: 'title', title: 'Messages' }, showTabs: true, roles: ['tenant', 'landlord'] },
+    },
     {
       path: '/messages/:id',
       name: 'chat',
       component: Chat,
-      meta: { topBar: { type: 'chat' }, showTabs: false, contentClass: 'p-0 pb-20' },
+      meta: { topBar: { type: 'chat' }, showTabs: false, contentClass: 'p-0 pb-20', roles: ['tenant', 'landlord'] },
     },
     { path: '/profile', name: 'profile', component: Profile, meta: { topBar: { type: 'title', title: 'Profile' }, showTabs: true } },
     {
@@ -66,10 +85,39 @@ const router = createRouter({
       component: SettingsLanguage,
       meta: { topBar: { type: 'back', title: 'Language' }, showTabs: false },
     },
+    {
+      path: '/landlord/listings',
+      name: 'landlord-listings',
+      component: LandlordListings,
+      meta: { topBar: { type: 'title', title: 'My Listings' }, showTabs: false, roles: ['landlord', 'admin'] },
+    },
+    {
+      path: '/landlord/listings/new',
+      name: 'landlord-listing-new',
+      component: ListingForm,
+      meta: { topBar: { type: 'back', title: 'New Listing' }, showTabs: false, roles: ['landlord', 'admin'] },
+    },
+    {
+      path: '/landlord/listings/:id/edit',
+      name: 'landlord-listing-edit',
+      component: ListingForm,
+      meta: { topBar: { type: 'back', title: 'Edit Listing' }, showTabs: false, roles: ['landlord', 'admin'] },
+    },
   ],
   scrollBehavior() {
     return { top: 0 }
   },
+})
+
+router.beforeEach((to, _from, next) => {
+  const auth = useAuthStore()
+  const allowedRoles = (to.meta.roles as Role[] | undefined) || undefined
+  if (allowedRoles && !allowedRoles.includes(auth.user.role)) {
+    const toast = useToastStore()
+    toast.push({ title: 'Access denied', message: 'Switch role to continue.', type: 'error' })
+    return next('/')
+  }
+  next()
 })
 
 export default router

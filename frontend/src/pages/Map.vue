@@ -2,6 +2,9 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { MapPin, MessageSquare, Navigation, Search as SearchIcon } from 'lucide-vue-next'
+import CardSkeleton from '../components/ui/CardSkeleton.vue'
+import EmptyState from '../components/ui/EmptyState.vue'
+import ErrorBanner from '../components/ui/ErrorBanner.vue'
 import Input from '../components/ui/Input.vue'
 import Button from '../components/ui/Button.vue'
 import { useListingsStore } from '../stores/listings'
@@ -16,6 +19,8 @@ onMounted(() => {
 })
 
 const highlighted = computed(() => listingsStore.filteredRecommended[0] ?? listingsStore.popular[0])
+const loading = computed(() => listingsStore.loading)
+const error = computed(() => listingsStore.error)
 </script>
 
 <template>
@@ -56,32 +61,37 @@ const highlighted = computed(() => listingsStore.filteredRecommended[0] ?? listi
     </div>
 
     <div class="relative -mt-12 px-4">
-      <div class="card-base flex items-center gap-3 p-3">
-        <div class="h-20 w-24 overflow-hidden rounded-2xl">
-          <img :src="highlighted?.coverImage" alt="listing" class="h-full w-full object-cover" />
-        </div>
-        <div class="flex flex-1 flex-col gap-1">
-          <div class="flex items-center gap-1 text-xs text-muted">
-            <MapPin class="h-4 w-4 text-primary" />
-            <span>{{ highlighted?.city }}, {{ highlighted?.country }}</span>
+      <ErrorBanner v-if="error" :message="error" />
+      <CardSkeleton v-else-if="loading" />
+      <template v-else-if="highlighted">
+        <div class="card-base flex items-center gap-3 p-3">
+          <div class="h-20 w-24 overflow-hidden rounded-2xl">
+            <img :src="highlighted?.coverImage" alt="listing" class="h-full w-full object-cover" />
           </div>
-          <h3 class="text-base font-semibold text-slate-900">{{ highlighted?.title }}</h3>
-          <div class="flex items-center justify-between">
-            <span class="text-sm font-semibold text-primary">${{ highlighted?.pricePerNight }}/night</span>
+          <div class="flex flex-1 flex-col gap-1">
             <div class="flex items-center gap-1 text-xs text-muted">
               <MapPin class="h-4 w-4 text-primary" />
-              <span>{{ highlighted?.rating?.toFixed(1) }} rating</span>
+              <span>{{ highlighted?.city }}, {{ highlighted?.country }}</span>
+            </div>
+            <h3 class="text-base font-semibold text-slate-900">{{ highlighted?.title }}</h3>
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-semibold text-primary">${{ highlighted?.pricePerNight }}/night</span>
+              <div class="flex items-center gap-1 text-xs text-muted">
+                <MapPin class="h-4 w-4 text-primary" />
+                <span>{{ highlighted?.rating?.toFixed(1) }} rating</span>
+              </div>
             </div>
           </div>
+          <button class="rounded-2xl bg-primary/10 p-3 text-primary" aria-label="message">
+            <MessageSquare class="h-5 w-5" />
+          </button>
         </div>
-        <button class="rounded-2xl bg-primary/10 p-3 text-primary" aria-label="message">
-          <MessageSquare class="h-5 w-5" />
-        </button>
-      </div>
 
-      <div class="mt-3 flex gap-2">
-        <Button block size="lg" @click="router.push(`/listing/${highlighted?.id ?? '1'}`)">Booking Now</Button>
-      </div>
+        <div class="mt-3 flex gap-2">
+          <Button block size="lg" @click="router.push(`/listing/${highlighted?.id ?? '1'}`)">Send Inquiry</Button>
+        </div>
+      </template>
+      <EmptyState v-else title="No nearby stays" subtitle="Try refreshing or adjusting filters" :icon="Navigation" />
     </div>
   </div>
 </template>
