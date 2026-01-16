@@ -13,6 +13,7 @@ const showLogout = ref(false)
 const auth = useAuthStore()
 const toast = useToastStore()
 const selectedRole = ref<Role>(auth.user.role)
+const showRoleSwitch = computed(() => auth.isMockMode)
 
 const baseItems = [
   { label: 'Your Card', icon: CreditCard, action: () => {} },
@@ -35,8 +36,8 @@ const switchRole = (role: Role) => {
   toast.push({ title: `Role: ${role}`, type: 'info' })
 }
 
-const handleLogout = () => {
-  auth.logout()
+const handleLogout = async () => {
+  await auth.logout()
   toast.push({ title: 'Logged out', type: 'info' })
   showLogout.value = false
   router.push('/')
@@ -45,6 +46,17 @@ const handleLogout = () => {
 
 <template>
   <div class="space-y-5">
+    <div
+      v-if="!auth.isAuthenticated && !auth.isMockMode"
+      class="space-y-3 rounded-2xl bg-white p-4 shadow-soft border border-white/60"
+    >
+      <p class="text-sm text-muted">Niste prijavljeni. Ulogujte se da vidite rezervacije i poruke.</p>
+      <div class="flex gap-2">
+        <Button class="flex-1" @click="router.push('/login')">Login</Button>
+        <Button class="flex-1" variant="secondary" @click="router.push('/register')">Register</Button>
+      </div>
+    </div>
+
     <div class="flex items-center gap-3 rounded-2xl bg-white p-4 shadow-soft border border-white/60">
       <img
         src="https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&w=300&q=80"
@@ -58,7 +70,7 @@ const handleLogout = () => {
       </div>
     </div>
 
-    <div class="rounded-2xl bg-surface p-2 shadow-soft border border-white/60">
+    <div v-if="showRoleSwitch" class="rounded-2xl bg-surface p-2 shadow-soft border border-white/60">
       <p class="px-2 text-xs font-semibold text-muted">Switch role (dev only)</p>
       <div class="mt-2 grid grid-cols-3 gap-2">
         <button
@@ -87,6 +99,7 @@ const handleLogout = () => {
     </div>
 
     <button
+      v-if="auth.isAuthenticated || auth.isMockMode"
       class="flex w-full items-center gap-3 rounded-xl bg-white px-3 py-3 text-left text-red-500 shadow-soft border border-white/60"
       @click="showLogout = true"
     >

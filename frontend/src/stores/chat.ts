@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { getConversations, getMessages } from '../services/mockApi'
+import { getConversations, getMessages } from '../services'
 import type { Conversation, Message } from '../types'
 
 export const useChatStore = defineStore('chat', {

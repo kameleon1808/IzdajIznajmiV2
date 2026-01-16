@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { getBookings } from '../services/mockApi'
+import { getBookings } from '../services'
 import type { Booking } from '../types'
 
 export const useBookingsStore = defineStore('bookings', {

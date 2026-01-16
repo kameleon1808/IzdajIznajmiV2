@@ -5,7 +5,7 @@ import { ChevronDown } from 'lucide-vue-next'
 import EmptyState from '../components/ui/EmptyState.vue'
 import ErrorBanner from '../components/ui/ErrorBanner.vue'
 import ListSkeleton from '../components/ui/ListSkeleton.vue'
-import { getListingFacilities } from '../services/mockApi'
+import { getListingFacilities } from '../services'
 
 const route = useRoute()
 const groups = ref<{ title: string; items: string[] }[]>([])

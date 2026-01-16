@@ -9,7 +9,7 @@ import ErrorBanner from '../components/ui/ErrorBanner.vue'
 import ListSkeleton from '../components/ui/ListSkeleton.vue'
 import { useAuthStore } from '../stores/auth'
 import { useListingsStore } from '../stores/listings'
-import { getListingById } from '../services/mockApi'
+import { getListingById } from '../services'
 import type { Listing } from '../types'
 
 const router = useRouter()

@@ -5,9 +5,10 @@ import {
   getLandlordListings,
   getPopularListings,
   getRecommendedListings,
+  isMockApi,
   searchListings,
   updateListing,
-} from '../services/mockApi'
+} from '../services'
 import type { Listing, ListingFilters } from '../types'
 
 const defaultFilters: ListingFilters = {
@@ -18,6 +19,16 @@ const defaultFilters: ListingFilters = {
   location: '',
   facilities: [],
   rating: null,
+}
+
+const loadFavorites = (): string[] => {
+  if (typeof localStorage === 'undefined') return []
+  try {
+    const stored = localStorage.getItem('ii-favorites')
+    return stored ? (JSON.parse(stored) as string[]) : []
+  } catch {
+    return []
+  }
 }
 
 type ListingFormInput = {
@@ -42,7 +53,7 @@ export const useListingsStore = defineStore('listings', {
     popular: [] as Listing[],
     recommended: [] as Listing[],
     favoriteListings: [] as Listing[],
-    favorites: [] as string[],
+    favorites: loadFavorites(),
     landlordListings: [] as Listing[],
     filters: { ...defaultFilters },
     searchResults: [] as Listing[],
@@ -62,6 +73,10 @@ export const useListingsStore = defineStore('listings', {
     },
   },
   actions: {
+    persistFavorites() {
+      if (typeof localStorage === 'undefined') return
+      localStorage.setItem('ii-favorites', JSON.stringify(this.favorites))
+    },
     setFilters(partial: Partial<ListingFilters>) {
       this.filters = { ...this.filters, ...partial }
       this.fetchRecommended()
@@ -100,15 +115,18 @@ export const useListingsStore = defineStore('listings', {
       this.favoritesLoading = true
       this.error = ''
       try {
-        const favs = await getFavorites()
-        this.favorites = favs.map((f) => f.id)
-        this.favoriteListings = favs
+        if (isMockApi) {
+          const favs = await getFavorites()
+          this.favorites = favs.map((f: Listing) => f.id)
+          this.favoriteListings = favs
+        }
         this.recommended = this.syncFavorites(this.recommended)
         this.popular = this.syncFavorites(this.popular)
         this.searchResults = this.syncFavorites(this.searchResults)
+        this.landlordListings = this.syncFavorites(this.landlordListings)
       } catch (error) {
         this.error = (error as Error).message || 'Failed to load favorites.'
-        this.favoriteListings = []
+        if (isMockApi) this.favoriteListings = []
       } finally {
         this.favoritesLoading = false
       }
@@ -180,6 +198,7 @@ export const useListingsStore = defineStore('listings', {
           this.favoriteListings.push({ ...found, isFavorite: true })
         }
       }
+      this.persistFavorites()
       this.recommended = this.syncFavorites(this.recommended)
       this.popular = this.syncFavorites(this.popular)
       this.searchResults = this.syncFavorites(this.searchResults)

@@ -8,6 +8,7 @@ const props = defineProps({
   rightIcon: { type: Object as () => Component, default: undefined },
   disabled: { type: Boolean, default: false },
   readonly: { type: Boolean, default: false },
+  type: { type: String, default: 'text' },
 })
 
 const emit = defineEmits(['update:modelValue', 'rightIconClick', 'focus'])
@@ -29,6 +30,7 @@ const onInput = (e: Event) => emit('update:modelValue', (e.target as HTMLInputEl
       :placeholder="placeholder"
       :disabled="disabled"
       :readonly="readonly"
+      :type="type"
       class="flex-1 bg-transparent text-sm font-medium text-slate-900 placeholder:text-muted focus:outline-none"
       @input="onInput"
       @focus="emit('focus')"

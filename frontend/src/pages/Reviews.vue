@@ -5,7 +5,7 @@ import EmptyState from '../components/ui/EmptyState.vue'
 import ErrorBanner from '../components/ui/ErrorBanner.vue'
 import ListSkeleton from '../components/ui/ListSkeleton.vue'
 import RatingStars from '../components/ui/RatingStars.vue'
-import { getListingById, getListingReviews } from '../services/mockApi'
+import { getListingById, getListingReviews } from '../services'
 import type { Review } from '../types'
 
 const route = useRoute()

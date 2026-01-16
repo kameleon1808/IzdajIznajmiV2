@@ -3,8 +3,10 @@ import {
   createBookingRequest,
   getBookingRequestsForLandlord,
   getBookingRequestsForTenant,
+  isMockApi,
   updateBookingRequestStatus,
-} from '../services/mockApi'
+} from '../services'
+import { useAuthStore } from './auth'
 import type { BookingRequest } from '../types'
 
 export const useRequestsStore = defineStore('requests', {
@@ -18,11 +20,12 @@ export const useRequestsStore = defineStore('requests', {
     clearError() {
       this.error = ''
     },
-    async fetchTenantRequests(tenantId: string) {
+    async fetchTenantRequests(tenantId?: string) {
       this.loading = true
       this.error = ''
       try {
-        this.tenantRequests = await getBookingRequestsForTenant(tenantId)
+        const auth = useAuthStore()
+        this.tenantRequests = await getBookingRequestsForTenant(tenantId ?? auth.user.id)
       } catch (error) {
         this.error = (error as Error).message || 'Failed to load requests.'
         this.tenantRequests = []
@@ -30,11 +33,12 @@ export const useRequestsStore = defineStore('requests', {
         this.loading = false
       }
     },
-    async fetchLandlordRequests(landlordId: string) {
+    async fetchLandlordRequests(landlordId?: string) {
       this.loading = true
       this.error = ''
       try {
-        this.landlordRequests = await getBookingRequestsForLandlord(landlordId)
+        const auth = useAuthStore()
+        this.landlordRequests = await getBookingRequestsForLandlord(landlordId ?? auth.user.id)
       } catch (error) {
         this.error = (error as Error).message || 'Failed to load incoming requests.'
         this.landlordRequests = []
@@ -42,10 +46,15 @@ export const useRequestsStore = defineStore('requests', {
         this.loading = false
       }
     },
-    async sendRequest(payload: Omit<BookingRequest, 'id' | 'status' | 'createdAt'>) {
+    async sendRequest(
+      payload: Omit<BookingRequest, 'id' | 'status' | 'createdAt' | 'tenantId'> & { tenantId?: string },
+    ) {
       this.error = ''
       try {
-        const created = await createBookingRequest(payload)
+        const auth = useAuthStore()
+        const body = { ...payload } as any
+        if (isMockApi) body.tenantId = payload.tenantId ?? auth.user.id
+        const created = await createBookingRequest(body)
         this.tenantRequests = [created, ...this.tenantRequests]
         return created
       } catch (error) {

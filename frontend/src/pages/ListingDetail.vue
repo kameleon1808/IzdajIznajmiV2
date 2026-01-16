@@ -13,7 +13,7 @@ import { useAuthStore } from '../stores/auth'
 import { useListingsStore } from '../stores/listings'
 import { useRequestsStore } from '../stores/requests'
 import { useToastStore } from '../stores/toast'
-import { getListingById, getListingFacilities, getListingReviews } from '../services/mockApi'
+import { getListingById, getListingFacilities, getListingReviews } from '../services'
 import type { Listing, Review } from '../types'
 
 const route = useRoute()
@@ -74,6 +74,10 @@ const toggleFavorite = () => {
 }
 
 const openInquiry = () => {
+  if (!auth.isAuthenticated && !auth.isMockMode) {
+    router.push({ path: '/login', query: { returnUrl: route.fullPath } })
+    return
+  }
   if (auth.user.role !== 'tenant') {
     toast.push({ title: 'Access denied', message: 'Switch to Tenant role to send request.', type: 'error' })
     return
@@ -87,7 +91,6 @@ const submitRequest = async () => {
   try {
     await requestsStore.sendRequest({
       listingId: listing.value.id,
-      tenantId: auth.user.id,
       landlordId: String(listing.value.ownerId || 'landlord-1'),
       startDate: requestForm.startDate || undefined,
       endDate: requestForm.endDate || undefined,

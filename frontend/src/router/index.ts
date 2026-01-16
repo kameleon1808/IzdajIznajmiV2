@@ -17,6 +17,8 @@ import SettingsLegal from '../pages/SettingsLegal.vue'
 import SettingsPersonalInfo from '../pages/SettingsPersonalInfo.vue'
 import { useAuthStore, type Role } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
+import Login from '../pages/Login.vue'
+import Register from '../pages/Register.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -103,19 +105,34 @@ const router = createRouter({
       component: ListingForm,
       meta: { topBar: { type: 'back', title: 'Edit Listing' }, showTabs: false, roles: ['landlord', 'admin'] },
     },
+    { path: '/login', name: 'login', component: Login, meta: { topBar: { type: 'title', title: 'Login' }, showTabs: false } },
+    {
+      path: '/register',
+      name: 'register',
+      component: Register,
+      meta: { topBar: { type: 'title', title: 'Register' }, showTabs: false },
+    },
   ],
   scrollBehavior() {
     return { top: 0 }
   },
 })
 
-router.beforeEach((to, _from, next) => {
+router.beforeEach(async (to, _from, next) => {
   const auth = useAuthStore()
+  const toast = useToastStore()
   const allowedRoles = (to.meta.roles as Role[] | undefined) || undefined
-  if (allowedRoles && !allowedRoles.includes(auth.user.role)) {
-    const toast = useToastStore()
-    toast.push({ title: 'Access denied', message: 'Switch role to continue.', type: 'error' })
-    return next('/')
+
+  await auth.initialize()
+
+  if (allowedRoles) {
+    if (!auth.isAuthenticated && !auth.isMockMode) {
+      return next({ path: '/login', query: { returnUrl: to.fullPath } })
+    }
+    if (!allowedRoles.includes(auth.user.role)) {
+      toast.push({ title: 'Access denied', message: 'Switch role to continue.', type: 'error' })
+      return next('/')
+    }
   }
   next()
 })
