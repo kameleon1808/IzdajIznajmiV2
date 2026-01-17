@@ -14,9 +14,13 @@ class BookingRequestsSeeder extends Seeder
     {
         BookingRequest::truncate();
 
-        $tenants = User::where('role', 'tenant')->pluck('id')->all();
+        $tenants = User::where('role', 'seeker')->pluck('id')->all();
         $listings = Listing::with('owner')->get();
         $statuses = ['pending', 'accepted', 'rejected', 'cancelled'];
+
+        if (count($tenants) === 0) {
+            return;
+        }
 
         foreach ($listings->take(20) as $index => $listing) {
             $tenantId = $tenants[$index % count($tenants)];

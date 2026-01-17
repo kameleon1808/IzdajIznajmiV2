@@ -39,7 +39,7 @@ class RolesUsersSeeder extends Seeder
             User::create([
                 'name' => $tenant['name'],
                 'email' => $tenant['email'],
-                'role' => 'tenant',
+                'role' => 'seeker',
                 'password' => Hash::make('password'),
             ]);
         }

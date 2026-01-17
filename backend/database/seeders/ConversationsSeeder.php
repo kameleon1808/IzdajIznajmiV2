@@ -14,7 +14,7 @@ class ConversationsSeeder extends Seeder
         Conversation::truncate();
         Message::truncate();
 
-        $tenant = User::where('role', 'tenant')->first();
+        $tenant = User::where('role', 'seeker')->first();
         $landlord = User::where('role', 'landlord')->first();
 
         if (!$tenant || !$landlord) {
