@@ -14,7 +14,6 @@ app.use(router)
 
 const auth = useAuthStore(pinia)
 registerAuthHandlers({
-  getToken: () => auth.token,
   onUnauthorized: () => auth.handleUnauthorized(),
 })
 

@@ -8,7 +8,6 @@ use Illuminate\Foundation\Testing\WithFaker;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
-use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 class ListingsApiTest extends TestCase
@@ -35,7 +34,7 @@ class ListingsApiTest extends TestCase
             'status' => 'published',
         ]);
 
-        $response = $this->getJson('/api/listings');
+        $response = $this->getJson('/api/v1/listings');
 
         $response->assertOk()->assertJsonFragment(['title' => 'Test Stay']);
     }
@@ -59,7 +58,7 @@ class ListingsApiTest extends TestCase
             'status' => 'draft',
         ]);
 
-        $response = $this->getJson('/api/listings');
+        $response = $this->getJson('/api/v1/listings');
         $response->assertOk()->assertJsonMissing(['title' => 'Draft Stay']);
     }
 
@@ -83,9 +82,9 @@ class ListingsApiTest extends TestCase
             'instant_book' => true,
         ]);
 
-        Sanctum::actingAs($other, ['*']);
+        $this->actingAs($other);
 
-        $response = $this->putJson('/api/landlord/listings/'.$listing->id, [
+        $response = $this->putJson('/api/v1/landlord/listings/'.$listing->id, [
             'title' => 'Illegal update',
         ]);
 
@@ -100,11 +99,11 @@ class ListingsApiTest extends TestCase
         ]);
         Storage::fake('public');
         $landlord = User::factory()->create(['role' => 'landlord']);
-        Sanctum::actingAs($landlord, ['*']);
+        $this->actingAs($landlord);
 
         $file = UploadedFile::fake()->image('photo.jpg');
 
-        $response = $this->post('/api/landlord/listings', [
+        $response = $this->post('/api/v1/landlord/listings', [
             'title' => 'With Images',
             'pricePerNight' => 150,
             'category' => 'villa',
@@ -132,7 +131,7 @@ class ListingsApiTest extends TestCase
         ]);
         Storage::fake('public');
         $landlord = User::factory()->create(['role' => 'landlord']);
-        Sanctum::actingAs($landlord, ['*']);
+        $this->actingAs($landlord);
 
         $listing = Listing::create([
             'owner_id' => $landlord->id,
@@ -161,7 +160,7 @@ class ListingsApiTest extends TestCase
 
         $newFile = UploadedFile::fake()->image('new.jpg');
 
-        $response = $this->put("/api/landlord/listings/{$listing->id}", [
+        $response = $this->put("/api/v1/landlord/listings/{$listing->id}", [
             'title' => 'Updated',
             'keepImages' => json_encode([['url' => $existingUrl, 'sortOrder' => 0, 'isCover' => true]]),
             'images' => [$newFile],
@@ -184,7 +183,7 @@ class ListingsApiTest extends TestCase
         ]);
         Storage::fake('public');
         $landlord = User::factory()->create(['role' => 'landlord']);
-        Sanctum::actingAs($landlord, ['*']);
+        $this->actingAs($landlord);
 
         $listing = Listing::create([
             'owner_id' => $landlord->id,
@@ -207,7 +206,7 @@ class ListingsApiTest extends TestCase
         $listing->images()->create(['url' => $url, 'sort_order' => 0]);
         $listing->update(['cover_image' => $url]);
 
-        $response = $this->put("/api/landlord/listings/{$listing->id}", [
+        $response = $this->put("/api/v1/landlord/listings/{$listing->id}", [
             'removeImageUrls' => [$url],
         ], ['Accept' => 'application/json']);
 
@@ -219,7 +218,7 @@ class ListingsApiTest extends TestCase
     public function test_landlord_can_publish_unpublish(): void
     {
         $landlord = User::factory()->create(['role' => 'landlord']);
-        Sanctum::actingAs($landlord, ['*']);
+        $this->actingAs($landlord);
         $listing = Listing::create([
             'owner_id' => $landlord->id,
             'title' => 'Lifecycle',
@@ -236,17 +235,17 @@ class ListingsApiTest extends TestCase
             'status' => 'draft',
         ]);
 
-        $publish = $this->patchJson("/api/landlord/listings/{$listing->id}/publish");
+        $publish = $this->patchJson("/api/v1/landlord/listings/{$listing->id}/publish");
         $publish->assertOk()->assertJsonFragment(['status' => 'published']);
 
-        $unpublish = $this->patchJson("/api/landlord/listings/{$listing->id}/unpublish");
+        $unpublish = $this->patchJson("/api/v1/landlord/listings/{$listing->id}/unpublish");
         $unpublish->assertOk()->assertJsonFragment(['status' => 'draft']);
     }
 
     public function test_tenant_cannot_publish(): void
     {
-        $tenant = User::factory()->create(['role' => 'tenant']);
-        Sanctum::actingAs($tenant, ['*']);
+        $tenant = User::factory()->create(['role' => 'seeker']);
+        $this->actingAs($tenant);
         $landlord = User::factory()->create(['role' => 'landlord']);
         $listing = Listing::create([
             'owner_id' => $landlord->id,
@@ -264,7 +263,7 @@ class ListingsApiTest extends TestCase
             'status' => 'draft',
         ]);
 
-        $resp = $this->patchJson("/api/landlord/listings/{$listing->id}/publish");
+        $resp = $this->patchJson("/api/v1/landlord/listings/{$listing->id}/publish");
         $resp->assertForbidden();
     }
 }

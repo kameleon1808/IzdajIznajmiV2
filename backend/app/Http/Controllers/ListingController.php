@@ -69,7 +69,8 @@ class ListingController extends Controller
     {
         $listing->load(['images' => fn ($q) => $q->where('processing_status', 'done')->orderBy('sort_order'), 'facilities']);
         $user = request()->user();
-        if ($listing->status !== 'published' && !($user && ($user->role === 'admin' || $user->id === $listing->owner_id))) {
+        $isAdmin = $user && ((method_exists($user, 'hasRole') && $user->hasRole('admin')) || $user->role === 'admin');
+        if ($listing->status !== 'published' && !($user && ($isAdmin || $user->id === $listing->owner_id))) {
             abort(404);
         }
         return response()->json(new ListingResource($listing));

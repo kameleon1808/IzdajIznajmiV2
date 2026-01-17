@@ -17,7 +17,7 @@ class BookingRequestController extends Controller
     {
         $user = $request->user();
         abort_unless($user, 401, 'Unauthenticated');
-        abort_unless($user->role === 'tenant' || $user->role === 'admin', 403, 'Only tenants can request booking');
+        abort_unless($this->userHasRole($user, ['seeker', 'admin']), 403, 'Only seekers can request booking');
 
         $data = $request->validated();
         $listing = Listing::findOrFail($data['listingId']);
@@ -45,16 +45,18 @@ class BookingRequestController extends Controller
         $user = $request->user();
         abort_unless($user, 401, 'Unauthenticated');
 
-        $role = $request->query('role');
-        if ($role === 'tenant') {
-            abort_unless($user->role === 'tenant' || $user->role === 'admin', 403, 'Forbidden');
+        $role = $this->normalizeRole($request->query('role'));
+        if ($role === 'seeker') {
+            abort_unless($this->userHasRole($user, ['seeker', 'admin']), 403, 'Forbidden');
             $requests = BookingRequest::where('tenant_id', $user->id)->latest()->get();
         } elseif ($role === 'landlord') {
-            abort_unless(in_array($user->role, ['landlord', 'admin']), 403, 'Forbidden');
-            $landlordId = $user->role === 'admin' && $request->filled('landlordId') ? (int) $request->input('landlordId') : $user->id;
+            abort_unless($this->userHasRole($user, ['landlord', 'admin']), 403, 'Forbidden');
+            $landlordId = $this->userHasRole($user, 'admin') && $request->filled('landlordId')
+                ? (int) $request->input('landlordId')
+                : $user->id;
             $requests = BookingRequest::where('landlord_id', $landlordId)->latest()->get();
         } else {
-            return response()->json(['message' => 'role query param required (tenant|landlord)'], 422);
+            return response()->json(['message' => 'role query param required (seeker|landlord)'], 422);
         }
 
         return response()->json(BookingRequestResource::collection($requests));
@@ -65,12 +67,31 @@ class BookingRequestController extends Controller
         $newStatus = $request->validated()['status'];
         Gate::authorize('updateStatus', [$bookingRequest, $newStatus]);
 
-        if (!in_array($bookingRequest->status, ['pending']) && auth()->user()?->role !== 'admin') {
+        if (!in_array($bookingRequest->status, ['pending']) && !$this->userHasRole(auth()->user(), 'admin')) {
             return response()->json(['message' => 'Cannot change finalized request'], 422);
         }
 
         $bookingRequest->update(['status' => $newStatus]);
 
         return response()->json(new BookingRequestResource($bookingRequest));
+    }
+
+    private function normalizeRole(?string $role): ?string
+    {
+        if (!$role) {
+            return null;
+        }
+
+        $normalized = $role === 'tenant' ? 'seeker' : $role;
+
+        return in_array($normalized, ['seeker', 'landlord'], true) ? $normalized : null;
+    }
+
+    private function userHasRole($user, array|string $roles): bool
+    {
+        $roles = (array) $roles;
+
+        return ($user && method_exists($user, 'hasAnyRole') && $user->hasAnyRole($roles))
+            || ($user && isset($user->role) && in_array($user->role, $roles, true));
     }
 }

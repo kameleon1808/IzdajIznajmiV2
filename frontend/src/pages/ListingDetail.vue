@@ -78,8 +78,8 @@ const openInquiry = () => {
     router.push({ path: '/login', query: { returnUrl: route.fullPath } })
     return
   }
-  if (auth.user.role !== 'tenant') {
-    toast.push({ title: 'Access denied', message: 'Switch to Tenant role to send request.', type: 'error' })
+  if (!auth.hasRole('seeker')) {
+    toast.push({ title: 'Access denied', message: 'Switch to Seeker role to send request.', type: 'error' })
     return
   }
   requestSheet.value = true

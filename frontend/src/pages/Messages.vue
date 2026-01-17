@@ -59,7 +59,7 @@ const error = computed(() => chatStore.error)
       <EmptyState
         v-if="!items.length && !error"
         title="No conversations"
-        subtitle="Start a chat with a host or tenant"
+        subtitle="Start a chat with a host or seeker"
         :icon="SearchIcon"
       />
     </div>

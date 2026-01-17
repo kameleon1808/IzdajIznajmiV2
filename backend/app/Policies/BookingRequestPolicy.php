@@ -9,7 +9,8 @@ class BookingRequestPolicy
 {
     public function updateStatus(User $user, BookingRequest $bookingRequest, string $status): bool
     {
-        if ($user->role === 'admin') {
+        $isAdmin = (method_exists($user, 'hasRole') && $user->hasRole('admin')) || $user->role === 'admin';
+        if ($isAdmin) {
             return true;
         }
 

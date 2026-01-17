@@ -1,32 +1,53 @@
 import axios, { AxiosError } from 'axios'
 import { useToastStore } from '../stores/toast'
 
-const baseURL = `${import.meta.env.VITE_API_BASE_URL ?? ''}/api`
+const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
+const baseURL = `${apiBaseUrl}/api/v1`
 
-let getToken: () => string | null = () => null
 let onUnauthorized: () => Promise<void> | void = () => {}
+let csrfPromise: Promise<void> | null = null
 
-export const registerAuthHandlers = (options: {
-  getToken: () => string | null
-  onUnauthorized: () => Promise<void> | void
-}) => {
-  getToken = options.getToken
+export const registerAuthHandlers = (options: { onUnauthorized: () => Promise<void> | void }) => {
   onUnauthorized = options.onUnauthorized
 }
 
+export const ensureCsrfCookie = async () => {
+  if (!csrfPromise) {
+    csrfPromise = axios
+      .get(`${apiBaseUrl}/sanctum/csrf-cookie`, {
+        withCredentials: true,
+      })
+      .then(() => undefined)
+      .finally(() => {
+        csrfPromise = null
+      })
+  }
+  return csrfPromise
+}
+
 export const apiClient = axios.create({
-  baseURL,
+  baseURL: baseURL || '/api/v1',
   timeout: 10000,
   headers: {
     Accept: 'application/json',
+    'X-Requested-With': 'XMLHttpRequest',
   },
-  withCredentials: false,
+  withCredentials: true,
+  xsrfCookieName: 'XSRF-TOKEN',
+  xsrfHeaderName: 'X-XSRF-TOKEN',
 })
 
+const readCookie = (name: string): string | null => {
+  if (typeof document === 'undefined') return null
+  const match = document.cookie.match(new RegExp('(^|; )' + name.replace(/([.*+?^${}()|[\\]\\\\])/g, '\\$1') + '=([^;]*)'))
+  return match ? decodeURIComponent(match[2]) : null
+}
+
 apiClient.interceptors.request.use((config) => {
-  const token = getToken()
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`
+  const xsrf = readCookie('XSRF-TOKEN')
+  if (xsrf && (!config.headers || !config.headers['X-XSRF-TOKEN'])) {
+    config.headers = config.headers ?? {}
+    config.headers['X-XSRF-TOKEN'] = xsrf
   }
   if (config.data instanceof FormData) {
     // Let the browser set the boundary for multipart

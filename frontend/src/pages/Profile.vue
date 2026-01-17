@@ -12,7 +12,7 @@ const router = useRouter()
 const showLogout = ref(false)
 const auth = useAuthStore()
 const toast = useToastStore()
-const selectedRole = ref<Role>(auth.user.role)
+const selectedRole = ref<Role>(auth.primaryRole)
 const showRoleSwitch = computed(() => auth.isMockMode)
 
 const baseItems = [
@@ -24,7 +24,7 @@ const baseItems = [
 ]
 
 const menuItems = computed(() => {
-  const extras = auth.user.role === 'landlord'
+  const extras = auth.hasRole('landlord')
     ? [{ label: 'My Listings', icon: Store, action: () => router.push('/landlord/listings') }]
     : []
   return [...extras, ...baseItems]
@@ -66,15 +66,15 @@ const handleLogout = async () => {
       <div>
         <p class="text-lg font-semibold text-slate-900">{{ auth.user.name }}</p>
         <p class="text-sm text-muted">@{{ auth.user.id }}</p>
-        <Badge variant="pending" class="mt-1 inline-block capitalize">{{ auth.user.role }}</Badge>
+        <Badge variant="pending" class="mt-1 inline-block capitalize">{{ auth.primaryRole }}</Badge>
       </div>
     </div>
 
     <div v-if="showRoleSwitch" class="rounded-2xl bg-surface p-2 shadow-soft border border-white/60">
       <p class="px-2 text-xs font-semibold text-muted">Switch role (dev only)</p>
-      <div class="mt-2 grid grid-cols-3 gap-2">
+      <div class="mt-2 grid grid-cols-4 gap-2">
         <button
-          v-for="role in ['guest', 'tenant', 'landlord']"
+          v-for="role in ['guest', 'seeker', 'landlord', 'admin']"
           :key="role"
           class="rounded-xl px-3 py-2 text-sm font-semibold capitalize shadow-soft"
           :class="selectedRole === role ? 'bg-primary text-white' : 'bg-white text-slate-800'"

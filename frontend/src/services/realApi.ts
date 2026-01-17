@@ -237,7 +237,7 @@ export const createBookingRequest = async (
 }
 
 export const getBookingRequestsForTenant = async (): Promise<BookingRequest[]> => {
-  const { data } = await apiClient.get('/booking-requests', { params: { role: 'tenant' } })
+  const { data } = await apiClient.get('/booking-requests', { params: { role: 'seeker' } })
   const list = (data.data ?? data) as any[]
   return list.map(mapBookingRequest)
 }

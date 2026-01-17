@@ -13,9 +13,10 @@ const router = useRouter()
 
 const name = ref('')
 const email = ref('')
+const phone = ref('')
 const password = ref('')
 const passwordConfirmation = ref('')
-const role = ref<Role>('tenant')
+const role = ref<Role>('seeker')
 const error = ref('')
 
 const onSubmit = async () => {
@@ -24,6 +25,7 @@ const onSubmit = async () => {
     await auth.register({
       name: name.value,
       email: email.value,
+      phone: phone.value || undefined,
       password: password.value,
       passwordConfirmation: passwordConfirmation.value,
       role: role.value,
@@ -39,7 +41,7 @@ const onSubmit = async () => {
 <template>
   <div class="space-y-4">
     <h1 class="text-xl font-semibold text-slate-900">Register</h1>
-    <p class="text-sm text-muted">Kreirajte nalog za tenant ili landlord ulogu.</p>
+    <p class="text-sm text-muted">Kreirajte nalog za seeker ili landlord ulogu.</p>
 
     <ErrorBanner v-if="error" :message="error" />
 
@@ -51,6 +53,10 @@ const onSubmit = async () => {
       <div class="space-y-1">
         <p class="text-sm font-semibold text-slate-900">Email</p>
         <Input v-model="email" placeholder="you@example.com" type="email" />
+      </div>
+      <div class="space-y-1">
+        <p class="text-sm font-semibold text-slate-900">Phone (optional)</p>
+        <Input v-model="phone" placeholder="+3859..." type="tel" />
       </div>
       <div class="space-y-1">
         <p class="text-sm font-semibold text-slate-900">Password</p>
@@ -66,7 +72,7 @@ const onSubmit = async () => {
           v-model="role"
           class="w-full rounded-xl border border-line px-3 py-3 text-sm capitalize focus:border-primary focus:outline-none"
         >
-          <option value="tenant">Tenant</option>
+          <option value="seeker">Seeker</option>
           <option value="landlord">Landlord</option>
         </select>
       </div>

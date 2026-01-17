@@ -10,11 +10,12 @@ php artisan serve
 ```
 
 - SPA dev origin: `http://localhost:5173`
-- Auth: Sanctum personal access tokens (send `Authorization: Bearer <token>`)
+- Auth: Sanctum SPA cookies (`/sanctum/csrf-cookie` + session) with canonical routes under `/api/v1/auth/*` (legacy `/api/auth/*` kept temporarily)
+- Stateful dev defaults: `SANCTUM_STATEFUL_DOMAINS=localhost:5173,127.0.0.1:5173`, `SESSION_DOMAIN=localhost`, CORS `supports_credentials=true`
 - Demo users (password `password`):
   - admin@example.com (admin)
   - lana@demo.com, leo@demo.com (landlords)
-  - tena@demo.com, tomas@demo.com, tara@demo.com (tenants)
+  - tena@demo.com, tomas@demo.com, tara@demo.com (seekers)
 
 ## Docs
 - Contract: `docs/api-contract.md`

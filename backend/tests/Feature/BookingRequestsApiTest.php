@@ -6,7 +6,6 @@ use App\Models\BookingRequest;
 use App\Models\Listing;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
 class BookingRequestsApiTest extends TestCase
@@ -33,13 +32,13 @@ class BookingRequestsApiTest extends TestCase
 
     public function test_tenant_can_create_booking_request(): void
     {
-        $tenant = User::factory()->create(['role' => 'tenant']);
+        $tenant = User::factory()->create(['role' => 'seeker']);
         $landlord = User::factory()->create(['role' => 'landlord']);
         $listing = $this->createListing($landlord);
 
-        Sanctum::actingAs($tenant, ['*']);
+        $this->actingAs($tenant);
 
-        $response = $this->postJson('/api/booking-requests', [
+        $response = $this->postJson('/api/v1/booking-requests', [
             'listingId' => $listing->id,
             'landlordId' => $landlord->id,
             'guests' => 2,
@@ -51,7 +50,7 @@ class BookingRequestsApiTest extends TestCase
 
     public function test_tenant_cannot_accept_request(): void
     {
-        $tenant = User::factory()->create(['role' => 'tenant']);
+        $tenant = User::factory()->create(['role' => 'seeker']);
         $landlord = User::factory()->create(['role' => 'landlord']);
         $listing = $this->createListing($landlord);
         $request = BookingRequest::create([
@@ -63,16 +62,16 @@ class BookingRequestsApiTest extends TestCase
             'status' => 'pending',
         ]);
 
-        Sanctum::actingAs($tenant, ['*']);
+        $this->actingAs($tenant);
 
-        $response = $this->patchJson('/api/booking-requests/'.$request->id, ['status' => 'accepted']);
+        $response = $this->patchJson('/api/v1/booking-requests/'.$request->id, ['status' => 'accepted']);
 
         $response->assertForbidden();
     }
 
     public function test_landlord_can_accept_request(): void
     {
-        $tenant = User::factory()->create(['role' => 'tenant']);
+        $tenant = User::factory()->create(['role' => 'seeker']);
         $landlord = User::factory()->create(['role' => 'landlord']);
         $listing = $this->createListing($landlord);
         $requestModel = BookingRequest::create([
@@ -84,9 +83,9 @@ class BookingRequestsApiTest extends TestCase
             'status' => 'pending',
         ]);
 
-        Sanctum::actingAs($landlord, ['*']);
+        $this->actingAs($landlord);
 
-        $response = $this->patchJson('/api/booking-requests/'.$requestModel->id, ['status' => 'accepted']);
+        $response = $this->patchJson('/api/v1/booking-requests/'.$requestModel->id, ['status' => 'accepted']);
 
         $response->assertOk()->assertJsonFragment(['status' => 'accepted']);
     }

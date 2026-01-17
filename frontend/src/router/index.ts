@@ -48,25 +48,25 @@ const router = createRouter({
       path: '/favorites',
       name: 'favorites',
       component: Favorites,
-      meta: { topBar: { type: 'title', title: 'My Favorite' }, showTabs: true, roles: ['tenant'] },
+      meta: { topBar: { type: 'title', title: 'My Favorite' }, showTabs: true, roles: ['seeker'] },
     },
     {
       path: '/bookings',
       name: 'bookings',
       component: Bookings,
-      meta: { topBar: { type: 'title', title: 'My Booking' }, showTabs: true, roles: ['tenant', 'landlord'] },
+      meta: { topBar: { type: 'title', title: 'My Booking' }, showTabs: true, roles: ['seeker', 'landlord'] },
     },
     {
       path: '/messages',
       name: 'messages',
       component: Messages,
-      meta: { topBar: { type: 'title', title: 'Messages' }, showTabs: true, roles: ['tenant', 'landlord'] },
+      meta: { topBar: { type: 'title', title: 'Messages' }, showTabs: true, roles: ['seeker', 'landlord'] },
     },
     {
       path: '/messages/:id',
       name: 'chat',
       component: Chat,
-      meta: { topBar: { type: 'chat' }, showTabs: false, contentClass: 'p-0 pb-20', roles: ['tenant', 'landlord'] },
+      meta: { topBar: { type: 'chat' }, showTabs: false, contentClass: 'p-0 pb-20', roles: ['seeker', 'landlord'] },
     },
     { path: '/profile', name: 'profile', component: Profile, meta: { topBar: { type: 'title', title: 'Profile' }, showTabs: true } },
     {
@@ -129,7 +129,7 @@ router.beforeEach(async (to, _from, next) => {
     if (!auth.isAuthenticated && !auth.isMockMode) {
       return next({ path: '/login', query: { returnUrl: to.fullPath } })
     }
-    if (!allowedRoles.includes(auth.user.role)) {
+    if (!allowedRoles.some((role) => auth.hasRole(role))) {
       toast.push({ title: 'Access denied', message: 'Switch role to continue.', type: 'error' })
       return next('/')
     }

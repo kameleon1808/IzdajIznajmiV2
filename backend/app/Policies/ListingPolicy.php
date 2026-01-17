@@ -13,7 +13,8 @@ class ListingPolicy
             return true;
         }
 
-        if ($user && ($user->role === 'admin' || $listing->owner_id === $user->id)) {
+        $isAdmin = $user && ((method_exists($user, 'hasRole') && $user->hasRole('admin')) || $user->role === 'admin');
+        if ($user && ($isAdmin || $listing->owner_id === $user->id)) {
             return true;
         }
 
@@ -22,9 +23,10 @@ class ListingPolicy
 
     public function update(User $user, Listing $listing): bool
     {
-        if ($listing->status === 'archived' && $user->role !== 'admin') {
+        $isAdmin = (method_exists($user, 'hasRole') && $user->hasRole('admin')) || $user->role === 'admin';
+        if ($listing->status === 'archived' && !$isAdmin) {
             return false;
         }
-        return $user->role === 'admin' || $listing->owner_id === $user->id;
+        return $isAdmin || $listing->owner_id === $user->id;
     }
 }

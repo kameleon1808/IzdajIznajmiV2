@@ -21,9 +21,9 @@ class LandlordListingController extends Controller
     {
         $user = $request->user();
         abort_unless($user, 401, 'Unauthenticated');
-        abort_unless(in_array($user->role, ['landlord', 'admin']), 403, 'Forbidden');
+        abort_unless($this->userHasRole($user, ['landlord', 'admin']), 403, 'Forbidden');
 
-        $ownerId = $user->role === 'admin' && $request->filled('ownerId')
+        $ownerId = $this->isAdmin($user) && $request->filled('ownerId')
             ? (int) $request->input('ownerId')
             : $user->id;
 
@@ -43,7 +43,7 @@ class LandlordListingController extends Controller
     public function store(StoreListingRequest $request): JsonResponse
     {
         $user = $request->user();
-        abort_unless($user && in_array($user->role, ['landlord', 'admin']), 403, 'Forbidden');
+        abort_unless($user && $this->userHasRole($user, ['landlord', 'admin']), 403, 'Forbidden');
 
         $data = $request->validated();
         $listing = DB::transaction(function () use ($data, $user, $request) {
@@ -205,7 +205,7 @@ class LandlordListingController extends Controller
 
     private function ensureOwnerOrAdmin($user, Listing $listing): void
     {
-        abort_unless($user && ($user->role === 'admin' || $user->id === $listing->owner_id), 403, 'Forbidden');
+        abort_unless($user && ($this->isAdmin($user) || $user->id === $listing->owner_id), 403, 'Forbidden');
     }
 
     private function syncImages(Listing $listing, array $keepImages, array $newUploads): void
@@ -293,5 +293,18 @@ class LandlordListingController extends Controller
             ->all();
 
         $listing->facilities()->sync($facilityIds);
+    }
+
+    private function userHasRole($user, array|string $roles): bool
+    {
+        $roles = (array) $roles;
+
+        return ($user && method_exists($user, 'hasAnyRole') && $user->hasAnyRole($roles))
+            || ($user && isset($user->role) && in_array($user->role, $roles, true));
+    }
+
+    private function isAdmin($user): bool
+    {
+        return $this->userHasRole($user, 'admin');
     }
 }

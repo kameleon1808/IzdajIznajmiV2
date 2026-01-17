@@ -4,31 +4,45 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\LoginRequest;
 use App\Http\Requests\RegisterRequest;
+use App\Http\Resources\UserResource;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Cookie;
+use Illuminate\Http\Request;
+use Spatie\Permission\Models\Role;
 
 class AuthController extends Controller
 {
     public function register(RegisterRequest $request): JsonResponse
     {
         $data = $request->validated();
-        $role = $data['role'] ?? 'tenant';
+        $role = $this->normalizeRole($data['role'] ?? 'seeker');
+        $addressBook = $data['address_book'] ?? null;
+        if (is_string($addressBook)) {
+            $decoded = json_decode($addressBook, true);
+            $addressBook = is_array($decoded) ? $decoded : null;
+        }
 
         $user = User::create([
-            'name' => $data['name'],
+            'name' => $data['name'] ?? $data['full_name'],
+            'full_name' => $data['full_name'],
             'email' => $data['email'],
-            'password' => Hash::make($data['password']),
+            'phone' => $data['phone'] ?? null,
+            'address_book' => $addressBook,
             'role' => $role,
-        ]);
+            'password' => Hash::make($data['password']),
+        ])->refresh();
 
-        $token = $user->createToken('api')->plainTextToken;
+        Role::findOrCreate($role, 'web');
+        $user->syncRoles([$role]);
 
-        return response()->json([
-            'user' => $user,
-            'token' => $token,
-        ], 201);
+        Auth::login($user);
+        $request->session()->regenerate();
+
+        return response()->json(['user' => new UserResource($user->fresh('roles'))], 201);
     }
 
     public function login(LoginRequest $request): JsonResponse
@@ -39,28 +53,39 @@ class AuthController extends Controller
             return response()->json(['message' => 'Invalid credentials'], 401);
         }
 
-        /** @var User $user */
+        $request->session()->regenerate();
+
         $user = $request->user();
-        $token = $user->createToken('api')->plainTextToken;
-
-        return response()->json([
-            'user' => $user,
-            'token' => $token,
-        ]);
-    }
-
-    public function logout(): JsonResponse
-    {
-        $user = Auth::user();
-        if ($user) {
-            $user->currentAccessToken()?->delete();
+        if (!$user) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
         }
 
-        return response()->json(['message' => 'Logged out']);
+        return response()->json(['user' => new UserResource($user->load('roles'))]);
     }
 
-    public function me(): JsonResponse
+    public function logout(Request $request): Response
     {
-        return response()->json(['user' => Auth::user()]);
+        Auth::guard('web')->logout();
+
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
+        $response = response()->noContent();
+        $response->withCookie(Cookie::forget(config('session.cookie')));
+        $response->withCookie(Cookie::forget('XSRF-TOKEN'));
+
+        return $response;
+    }
+
+    public function me(Request $request): JsonResponse
+    {
+        return response()->json(['user' => new UserResource($request->user()->load('roles'))]);
+    }
+
+    private function normalizeRole(string $role): string
+    {
+        $normalized = $role === 'tenant' ? 'seeker' : $role;
+
+        return in_array($normalized, ['admin', 'landlord', 'seeker'], true) ? $normalized : 'seeker';
     }
 }

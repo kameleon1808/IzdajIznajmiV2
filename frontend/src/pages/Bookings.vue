@@ -24,8 +24,8 @@ const router = useRouter()
 const tab = ref<'booked' | 'history' | 'requests'>((route.query.tab as any) || 'booked')
 
 const tabs = computed<string[]>(() => {
-  if (auth.user.role === 'tenant') return ['booked', 'history', 'requests']
-  if (auth.user.role === 'landlord') return ['requests']
+  if (auth.hasRole('seeker')) return ['booked', 'history', 'requests']
+  if (auth.hasRole('landlord')) return ['requests']
   return ['booked', 'history']
 })
 
@@ -43,7 +43,7 @@ onMounted(() => {
 })
 
 watch(
-  () => auth.user.role,
+  () => auth.primaryRole,
   () => {
     normalizeTab()
     loadRequests()
@@ -51,16 +51,16 @@ watch(
 )
 
 const loadRequests = () => {
-  if (auth.user.role === 'tenant') {
+  if (auth.hasRole('seeker')) {
     requestsStore.fetchTenantRequests(auth.user.id)
-  } else if (auth.user.role === 'landlord') {
+  } else if (auth.hasRole('landlord')) {
     requestsStore.fetchLandlordRequests(auth.user.id)
   }
 }
 
 const bookingItems = computed(() => (tab.value === 'booked' ? bookingsStore.booked : bookingsStore.history))
 const requestItems = computed(() =>
-  auth.user.role === 'landlord' ? requestsStore.landlordRequests : requestsStore.tenantRequests,
+  auth.hasRole('landlord') ? requestsStore.landlordRequests : requestsStore.tenantRequests,
 )
 const listingLookup = computed(() => {
   const map = new Map<string, string>()
@@ -145,10 +145,10 @@ const goToListing = (listingId: string) => router.push(`/listing/${listingId}`)
           <p class="text-sm text-slate-800">Guests: {{ request.guests }}</p>
           <p class="rounded-2xl bg-surface p-3 text-sm text-slate-800">{{ request.message }}</p>
           <div class="flex items-center justify-between text-xs text-muted">
-            <span>Tenant: {{ request.tenantId }}</span>
+            <span>Seeker: {{ request.tenantId }}</span>
             <span>Landlord: {{ request.landlordId }}</span>
           </div>
-          <div class="flex gap-2" v-if="auth.user.role === 'landlord' && request.status === 'pending'">
+          <div class="flex gap-2" v-if="auth.hasRole('landlord') && request.status === 'pending'">
             <Button class="flex-1" variant="primary" @click="updateStatus(request.id, 'accepted')">Accept</Button>
             <Button class="flex-1" variant="secondary" @click="updateStatus(request.id, 'rejected')">Reject</Button>
           </div>
@@ -159,8 +159,8 @@ const goToListing = (listingId: string) => router.push(`/listing/${listingId}`)
         <EmptyState
           v-if="!requestItems.length && !errorMessage"
           title="No requests yet"
-          subtitle="Send an inquiry or wait for tenants to contact you"
-          :icon="auth.user.role === 'landlord' ? ShieldCheck : Inbox"
+          subtitle="Send an inquiry or wait for seekers to contact you"
+          :icon="auth.hasRole('landlord') ? ShieldCheck : Inbox"
         />
       </div>
     </template>

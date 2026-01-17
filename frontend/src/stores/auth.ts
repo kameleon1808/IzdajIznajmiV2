@@ -1,25 +1,26 @@
 import { defineStore } from 'pinia'
-import { apiClient } from '../services/apiClient'
+import { apiClient, ensureCsrfCookie } from '../services/apiClient'
 
-export type Role = 'guest' | 'tenant' | 'landlord' | 'admin'
+export type Role = 'guest' | 'seeker' | 'landlord' | 'admin'
 
 interface User {
   id: string
   name: string
+  fullName?: string
   email?: string
   role: Role
+  roles: Role[]
 }
 
 interface PersistedState {
-  token: string | null
   user: User
 }
 
 const STORAGE_KEY = 'ii-auth-state'
-const defaultUser: User = { id: 'guest', name: 'Guest', role: 'guest' }
+const defaultUser: User = { id: 'guest', name: 'Guest', role: 'guest', roles: ['guest'] }
 
 const loadState = (): PersistedState => {
-  if (typeof localStorage === 'undefined') return { token: null, user: { ...defaultUser } }
+  if (typeof localStorage === 'undefined') return { user: { ...defaultUser } }
   const stored = localStorage.getItem(STORAGE_KEY)
   if (stored) {
     try {
@@ -28,7 +29,7 @@ const loadState = (): PersistedState => {
       console.error(e)
     }
   }
-  return { token: null, user: { ...defaultUser } }
+  return { user: { ...defaultUser } }
 }
 
 const storedState = loadState()
@@ -36,80 +37,109 @@ const storedState = loadState()
 export const useAuthStore = defineStore('auth', {
   state: () => ({
     user: storedState.user,
-    token: storedState.token as string | null,
     isAuthenticated: storedState.user.role !== 'guest',
     loading: false,
     initialized: false,
     isMockMode: (import.meta.env.VITE_USE_MOCK_API ?? 'true') !== 'false',
   }),
+  getters: {
+    primaryRole: (state): Role => state.user.roles[0] ?? state.user.role ?? 'guest',
+    hasRole: (state) => (role: Role) => state.user.roles.includes(role) || state.user.role === role,
+  },
   actions: {
-    setSession(user: any, token: string | null) {
+    setUser(user: any) {
+      const roles = (user.roles as Role[] | undefined)?.map(this.normalizeRole) ?? []
+      const primary = roles[0] ?? this.normalizeRole(user.role) ?? 'guest'
+      const normalizedRoles = roles.length ? roles : [primary]
       this.user = {
-        id: String(user.id),
-        name: user.name ?? 'User',
+        id: String(user.id ?? 'guest'),
+        name: user.name ?? user.fullName ?? user.full_name ?? 'User',
+        fullName: user.fullName ?? user.full_name,
         email: user.email,
-        role: (user.role as Role) ?? 'tenant',
+        role: primary,
+        roles: normalizedRoles,
       }
-      this.token = token
-      this.isAuthenticated = !!token && this.user.role !== 'guest'
+      this.isAuthenticated = primary !== 'guest'
       this.persist()
+    },
+    normalizeRole(role?: string): Role {
+      if (!role) return 'guest'
+      if (role === 'tenant') return 'seeker'
+      return (['seeker', 'landlord', 'admin'] as const).includes(role as Role) ? (role as Role) : 'guest'
     },
     persist() {
       if (typeof localStorage === 'undefined') return
-      const payload: PersistedState = { token: this.token, user: this.user }
+      const payload: PersistedState = { user: this.user }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(payload))
     },
     async initialize() {
       if (this.initialized) return
-      if (this.token && !this.isMockMode) {
-        try {
-          await this.fetchMe()
-        } catch {
-          await this.logout()
-        }
-      }
-      this.initialized = true
-    },
-    async register(payload: { name: string; email: string; password: string; passwordConfirmation?: string; role?: Role }) {
       if (this.isMockMode) {
-        this.loginAs(payload.role ?? 'tenant')
+        this.isAuthenticated = this.user.role !== 'guest'
+        this.initialized = true
+        return
+      }
+      try {
+        await this.fetchMe()
+      } catch {
+        this.clearSession()
+      } finally {
+        this.initialized = true
+      }
+    },
+    async register(payload: {
+      name: string
+      email: string
+      password: string
+      passwordConfirmation?: string
+      role?: Role
+      phone?: string
+      fullName?: string
+    }) {
+      if (this.isMockMode) {
+        this.loginAs(payload.role ?? 'seeker')
         return
       }
       this.loading = true
       try {
+        await ensureCsrfCookie()
         const { data } = await apiClient.post('/auth/register', {
           name: payload.name,
+          full_name: payload.fullName ?? payload.name,
           email: payload.email,
+          phone: payload.phone,
           password: payload.password,
           password_confirmation: payload.passwordConfirmation ?? payload.password,
-          role: payload.role ?? 'tenant',
+          role: payload.role ?? 'seeker',
         })
-        this.setSession(data.user, data.token)
+        this.setUser(data.user)
       } finally {
         this.loading = false
       }
     },
     async login(email: string, password: string) {
       if (this.isMockMode) {
-        this.loginAs('tenant')
+        this.loginAs('seeker')
         return
       }
       this.loading = true
       try {
+        await ensureCsrfCookie()
         const { data } = await apiClient.post('/auth/login', { email, password })
-        this.setSession(data.user, data.token)
+        this.setUser(data.user)
       } finally {
         this.loading = false
       }
     },
     async fetchMe() {
-      if (this.isMockMode || !this.token) return
+      if (this.isMockMode) return
       const { data } = await apiClient.get('/auth/me')
-      this.setSession(data.user, this.token)
+      this.setUser(data.user)
     },
     async logout() {
       try {
-        if (!this.isMockMode && this.token) {
+        if (!this.isMockMode) {
+          await ensureCsrfCookie()
           await apiClient.post('/auth/logout')
         }
       } catch (e) {
@@ -122,18 +152,16 @@ export const useAuthStore = defineStore('auth', {
       if (!this.isMockMode) return
       const names: Record<Role, string> = {
         guest: 'Guest',
-        tenant: 'Tena Tenant',
+        seeker: 'Sara Seeker',
         landlord: 'Lana Landlord',
         admin: 'Admin',
       }
-      this.user = { id: `${role}-1`, name: names[role] ?? 'User', role }
+      this.user = { id: `${role}-1`, name: names[role] ?? 'User', role, roles: [role] }
       this.isAuthenticated = role !== 'guest'
-      this.token = null
       this.persist()
     },
     clearSession() {
       this.user = { ...defaultUser }
-      this.token = null
       this.isAuthenticated = false
       this.persist()
     },

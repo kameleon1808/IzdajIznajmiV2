@@ -9,7 +9,7 @@ The repo is organized as a monorepo (frontend + backend + docs) to keep product,
 The goal is to demonstrate a UX-forward SPA backed by a clean, well-documented API surface: dual API modes for rapid prototyping, a predictable Laravel contract with policies and rate limiting, and a realistic media pipeline (async image processing) suitable for production hardening.
 
 ## Key Features
-- Marketplace & roles: guest browsing; tenant favorites and booking inquiries; landlord listing CRUD and publishing; admin oversight. Listing statuses: draft → published → archived (with restore to draft).
+- Marketplace & roles: guest browsing; seeker favorites and booking inquiries; landlord listing CRUD and publishing; admin oversight. Listing statuses: draft → published → archived (with restore to draft).
 - Discovery: browsing, search/filters (category, price range, guests, instant book, facilities, rating), pagination, and listing detail. Map view is a visual placeholder hero (no live map yet).
 - Favorites: client-side (frontend local) favorites with quick toggle.
 - Booking Requests (inquiry flow): tenant creates; landlord accepts/rejects; tenant can cancel while pending. Statuses surface in UI and API.
@@ -20,14 +20,14 @@ The goal is to demonstrate a UX-forward SPA backed by a clean, well-documented A
 
 ## Tech Stack
 - Frontend: Vue 3, Vite, TypeScript, Tailwind CSS, Pinia, Vue Router.
-- Backend: Laravel 12 API, Sanctum token auth, database queues, Intervention Image for media processing.
+- Backend: Laravel 12 API, Sanctum SPA cookie auth, database queues, Intervention Image for media processing.
 - Database: SQLite by default (file included), compatible with MySQL/PostgreSQL.
 - Tooling: PHP Unit tests, npm scripts for dev/build, queue worker for async jobs.
 
 ## Architecture
 - Monorepo with isolated `frontend/`, `backend/`, and `docs/`.
 - Frontend SPA toggles between mock services and real API via env flag; route guards enforce role access when using real API.
-- Backend exposes `/api` endpoints, enforces policies per role, processes images asynchronously, and rate-limits sensitive routes.
+- Backend exposes `/api/v1` endpoints (with temporary `/api/auth/*` aliases), enforces policies per role, processes images asynchronously, and rate-limits sensitive routes.
 - Docs folder contains API contract/examples, UI notes, and test/UAT plans kept close to code.
 
 ## Repo map
@@ -75,7 +75,8 @@ php artisan storage:link
 php artisan queue:work    # keep running for image processing
 php artisan serve --port=8000
 ```
-- API base: `/api`; SPA origin allowed from `http://localhost:5173`.
+- API base: `/api/v1` (auth also available at `/api/auth/*` during the transition); SPA cookie auth via `/sanctum/csrf-cookie`.
+- Stateful dev defaults: `SANCTUM_STATEFUL_DOMAINS=localhost:5173,127.0.0.1:5173`, `SESSION_DOMAIN=localhost`, CORS `supports_credentials=true`.
 - Image opts (default on): `IMAGE_OPTIMIZE=true`, `IMAGE_MAX_WIDTH=1600`, `IMAGE_WEBP_QUALITY=80`.
 
 ### Frontend setup
@@ -85,19 +86,20 @@ npm install
 cp .env.example .env
 # Toggle mock vs real API
 # VITE_USE_MOCK_API=true  # mock data, fastest start
-# VITE_USE_MOCK_API=false # real backend; set VITE_API_BASE_URL=http://localhost:8000
+# VITE_USE_MOCK_API=false # real backend; leave VITE_API_BASE_URL blank to use the dev proxy (or point to http://localhost:8000)
 npm run dev -- --host --port=5173
 ```
+- Vite dev proxy forwards `/api` and `/sanctum` to the backend for cookie auth; withCredentials is enabled in the client.
 - Mock mode keeps role switch visible on Profile; real mode enforces login and role guards.
 
 ### Demo Accounts (password `password`)
 - Admin: `admin@example.com`
 - Landlords: `lana@demo.com`, `leo@demo.com`
-- Tenants: `tena@demo.com`, `tomas@demo.com`, `tara@demo.com`
+- Seekers: `tena@demo.com`, `tomas@demo.com`, `tara@demo.com`
 
 ## Environment Variables
-- Frontend: `VITE_API_BASE_URL`, `VITE_USE_MOCK_API`.
-- Backend (minimum): `APP_URL` (e.g., http://localhost:8000), `FRONTEND_URL` (http://localhost:5173), `SANCTUM_STATEFUL_DOMAINS=localhost:5173`, `DB_CONNECTION` (sqlite by default), `QUEUE_CONNECTION=database`, `IMAGE_OPTIMIZE`, `IMAGE_MAX_WIDTH`, `IMAGE_WEBP_QUALITY`.
+- Frontend: `VITE_API_BASE_URL` (blank to use dev proxy), `VITE_USE_MOCK_API`.
+- Backend (minimum): `APP_URL` (e.g., http://localhost:8000), `FRONTEND_URL` (http://localhost:5173), `FRONTEND_URLS` (comma list for CORS), `SANCTUM_STATEFUL_DOMAINS=localhost:5173,127.0.0.1:5173`, `SESSION_DOMAIN=localhost`, `DB_CONNECTION` (sqlite by default), `QUEUE_CONNECTION=database`, `IMAGE_OPTIMIZE`, `IMAGE_MAX_WIDTH`, `IMAGE_WEBP_QUALITY`.
 
 ## API Documentation
 - Contract: `docs/api-contract.md`
@@ -105,9 +107,9 @@ npm run dev -- --host --port=5173
 - UI notes/tokens: `docs/ui.md`
 
 ## Security & Permissions
-- Roles: guest (browse), tenant (favorites, inquiries), landlord (listing CRUD/publish), admin (override).
-- Auth: Laravel Sanctum bearer tokens; SPA route guards block protected routes in real API mode.
-- Policies: listings view published or owner/admin; updates require owner/admin (archived immutable except admin). Booking requests: tenant can cancel pending own; landlord can accept/reject pending for own listing; admin bypasses.
+- Roles: guest (browse), seeker (favorites, inquiries), landlord (listing CRUD/publish), admin (override).
+- Auth: Laravel Sanctum SPA cookies (`/sanctum/csrf-cookie` + session) on `/api/v1/auth/*`; legacy `/api/auth/*` kept temporarily. Route guards block protected pages in real API mode.
+- Policies: listings view published or owner/admin; updates require owner/admin (archived immutable except admin). Booking requests: seeker can cancel pending own; landlord can accept/reject pending for own listing; admin bypasses.
 - Rate limiting (429): auth 10/min/IP; listings search 60/min/IP; booking requests 20/min/user or IP; landlord writes 30/min/user or IP.
 - Storage & media: uploads via multipart, stored to `public`; queue processes WebP conversions and updates cover/ordering with `processing_status` (`pending/done/failed`).
 
@@ -129,4 +131,4 @@ TBD
 Open to collaboration / freelance.
 
 ## Quick Note (SR)
-Ovaj projekat je UI-prioritet marketplace sa čistim Laravel API slojem i jasnim ugovorima. Dualni mod (mock/real) omogućava brzo testiranje bez backend-a ili rad sa pravim token authom. Upload slika ide preko reda za obradu (WebP) sa statusima, a rate limit štiti auth/pretragu/booking/landlord radnje. Uloge i politike su striktne (tenant inquiry, landlord CRUD/publish, admin override), uz lokalne “favorites”. Ako koristite real API, ne zaboravite `queue:work`, `storage:link` i demo naloge (password `password`) za brzo testiranje.
+Ovaj projekat je UI-prioritet marketplace sa čistim Laravel API slojem i jasnim ugovorima. Dualni mod (mock/real) omogućava brzo testiranje bez backend-a ili rad sa Sanctum cookie authom (`/sanctum/csrf-cookie` → session). Upload slika ide preko reda za obradu (WebP) sa statusima, a rate limit štiti auth/pretragu/booking/landlord radnje. Uloge i politike su striktne (seeker inquiry, landlord CRUD/publish, admin override), uz lokalne “favorites”. Ako koristite real API, ne zaboravite `queue:work`, `storage:link` i demo naloge (password `password`) za brzo testiranje.
