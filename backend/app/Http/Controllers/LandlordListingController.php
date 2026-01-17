@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreListingRequest;
 use App\Http\Requests\UpdateListingRequest;
 use App\Http\Resources\ListingResource;
+use App\Jobs\ProcessListingImage;
 use App\Models\Facility;
 use App\Models\Listing;
 use App\Models\ListingImage;
@@ -13,7 +14,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
-use Intervention\Image\ImageManager;
 
 class LandlordListingController extends Controller
 {
@@ -63,10 +63,14 @@ class LandlordListingController extends Controller
                 'baths' => $data['baths'],
                 'category' => $data['category'],
                 'instant_book' => $data['instantBook'] ?? false,
+                'status' => 'draft',
             ]);
 
-            $uploaded = $this->storeUploadedImages($request->file('images', []), $listing->id, $data['coverIndex'] ?? null);
-            $this->syncImages($listing, $uploaded);
+            $keepImages = [];
+            $startOrder = 0;
+            $coverIndex = $data['coverIndex'] ?? null;
+            $uploaded = $this->storeUploadedImages($request->file('images', []), $listing, $coverIndex, $startOrder);
+            $this->syncImages($listing, $keepImages, $uploaded);
             $this->syncFacilities($listing, $data['facilities'] ?? []);
 
             return $listing->load(['images', 'facilities']);
@@ -107,8 +111,8 @@ class LandlordListingController extends Controller
                 $listing->update($payload);
             }
 
-            $existing = $listing->images()->get(['id', 'url', 'sort_order', 'is_cover']);
-            $keep = collect($data['keepImages'] ?? [])->map(function ($item) {
+            $existing = $listing->images()->get();
+            $keepInput = collect($data['keepImages'] ?? [])->map(function ($item) {
                 return [
                     'url' => $item['url'],
                     'sort_order' => $item['sortOrder'] ?? 0,
@@ -116,8 +120,8 @@ class LandlordListingController extends Controller
                 ];
             });
 
-            if ($keep->isEmpty()) {
-                $keep = $existing->map(fn ($img) => [
+            if ($keepInput->isEmpty()) {
+                $keepInput = $existing->map(fn ($img) => [
                     'url' => $img->url,
                     'sort_order' => $img->sort_order,
                     'is_cover' => (bool) $img->is_cover,
@@ -125,14 +129,12 @@ class LandlordListingController extends Controller
             }
 
             $removedUrls = collect($data['removeImageUrls'] ?? []);
-            $keep = $keep->reject(fn ($item) => $removedUrls->contains($item['url']))->values();
+            $keepInput = $keepInput->reject(fn ($item) => $removedUrls->contains($item['url']))->values();
 
-            $newUploads = $this->storeUploadedImages($request->file('images', []), $listing->id, null, $keep->count());
-            $final = $keep->toArray();
-            $final = array_merge($final, $newUploads);
+            $newUploads = $this->storeUploadedImages($request->file('images', []), $listing, null, $keepInput->count());
 
             $this->deleteImages($listing, $removedUrls->all());
-            $this->syncImages($listing, $final);
+            $this->syncImages($listing, $keepInput->toArray(), $newUploads);
 
             if (array_key_exists('facilities', $data)) {
                 $this->syncFacilities($listing, $data['facilities'] ?? []);
@@ -144,57 +146,101 @@ class LandlordListingController extends Controller
         return response()->json(new ListingResource($listing));
     }
 
-    private function syncImages(Listing $listing, array $images): void
+    public function publish(Request $request, Listing $listing): JsonResponse
     {
-        $listing->images()->delete();
-        $coverSet = false;
-        foreach ($images as $index => $image) {
-            $url = is_array($image) ? ($image['url'] ?? '') : $image;
-            $sortOrder = is_array($image) ? ($image['sort_order'] ?? $index) : $index;
-            $isCover = is_array($image) ? ($image['is_cover'] ?? false) : ($index === 0);
-            if (!$coverSet && ($isCover || ($index === 0 && !$this->hasCover($images)))) {
-                $isCover = true;
-                $coverSet = true;
-            } elseif ($coverSet && $isCover) {
-                $isCover = false;
+        $this->authorize('update', $listing);
+        $this->ensureOwnerOrAdmin($request->user(), $listing);
+        if (!in_array($listing->status, ['draft', 'published'])) {
+            return response()->json(['message' => 'Cannot publish from current status'], 422);
+        }
+        $listing->update([
+            'status' => 'published',
+            'published_at' => now(),
+            'archived_at' => null,
+        ]);
+        return response()->json(new ListingResource($listing->fresh(['images', 'facilities'])));
+    }
+
+    public function unpublish(Request $request, Listing $listing): JsonResponse
+    {
+        $this->authorize('update', $listing);
+        $this->ensureOwnerOrAdmin($request->user(), $listing);
+        if ($listing->status !== 'published') {
+            return response()->json(['message' => 'Only published listings can be unpublished'], 422);
+        }
+        $listing->update([
+            'status' => 'draft',
+            'published_at' => null,
+        ]);
+        return response()->json(new ListingResource($listing->fresh(['images', 'facilities'])));
+    }
+
+    public function archive(Request $request, Listing $listing): JsonResponse
+    {
+        $this->authorize('update', $listing);
+        $this->ensureOwnerOrAdmin($request->user(), $listing);
+        if ($listing->status === 'archived') {
+            return response()->json(new ListingResource($listing));
+        }
+        $listing->update([
+            'status' => 'archived',
+            'archived_at' => now(),
+        ]);
+        return response()->json(new ListingResource($listing->fresh(['images', 'facilities'])));
+    }
+
+    public function restore(Request $request, Listing $listing): JsonResponse
+    {
+        $this->authorize('update', $listing);
+        $this->ensureOwnerOrAdmin($request->user(), $listing);
+        if ($listing->status !== 'archived') {
+            return response()->json(['message' => 'Only archived listings can be restored'], 422);
+        }
+        $listing->update([
+            'status' => 'draft',
+            'archived_at' => null,
+        ]);
+        return response()->json(new ListingResource($listing->fresh(['images', 'facilities'])));
+    }
+
+    private function ensureOwnerOrAdmin($user, Listing $listing): void
+    {
+        abort_unless($user && ($user->role === 'admin' || $user->id === $listing->owner_id), 403, 'Forbidden');
+    }
+
+    private function syncImages(Listing $listing, array $keepImages, array $newUploads): void
+    {
+        $existing = $listing->images()->get();
+        $keepUrls = collect($keepImages)->pluck('url');
+        $newUrls = collect($newUploads)->pluck('url');
+
+        // delete removed (exclude freshly uploaded)
+        $existing->filter(fn ($img) => !$keepUrls->contains($img->url) && !$newUrls->contains($img->url))->each->delete();
+
+        // update kept
+        foreach ($keepImages as $img) {
+            $record = $existing->firstWhere('url', $img['url']);
+            if ($record) {
+                $record->update([
+                    'sort_order' => $img['sort_order'] ?? 0,
+                    'is_cover' => $img['is_cover'] ?? false,
+                ]);
             }
-            ListingImage::create([
-                'listing_id' => $listing->id,
-                'url' => $url,
-                'sort_order' => $sortOrder,
-                'is_cover' => $isCover,
+        }
+
+        // ensure new uploads are sorted
+        foreach ($newUploads as $upload) {
+            $upload->update([
+                'sort_order' => $upload->sort_order,
+                'is_cover' => $upload->is_cover,
             ]);
         }
 
-        if (!empty($images)) {
-            $cover = collect($images)->first(fn ($img) => is_array($img) ? ($img['is_cover'] ?? false) : false);
-            $coverUrl = $cover
-                ? (is_array($cover) ? $cover['url'] : $cover)
-                : (is_array($images[0]) ? ($images[0]['url'] ?? null) : $images[0]);
-            $listing->update(['cover_image' => $coverUrl]);
+        $imagesAll = $listing->images()->orderBy('sort_order')->get();
+        if ($imagesAll->isNotEmpty()) {
+            $cover = $imagesAll->firstWhere('is_cover', true) ?? $imagesAll->first();
+            $listing->update(['cover_image' => $cover?->url]);
         }
-    }
-
-    private function hasCover(array $images): bool
-    {
-        return collect($images)->contains(function ($img) {
-            return is_array($img) ? ($img['is_cover'] ?? false) : false;
-        });
-    }
-
-    private function storeUploadedImages(array $files, int $listingId, ?int $coverIndex = null, int $startOrder = 0): array
-    {
-        $urls = [];
-        foreach ($files as $index => $file) {
-            $order = $startOrder + $index;
-            $converted = $this->processAndStoreImage($file, $listingId);
-            $urls[] = [
-                'url' => $converted,
-                'sort_order' => $order,
-                'is_cover' => $coverIndex !== null ? $coverIndex === $index : false,
-            ];
-        }
-        return $urls;
     }
 
     private function deleteImages(Listing $listing, array $urls): void
@@ -210,38 +256,32 @@ class LandlordListingController extends Controller
             }
             Storage::disk('public')->delete($relative);
         }
+        $listing->images()->whereIn('url', $urls)->delete();
     }
 
-    private function processAndStoreImage($file, int $listingId): string
+    private function storeUploadedImages(array $files, Listing $listing, ?int $coverIndex = null, int $startOrder = 0): array
     {
-        $optimize = filter_var(env('IMAGE_OPTIMIZE', true), FILTER_VALIDATE_BOOL);
-        $maxWidth = (int) env('IMAGE_MAX_WIDTH', 1600);
-        $quality = (int) env('IMAGE_WEBP_QUALITY', 80);
-
-        $name = Str::uuid()->toString();
+        $uploads = [];
         $disk = Storage::disk('public');
-        $directory = "listings/{$listingId}";
-
-        if ($optimize) {
-            try {
-                $manager = new ImageManager(['driver' => 'gd']);
-                $image = $manager->read($file->getPathname());
-                if ($maxWidth > 0 && $image->width() > $maxWidth) {
-                    $image = $image->scale($maxWidth, null);
-                }
-                $encoded = $image->toWebp($quality);
-                $path = "{$directory}/{$name}.webp";
-                $disk->put($path, (string) $encoded);
-                return $disk->url($path);
-            } catch (\Throwable $e) {
-                // fallback to original
-            }
+        $directory = "listings/{$listing->id}/original";
+        foreach ($files as $index => $file) {
+            $uuid = Str::uuid()->toString();
+            $ext = $file->getClientOriginalExtension() ?: 'jpg';
+            $path = "{$directory}/{$uuid}.{$ext}";
+            $disk->putFileAs($directory, $file, "{$uuid}.{$ext}");
+            $isCover = $coverIndex !== null ? $coverIndex === $index : false;
+            $image = ListingImage::create([
+                'listing_id' => $listing->id,
+                'url' => $disk->url($path),
+                'sort_order' => $startOrder + $index,
+                'is_cover' => $isCover,
+                'processing_status' => 'pending',
+            ]);
+            ProcessListingImage::dispatch($image->id, $path);
+            $uploads[] = $image;
         }
 
-        $ext = $file->getClientOriginalExtension() ?: 'jpg';
-        $path = "{$directory}/{$name}.{$ext}";
-        $disk->putFileAs($directory, $file, "{$name}.{$ext}");
-        return $disk->url($path);
+        return $uploads;
     }
 
     private function syncFacilities(Listing $listing, array $facilities): void

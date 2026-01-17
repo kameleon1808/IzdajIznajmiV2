@@ -26,6 +26,7 @@ const localFilters = ref<ListingFilters>({
 })
 const currentQuery = ref('')
 const debouncedSearch = useDebounceFn(() => runSearch(), 300)
+const currentQueryValue = computed(() => currentQuery.value)
 
 onMounted(() => {
   listingsStore.fetchRecommended()
@@ -133,7 +134,7 @@ watch(searchQuery, () => {
           v-if="listingsStore.searchMeta && listingsStore.searchMeta.current_page < listingsStore.searchMeta.last_page"
           :loading="loadingMore"
           variant="secondary"
-          @click="listingsStore.loadMoreSearch(currentQuery)"
+          @click="listingsStore.loadMoreSearch(currentQueryValue)"
         >
           Load more
         </Button>

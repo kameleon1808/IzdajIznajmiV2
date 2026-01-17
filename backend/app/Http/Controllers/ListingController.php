@@ -11,12 +11,14 @@ class ListingController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $query = Listing::query()->with([
-            'images' => function ($q) {
-                $q->orderBy('sort_order');
-            },
-            'facilities',
-        ]);
+        $query = Listing::query()
+            ->where('status', 'published')
+            ->with([
+                'images' => function ($q) {
+                    $q->where('processing_status', 'done')->orderBy('sort_order');
+                },
+                'facilities',
+            ]);
 
         if (($category = $request->string('category')->toString()) && $category !== 'all') {
             $query->where('category', $category);
@@ -65,7 +67,11 @@ class ListingController extends Controller
 
     public function show(Listing $listing): JsonResponse
     {
-        $listing->load(['images', 'facilities']);
+        $listing->load(['images' => fn ($q) => $q->where('processing_status', 'done')->orderBy('sort_order'), 'facilities']);
+        $user = request()->user();
+        if ($listing->status !== 'published' && !($user && ($user->role === 'admin' || $user->id === $listing->owner_id))) {
+            abort(404);
+        }
         return response()->json(new ListingResource($listing));
     }
 }

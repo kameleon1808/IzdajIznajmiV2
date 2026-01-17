@@ -13,7 +13,7 @@ export interface Listing {
   reviewsCount: number
   coverImage: string
   images?: string[]
-  imagesDetailed?: { url: string; sortOrder: number; isCover: boolean }[]
+  imagesDetailed?: { url: string; sortOrder: number; isCover: boolean; processingStatus?: string; processingError?: string }[]
   description?: string
   beds: number
   baths: number
@@ -23,6 +23,9 @@ export interface Listing {
   facilities?: string[]
   ownerId?: string | number
   createdAt?: string
+  status?: 'draft' | 'published' | 'archived'
+  publishedAt?: string | null
+  archivedAt?: string | null
 }
 
 export interface Review {

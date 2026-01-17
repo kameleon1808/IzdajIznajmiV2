@@ -32,11 +32,35 @@ class ListingsApiTest extends TestCase
             'baths' => 1,
             'category' => 'villa',
             'instant_book' => false,
+            'status' => 'published',
         ]);
 
         $response = $this->getJson('/api/listings');
 
         $response->assertOk()->assertJsonFragment(['title' => 'Test Stay']);
+    }
+
+    public function test_public_listings_excludes_draft(): void
+    {
+        $landlord = User::factory()->create(['role' => 'landlord']);
+        Listing::create([
+            'owner_id' => $landlord->id,
+            'title' => 'Draft Stay',
+            'address' => '123 Demo St',
+            'city' => 'Zagreb',
+            'country' => 'Croatia',
+            'price_per_night' => 120,
+            'rating' => 4.5,
+            'reviews_count' => 12,
+            'beds' => 2,
+            'baths' => 1,
+            'category' => 'villa',
+            'instant_book' => false,
+            'status' => 'draft',
+        ]);
+
+        $response = $this->getJson('/api/listings');
+        $response->assertOk()->assertJsonMissing(['title' => 'Draft Stay']);
     }
 
     public function test_landlord_cannot_update_other_listing(): void
@@ -96,13 +120,8 @@ class ListingsApiTest extends TestCase
         $response->assertCreated()->assertJsonFragment(['title' => 'With Images']);
 
         $listingId = $response->json('id');
-        $imageUrl = $response->json('images.0');
-        $this->assertNotEmpty($imageUrl);
         $this->assertNotNull($listingId);
-
-        $storagePath = str_replace('/storage/', '', parse_url($imageUrl, PHP_URL_PATH));
-        Storage::disk('public')->assertExists($storagePath);
-        $this->assertEquals($imageUrl, $response->json('coverImage'));
+        $this->assertTrue(in_array($response->json('imagesDetailed.0.processingStatus'), ['pending', 'done']));
     }
 
     public function test_landlord_can_update_images_keep_and_add(): void
@@ -136,6 +155,7 @@ class ListingsApiTest extends TestCase
         $listing->images()->create([
             'url' => $existingUrl,
             'sort_order' => 0,
+            'processing_status' => 'done',
         ]);
         $listing->update(['cover_image' => $existingUrl]);
 
@@ -143,18 +163,15 @@ class ListingsApiTest extends TestCase
 
         $response = $this->put("/api/landlord/listings/{$listing->id}", [
             'title' => 'Updated',
-            'keepImageUrls' => [$existingUrl],
+            'keepImages' => json_encode([['url' => $existingUrl, 'sortOrder' => 0, 'isCover' => true]]),
             'images' => [$newFile],
         ], ['Accept' => 'application/json']);
 
         $response->assertOk()->assertJsonFragment(['title' => 'Updated']);
-        $imageUrls = $response->json('images');
-        $this->assertCount(2, $imageUrls);
-
-        $newUrl = collect($imageUrls)->first(fn ($url) => $url !== $existingUrl);
-        $this->assertNotEmpty($newUrl);
-
-        Storage::disk('public')->assertExists(str_replace('/storage/', '', parse_url($newUrl, PHP_URL_PATH)));
+        $imagesDetailed = $response->json('imagesDetailed');
+        $this->assertCount(2, $imagesDetailed);
+        $newPending = collect($imagesDetailed)->first(fn ($img) => $img['url'] !== $existingUrl);
+        $this->assertTrue(in_array($newPending['processingStatus'], ['pending', 'done']));
         Storage::disk('public')->assertExists($existingPath);
         $this->assertEquals($existingUrl, $response->json('coverImage'));
     }
@@ -197,5 +214,57 @@ class ListingsApiTest extends TestCase
         $response->assertOk();
         Storage::disk('public')->assertMissing($path);
         $this->assertEmpty($response->json('images'));
+    }
+
+    public function test_landlord_can_publish_unpublish(): void
+    {
+        $landlord = User::factory()->create(['role' => 'landlord']);
+        Sanctum::actingAs($landlord, ['*']);
+        $listing = Listing::create([
+            'owner_id' => $landlord->id,
+            'title' => 'Lifecycle',
+            'address' => '123 Demo St',
+            'city' => 'Split',
+            'country' => 'Croatia',
+            'price_per_night' => 120,
+            'rating' => 4.5,
+            'reviews_count' => 12,
+            'beds' => 2,
+            'baths' => 1,
+            'category' => 'villa',
+            'instant_book' => false,
+            'status' => 'draft',
+        ]);
+
+        $publish = $this->patchJson("/api/landlord/listings/{$listing->id}/publish");
+        $publish->assertOk()->assertJsonFragment(['status' => 'published']);
+
+        $unpublish = $this->patchJson("/api/landlord/listings/{$listing->id}/unpublish");
+        $unpublish->assertOk()->assertJsonFragment(['status' => 'draft']);
+    }
+
+    public function test_tenant_cannot_publish(): void
+    {
+        $tenant = User::factory()->create(['role' => 'tenant']);
+        Sanctum::actingAs($tenant, ['*']);
+        $landlord = User::factory()->create(['role' => 'landlord']);
+        $listing = Listing::create([
+            'owner_id' => $landlord->id,
+            'title' => 'Nope',
+            'address' => '123 Demo St',
+            'city' => 'Split',
+            'country' => 'Croatia',
+            'price_per_night' => 120,
+            'rating' => 4.5,
+            'reviews_count' => 12,
+            'beds' => 2,
+            'baths' => 1,
+            'category' => 'villa',
+            'instant_book' => false,
+            'status' => 'draft',
+        ]);
+
+        $resp = $this->patchJson("/api/landlord/listings/{$listing->id}/publish");
+        $resp->assertForbidden();
     }
 }

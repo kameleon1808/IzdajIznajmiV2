@@ -33,6 +33,8 @@ class ListingResource extends JsonResource
                     'url' => $img->url,
                     'sortOrder' => $img->sort_order,
                     'isCover' => (bool) $img->is_cover,
+                    'processingStatus' => $img->processing_status ?? 'done',
+                    'processingError' => $img->processing_error,
                 ];
             })),
             'description' => $this->description,
@@ -44,14 +46,17 @@ class ListingResource extends JsonResource
             'facilities' => $this->whenLoaded('facilities', fn () => $this->facilities->pluck('name')),
             'ownerId' => $this->owner_id,
             'createdAt' => optional($this->created_at)->toISOString(),
+            'status' => $this->status,
+            'publishedAt' => optional($this->published_at)->toISOString(),
+            'archivedAt' => optional($this->archived_at)->toISOString(),
         ];
     }
 
     private function imagesSimple(): Collection
     {
         if ($this->relationLoaded('images')) {
-            return $this->images->pluck('url');
+            return $this->images->where('processing_status', 'done')->pluck('url');
         }
-        return $this->images()->pluck('url');
+        return $this->images()->where('processing_status', 'done')->pluck('url');
     }
 }

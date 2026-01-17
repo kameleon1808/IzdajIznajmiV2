@@ -45,6 +45,13 @@ curl -X POST http://localhost:8000/api/landlord/listings/1?_method=PUT \
   -F "images[]=@/path/to/new-photo.jpg"
 ```
 
+### Publish / Unpublish / Archive
+```bash
+curl -X PATCH http://localhost:8000/api/landlord/listings/1/publish -H "Authorization: Bearer <TOKEN>"
+curl -X PATCH http://localhost:8000/api/landlord/listings/1/unpublish -H "Authorization: Bearer <TOKEN>"
+curl -X PATCH http://localhost:8000/api/landlord/listings/1/archive -H "Authorization: Bearer <TOKEN>"
+```
+
 ## Create Booking Request (Tenant)
 ```bash
 curl -X POST http://localhost:8000/api/booking-requests \

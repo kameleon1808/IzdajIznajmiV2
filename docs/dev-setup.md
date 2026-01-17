@@ -8,6 +8,10 @@
 - CORS: dozvoljen `http://localhost:5173` za SPA.
 - Za slike: postavite `APP_URL=http://localhost:8000` i pokrenite `php artisan storage:link` (potrebno za /storage URL-ove).
 - Image optimizacija (opciono, default uključeno): `IMAGE_OPTIMIZE=true`, `IMAGE_MAX_WIDTH=1600`, `IMAGE_WEBP_QUALITY=80`.
+- Queue:
+  - `QUEUE_CONNECTION=database`
+  - Pokrenite worker: `php artisan queue:work`
+  - Migracije uključuju jobs tabelu (default).
 
 ## Frontend (Vue 3 + Vite)
 - Lokacija: `/frontend`

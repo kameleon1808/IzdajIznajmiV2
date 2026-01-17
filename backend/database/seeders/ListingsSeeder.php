@@ -37,6 +37,8 @@ class ListingsSeeder extends Seeder
             $ownerId = $landlordIds[$i % count($landlordIds)];
             $category = $categories[array_rand($categories)];
             $images = collect($imagePool)->shuffle()->take(3)->values();
+            $statusPool = ['draft', 'published', 'archived', 'published'];
+            $status = $statusPool[array_rand($statusPool)];
 
             $listing = Listing::create([
                 'owner_id' => $ownerId,
@@ -55,6 +57,9 @@ class ListingsSeeder extends Seeder
                 'baths' => $faker->numberBetween(1, 4),
                 'category' => $category,
                 'instant_book' => $faker->boolean(60),
+                'status' => $status,
+                'published_at' => $status === 'published' ? now()->subDays(rand(1, 30)) : null,
+                'archived_at' => $status === 'archived' ? now()->subDays(rand(1, 30)) : null,
             ]);
 
             foreach ($images as $index => $url) {
@@ -62,6 +67,8 @@ class ListingsSeeder extends Seeder
                     'listing_id' => $listing->id,
                     'url' => $url,
                     'sort_order' => $index,
+                    'is_cover' => $index === 0,
+                    'processing_status' => 'done',
                 ]);
             }
 

@@ -40,6 +40,9 @@ const mapListing = (data: any): Listing => {
       [],
     ownerId: data.ownerId ?? data.owner_id,
     createdAt: data.createdAt ?? data.created_at,
+    status: data.status,
+    publishedAt: data.publishedAt ?? data.published_at,
+    archivedAt: data.archivedAt ?? data.archived_at,
   }
 }
 
@@ -195,6 +198,26 @@ export const updateListing = async (id: string, payload: any): Promise<Listing> 
   payload.imagesFiles?.forEach((file: File) => form.append('images[]', file))
 
   const { data } = await apiClient.post(`/landlord/listings/${id}?_method=PUT`, form)
+  return mapListing(data.data ?? data)
+}
+
+export const publishListing = async (id: string): Promise<Listing> => {
+  const { data } = await apiClient.patch(`/landlord/listings/${id}/publish`)
+  return mapListing(data.data ?? data)
+}
+
+export const unpublishListing = async (id: string): Promise<Listing> => {
+  const { data } = await apiClient.patch(`/landlord/listings/${id}/unpublish`)
+  return mapListing(data.data ?? data)
+}
+
+export const archiveListing = async (id: string): Promise<Listing> => {
+  const { data } = await apiClient.patch(`/landlord/listings/${id}/archive`)
+  return mapListing(data.data ?? data)
+}
+
+export const restoreListing = async (id: string): Promise<Listing> => {
+  const { data } = await apiClient.patch(`/landlord/listings/${id}/restore`)
   return mapListing(data.data ?? data)
 }
 

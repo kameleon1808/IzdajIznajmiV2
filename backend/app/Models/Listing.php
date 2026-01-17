@@ -29,6 +29,9 @@ class Listing extends Model
         'baths',
         'category',
         'instant_book',
+        'status',
+        'published_at',
+        'archived_at',
     ];
 
     protected $casts = [
@@ -36,6 +39,8 @@ class Listing extends Model
         'lat' => 'float',
         'lng' => 'float',
         'rating' => 'float',
+        'published_at' => 'datetime',
+        'archived_at' => 'datetime',
     ];
 
     public function owner(): BelongsTo

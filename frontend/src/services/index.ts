@@ -27,5 +27,9 @@ export const getBookingRequestsForLandlord = pick('getBookingRequestsForLandlord
 export const updateBookingRequestStatus = pick('updateBookingRequestStatus')
 export const getConversations = pick('getConversations')
 export const getMessages = pick('getMessages')
+export const publishListing = pick('publishListing')
+export const unpublishListing = pick('unpublishListing')
+export const archiveListing = pick('archiveListing')
+export const restoreListing = pick('restoreListing')
 
 export const isMockApi = useMock

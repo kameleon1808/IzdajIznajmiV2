@@ -11,6 +11,9 @@ class ListingImage extends Model
         'listing_id',
         'url',
         'sort_order',
+        'is_cover',
+        'processing_status',
+        'processing_error',
     ];
 
     public function listing(): BelongsTo

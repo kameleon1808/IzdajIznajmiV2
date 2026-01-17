@@ -5,6 +5,7 @@ Base URL: `/api`
 ## Listings
 - `GET /api/listings`
   - Query params: `category`, `priceMin`, `priceMax`, `guests`, `instantBook`, `location`, `facilities[]`, `rating`, `page`, `perPage` (default 10, max 50).
+  - Only returns `published` listings with processed images.
   - Response (paginated):
     ```json
     {
@@ -17,13 +18,13 @@ Base URL: `/api`
   - Response: `Listing` + related `facilities`, `images`, `description`.
 - `GET /api/landlord/listings`
   - Auth: landlord/admin.
-  - Response: `Listing[]` filtered by `ownerId`.
+  - Response: `Listing[]` filtered by `ownerId`, includes draft/published/archived.
 - `POST /api/landlord/listings`
   - Content-Type: `multipart/form-data`
   - Fields: `title, pricePerNight, category, city, country, address, description, beds, baths, lat?, lng?, instantBook?`
   - Arrays: `facilities[]` (names/ids), `images[]` (FILE uploads, image/*, max ~5MB, up to 10)
   - Optional: `coverIndex` (int) to mark cover among new uploads.
-  - Behavior: stores files to `/storage/listings/{id}/...`, converts to webp (best effort), returns URLs; `coverImage` = marked cover or first uploaded.
+  - Behavior: stores originals, enqueues image processing (webp). `coverImage` follows marked cover; `imagesDetailed.processingStatus` shows `pending/done/failed`.
   - Response: created `Listing` with `images` (URLs).
 - `PUT /api/landlord/listings/:id`
   - Content-Type: `multipart/form-data`
@@ -35,6 +36,12 @@ Base URL: `/api`
     - `facilities[]` (names/ids).
   - Behavior: final image set = keepImages (with ordering/cover) + newly uploaded (appended); removed files are deleted from disk. `coverImage` follows `isCover` flag or first image.
   - Response: updated `Listing`.
+- Lifecycle:
+  - `PATCH /api/landlord/listings/:id/publish` -> status `published`
+  - `PATCH /api/landlord/listings/:id/unpublish` -> status `draft`
+  - `PATCH /api/landlord/listings/:id/archive` -> status `archived`
+  - `PATCH /api/landlord/listings/:id/restore` -> status `draft`
+  - Rules: draft↔published, draft/published→archived, archived→draft (restore), else 422.
 
 ## Booking Requests (Inquiry flow)
 - `POST /api/booking-requests`
@@ -59,7 +66,7 @@ Base URL: `/api`
 - `facilities[]` filter currently matches ANY facility provided (can be tightened to ALL later if needed).
 
 ## Types (reference)
-- `Listing`: `{ id, title, address?, city, country, lat?, lng?, pricePerNight, rating, reviewsCount, coverImage, images?, imagesDetailed? [{url,sortOrder,isCover}], description?, beds, baths, category ('villa'|'hotel'|'apartment'), isFavorite, instantBook?, facilities?, ownerId?, createdAt? }`
+- `Listing`: `{ id, title, address?, city, country, lat?, lng?, pricePerNight, rating, reviewsCount, coverImage, images?, imagesDetailed? [{url,sortOrder,isCover,processingStatus?,processingError?}], description?, beds, baths, category ('villa'|'hotel'|'apartment'), isFavorite, instantBook?, facilities?, ownerId?, createdAt?, status ('draft'|'published'|'archived'), publishedAt?, archivedAt? }`
 - `BookingRequest`: `{ id, listingId, tenantId, landlordId, startDate?, endDate?, guests, message, status ('pending'|'accepted'|'rejected'|'cancelled'), createdAt }`
 - `Booking`: `{ id, listingId, listingTitle, datesRange, guestsText, pricePerNight, rating, coverImage, status ('booked'|'history') }`
 - `Conversation`: `{ id, userName, avatarUrl, lastMessage, time, unreadCount, online }`

@@ -21,6 +21,7 @@ type GalleryItem = {
   isCover: boolean
   sortOrder: number
   keep: boolean
+  processingStatus?: string
 }
 
 const router = useRouter()
@@ -67,9 +68,9 @@ const loadListing = async () => {
       form.description = data.description || ''
       form.beds = data.beds
       form.baths = data.baths
-      const detailed: { url: string; sortOrder: number; isCover?: boolean }[] = data.imagesDetailed?.length
+      const detailed: { url: string; sortOrder: number; isCover?: boolean; processingStatus?: string }[] = data.imagesDetailed?.length
         ? data.imagesDetailed
-        : (data.images || []).map((url: string, idx: number) => ({ url, sortOrder: idx, isCover: idx === 0 }))
+        : (data.images || []).map((url: string, idx: number) => ({ url, sortOrder: idx, isCover: idx === 0, processingStatus: 'done' }))
       const sorted = [...detailed].sort((a, b) => a.sortOrder - b.sortOrder)
       gallery.value = sorted.map((img, idx) => ({
         key: `existing-${idx}-${img.url}`,
@@ -78,6 +79,7 @@ const loadListing = async () => {
         isCover: img.isCover ?? idx === 0,
         sortOrder: idx,
         keep: true,
+        processingStatus: img.processingStatus ?? 'done',
       }))
       form.facilities = data.facilities || []
       form.lat = data.lat?.toString() || ''
@@ -116,6 +118,7 @@ const onFilesChange = (event: Event) => {
       isCover: gallery.value.every((g) => !g.isCover),
       sortOrder: gallery.value.length,
       keep: true,
+      processingStatus: 'pending',
     })
   })
 }
@@ -153,6 +156,8 @@ const move = (key: string, direction: -1 | 1) => {
 }
 
 const totalImages = computed(() => activeGallery.value.length)
+const hasPendingImages = computed(() => activeGallery.value.some((g) => g.processingStatus && g.processingStatus !== 'done'))
+const canPublish = computed(() => isValid.value && totalImages.value > 0 && !hasPendingImages.value)
 
 const save = async () => {
   if (!isValid.value) return
@@ -172,6 +177,7 @@ const save = async () => {
           url: g.url,
           sortOrder: g.sortOrder,
           isCover: g.isCover,
+          processingStatus: g.processingStatus,
         })),
       removeImageUrls: gallery.value.filter((g) => !g.keep && !g.isNew && g.url).map((g) => g.url),
       imagesFiles: ordered.filter((g) => g.isNew && g.file).map((g) => g.file),
@@ -188,6 +194,40 @@ const save = async () => {
     router.push('/landlord/listings')
   } catch (err) {
     error.value = (err as Error).message || 'Save failed.'
+  } finally {
+    submitting.value = false
+  }
+}
+
+const publishNow = async () => {
+  if (!canPublish.value) {
+    error.value = 'Need at least one processed image and valid fields to publish.'
+    return
+  }
+  submitting.value = true
+  error.value = ''
+  try {
+    let listingId = route.params.id as string | undefined
+    if (!isEdit.value) {
+      const created = await listingsStore.createListing({
+        ...form,
+        lat: form.lat ? Number(form.lat) : undefined,
+        lng: form.lng ? Number(form.lng) : undefined,
+        ownerId: auth.user.id,
+        keepImages: [],
+        imagesFiles: activeGallery.value.filter((g) => g.isNew && g.file).map((g) => g.file),
+      } as any)
+      listingId = created.id
+    } else {
+      await save()
+      listingId = route.params.id as string
+    }
+    if (listingId) {
+      await listingsStore.publishListingAction(listingId)
+      router.push('/landlord/listings')
+    }
+  } catch (err: any) {
+    error.value = err.message ?? 'Publish failed.'
   } finally {
     submitting.value = false
   }
@@ -345,6 +385,12 @@ const save = async () => {
                 {{ item.isCover ? 'Cover' : 'Image' }}
               </span>
               <span class="ml-auto rounded-full bg-white/80 px-2 py-1 text-slate-800 shadow-soft">#{{ idx + 1 }}</span>
+              <span
+                v-if="item.processingStatus && item.processingStatus !== 'done'"
+                class="rounded-full bg-amber-500/90 px-2 py-1 text-white"
+              >
+                Processing
+              </span>
             </div>
             <div class="absolute bottom-1 left-1 right-1 flex items-center gap-1">
               <button
@@ -382,8 +428,11 @@ const save = async () => {
 
       <div class="flex justify-end gap-2">
         <Button variant="secondary" @click="router.push('/landlord/listings')">Cancel</Button>
+        <Button v-if="isEdit" variant="primary" :disabled="!canPublish || submitting" @click="publishNow">
+          Publish
+        </Button>
         <Button :disabled="!isValid || submitting" @click="save">
-          {{ submitting ? 'Saving...' : 'Save listing' }}
+          {{ submitting ? 'Saving...' : isEdit ? 'Save changes' : 'Save draft' }}
         </Button>
       </div>
     </div>

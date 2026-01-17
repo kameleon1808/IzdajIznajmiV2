@@ -8,6 +8,10 @@ import {
   isMockApi,
   searchListings,
   updateListing,
+  publishListing,
+  unpublishListing,
+  archiveListing,
+  restoreListing,
 } from '../services'
 import { useAuthStore } from './auth'
 import type { Listing, ListingFilters } from '../types'
@@ -59,6 +63,7 @@ export const useListingsStore = defineStore('listings', {
     favoriteListings: [] as Listing[],
     favorites: loadFavorites(),
     landlordListings: [] as Listing[],
+    landlordStatusFilter: 'all' as 'all' | 'draft' | 'published' | 'archived',
     filters: { ...defaultFilters },
     searchResults: [] as Listing[],
     searchMeta: null as any,
@@ -159,13 +164,14 @@ export const useListingsStore = defineStore('listings', {
         this.loading = false
       }
     },
-    async loadMoreSearch(query: string) {
+    async loadMoreSearch(query: string | { value: string }) {
+      const q = typeof query === 'string' ? query : query.value
       if (this.loadingMore) return
       if (this.searchMeta && this.searchMeta.current_page >= this.searchMeta.last_page) return
       this.loadingMore = true
       try {
         const nextPage = (this.searchMeta?.current_page ?? this.searchPage) + 1
-        const resp = await searchListings(query, this.filters, nextPage, 10)
+        const resp = await searchListings(q, this.filters, nextPage, 10)
         const list = Array.isArray(resp) ? resp : resp.items
         this.searchMeta = Array.isArray(resp) ? null : resp.meta
         this.searchPage = nextPage
@@ -221,6 +227,42 @@ export const useListingsStore = defineStore('listings', {
         this.landlordError = (error as Error).message || 'Failed to update listing.'
         throw error
       }
+    },
+    async publishListingAction(id: string) {
+      const updated = await publishListing(id)
+      if (isMockApi) {
+        this.landlordListings = this.landlordListings.map((l) => (l.id === id ? updated : l))
+      } else {
+        await this.fetchLandlordListings()
+      }
+      return updated
+    },
+    async unpublishListingAction(id: string) {
+      const updated = await unpublishListing(id)
+      if (isMockApi) {
+        this.landlordListings = this.landlordListings.map((l) => (l.id === id ? updated : l))
+      } else {
+        await this.fetchLandlordListings()
+      }
+      return updated
+    },
+    async archiveListingAction(id: string) {
+      const updated = await archiveListing(id)
+      if (isMockApi) {
+        this.landlordListings = this.landlordListings.map((l) => (l.id === id ? updated : l))
+      } else {
+        await this.fetchLandlordListings()
+      }
+      return updated
+    },
+    async restoreListingAction(id: string) {
+      const updated = await restoreListing(id)
+      if (isMockApi) {
+        this.landlordListings = this.landlordListings.map((l) => (l.id === id ? updated : l))
+      } else {
+        await this.fetchLandlordListings()
+      }
+      return updated
     },
     toggleFavorite(id: string) {
       if (this.favorites.includes(id)) {

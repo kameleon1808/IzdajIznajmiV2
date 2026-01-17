@@ -182,6 +182,7 @@ listings.forEach((item) => {
   if (!item.coverImage && item.images?.length) {
     item.coverImage = item.images[0] ?? ''
   }
+  ;(item as any).status = (item as any).status ?? 'published'
 })
 
 const reviews: Record<string, Review[]> = {
@@ -451,6 +452,38 @@ export async function updateListing(id: string, payload: Partial<ListingInput>):
   }
   listings[index] = updated
   return JSON.parse(JSON.stringify(updated))
+}
+
+export async function publishListing(id: string): Promise<Listing | null> {
+  await delay()
+  const found = listings.find((l) => l.id === id)
+  if (!found) return null
+  ;(found as any).status = 'published'
+  return JSON.parse(JSON.stringify(found))
+}
+
+export async function unpublishListing(id: string): Promise<Listing | null> {
+  await delay()
+  const found = listings.find((l) => l.id === id)
+  if (!found) return null
+  ;(found as any).status = 'draft'
+  return JSON.parse(JSON.stringify(found))
+}
+
+export async function archiveListing(id: string): Promise<Listing | null> {
+  await delay()
+  const found = listings.find((l) => l.id === id)
+  if (!found) return null
+  ;(found as any).status = 'archived'
+  return JSON.parse(JSON.stringify(found))
+}
+
+export async function restoreListing(id: string): Promise<Listing | null> {
+  await delay()
+  const found = listings.find((l) => l.id === id)
+  if (!found) return null
+  ;(found as any).status = 'draft'
+  return JSON.parse(JSON.stringify(found))
 }
 
 export async function createBookingRequest(

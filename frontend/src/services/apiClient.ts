@@ -47,6 +47,13 @@ apiClient.interceptors.response.use(
     if (status === 401) {
       toast.push({ title: 'Session expired', message: 'Please log in again.', type: 'error' })
       await onUnauthorized()
+    } else if (status === 429) {
+      const retryAfter = (error.response?.headers as any)?.['retry-after']
+      toast.push({
+        title: 'Too many requests',
+        message: retryAfter ? `Try again in ${retryAfter}s.` : 'Please wait a moment.',
+        type: 'error',
+      })
     }
     const message =
       (error.response?.data as any)?.message ||
