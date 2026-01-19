@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\BookingRequest;
 use App\Models\Listing;
 use App\Models\User;
+use App\Services\ListingAddressGuardService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -14,10 +15,14 @@ class BookingRequestsApiTest extends TestCase
 
     private function createListing(User $owner): Listing
     {
+        $addressGuard = app(ListingAddressGuardService::class);
+        $addressKey = $addressGuard->normalizeAddressKey('1 Beach Way', 'Split', 'Croatia');
+
         return Listing::create([
             'owner_id' => $owner->id,
             'title' => 'Seaside Villa',
             'address' => '1 Beach Way',
+            'address_key' => $addressKey,
             'city' => 'Split',
             'country' => 'Croatia',
             'price_per_night' => 250,
@@ -25,8 +30,11 @@ class BookingRequestsApiTest extends TestCase
             'reviews_count' => 30,
             'beds' => 3,
             'baths' => 2,
+            'rooms' => 3,
             'category' => 'villa',
             'instant_book' => false,
+            'status' => 'active',
+            'published_at' => now()->subDay(),
         ]);
     }
 

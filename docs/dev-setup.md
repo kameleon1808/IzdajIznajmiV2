@@ -12,6 +12,7 @@
   - `QUEUE_CONNECTION=database`
   - Pokrenite worker: `php artisan queue:work`
   - Migracije uključuju jobs tabelu (default).
+- Scheduler (auto-expire listings): `php artisan schedule:work` uključuje zadatak `listings:expire` koji dnevno prebacuje stare aktivne oglase u `expired`.
 
 ## Frontend (Vue 3 + Vite)
 - Lokacija: `/frontend`

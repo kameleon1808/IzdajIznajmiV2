@@ -6,6 +6,7 @@ use App\Models\Facility;
 use App\Models\Listing;
 use App\Models\ListingImage;
 use App\Models\User;
+use App\Services\ListingAddressGuardService;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -20,6 +21,7 @@ class ListingsSeeder extends Seeder
 
         $landlordIds = User::where('role', 'landlord')->pluck('id')->all();
         $facilities = Facility::all();
+        $addressGuard = app(ListingAddressGuardService::class);
 
         $imagePool = [
             'https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=1400&q=80',
@@ -37,15 +39,20 @@ class ListingsSeeder extends Seeder
             $ownerId = $landlordIds[$i % count($landlordIds)];
             $category = $categories[array_rand($categories)];
             $images = collect($imagePool)->shuffle()->take(3)->values();
-            $statusPool = ['draft', 'published', 'archived', 'published'];
+            $statusPool = ['draft', 'active', 'archived', 'active', 'paused', 'rented'];
             $status = $statusPool[array_rand($statusPool)];
+            $address = $faker->streetAddress();
+            $city = $faker->city();
+            $country = $faker->country();
+            $addressKey = $addressGuard->normalizeAddressKey($address, $city, $country);
 
             $listing = Listing::create([
                 'owner_id' => $ownerId,
                 'title' => Str::headline($faker->words(3, true)),
-                'address' => $faker->streetAddress(),
-                'city' => $faker->city(),
-                'country' => $faker->country(),
+                'address' => $address,
+                'address_key' => $addressKey,
+                'city' => $city,
+                'country' => $country,
                 'lat' => $faker->latitude(),
                 'lng' => $faker->longitude(),
                 'price_per_night' => $faker->numberBetween(80, 420),
@@ -55,10 +62,12 @@ class ListingsSeeder extends Seeder
                 'description' => $faker->sentences(3, true),
                 'beds' => $faker->numberBetween(1, 5),
                 'baths' => $faker->numberBetween(1, 4),
+                'rooms' => $faker->numberBetween(1, 5),
+                'area' => $faker->numberBetween(35, 220),
                 'category' => $category,
                 'instant_book' => $faker->boolean(60),
                 'status' => $status,
-                'published_at' => $status === 'published' ? now()->subDays(rand(1, 30)) : null,
+                'published_at' => in_array($status, ['active', 'rented'], true) ? now()->subDays(rand(1, 30)) : null,
                 'archived_at' => $status === 'archived' ? now()->subDays(rand(1, 30)) : null,
             ]);
 

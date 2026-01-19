@@ -9,6 +9,8 @@ use App\Jobs\ProcessListingImage;
 use App\Models\Facility;
 use App\Models\Listing;
 use App\Models\ListingImage;
+use App\Services\ListingAddressGuardService;
+use App\Services\ListingStatusService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -17,6 +19,12 @@ use Illuminate\Support\Facades\DB;
 
 class LandlordListingController extends Controller
 {
+    public function __construct(
+        private readonly ListingStatusService $statusService,
+        private readonly ListingAddressGuardService $addressGuard
+    ) {
+    }
+
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -46,11 +54,15 @@ class LandlordListingController extends Controller
         abort_unless($user && $this->userHasRole($user, ['landlord', 'admin']), 403, 'Forbidden');
 
         $data = $request->validated();
-        $listing = DB::transaction(function () use ($data, $user, $request) {
+        $addressKey = $this->addressGuard->normalizeAddressKey($data['address'], $data['city'], $data['country']);
+        $rooms = $data['rooms'] ?? $data['beds'];
+
+        $listing = DB::transaction(function () use ($data, $user, $request, $addressKey, $rooms) {
             $listing = Listing::create([
                 'owner_id' => $user->id,
                 'title' => $data['title'],
                 'address' => $data['address'],
+                'address_key' => $addressKey,
                 'city' => $data['city'],
                 'country' => $data['country'],
                 'lat' => $data['lat'] ?? null,
@@ -61,9 +73,11 @@ class LandlordListingController extends Controller
                 'description' => $data['description'] ?? null,
                 'beds' => $data['beds'],
                 'baths' => $data['baths'],
+                'rooms' => $rooms,
+                'area' => $data['area'] ?? null,
                 'category' => $data['category'],
                 'instant_book' => $data['instantBook'] ?? false,
-                'status' => 'draft',
+                'status' => ListingStatusService::STATUS_DRAFT,
             ]);
 
             $keepImages = [];
@@ -76,6 +90,8 @@ class LandlordListingController extends Controller
             return $listing->load(['images', 'facilities']);
         });
 
+        $listing->setAttribute('warnings', []);
+
         return response()->json(new ListingResource($listing), 201);
     }
 
@@ -83,6 +99,15 @@ class LandlordListingController extends Controller
     {
         $this->authorize('update', $listing);
         $data = $request->validated();
+
+        $newAddress = $data['address'] ?? $listing->address;
+        $newCity = $data['city'] ?? $listing->city;
+        $newCountry = $data['country'] ?? $listing->country;
+        $addressKey = $this->addressGuard->normalizeAddressKey($newAddress, $newCity, $newCountry);
+        $warnings = [];
+        if ($listing->status === ListingStatusService::STATUS_ACTIVE) {
+            $warnings = $this->addressGuard->guardActiveAddress($listing, $addressKey);
+        }
 
         $payload = [];
         $map = [
@@ -95,6 +120,8 @@ class LandlordListingController extends Controller
             'description' => 'description',
             'beds' => 'beds',
             'baths' => 'baths',
+            'rooms' => 'rooms',
+            'area' => 'area',
             'lat' => 'lat',
             'lng' => 'lng',
             'instantBook' => 'instant_book',
@@ -105,6 +132,8 @@ class LandlordListingController extends Controller
                 $payload[$column] = $data[$input];
             }
         }
+
+        $payload['address_key'] = $addressKey;
 
         DB::transaction(function () use ($listing, $data, $payload, $request) {
             if (!empty($payload)) {
@@ -142,6 +171,7 @@ class LandlordListingController extends Controller
         });
 
         $listing->refresh()->load(['images', 'facilities']);
+        $listing->setAttribute('warnings', $warnings);
 
         return response()->json(new ListingResource($listing));
     }
@@ -150,42 +180,49 @@ class LandlordListingController extends Controller
     {
         $this->authorize('update', $listing);
         $this->ensureOwnerOrAdmin($request->user(), $listing);
-        if (!in_array($listing->status, ['draft', 'published'])) {
+        $addressKey = $this->addressGuard->normalizeAddressKey($listing->address, $listing->city, $listing->country);
+        $warnings = $this->addressGuard->guardActiveAddress($listing, $addressKey);
+
+        try {
+            $this->statusService->markActive($listing);
+        } catch (\RuntimeException) {
             return response()->json(['message' => 'Cannot publish from current status'], 422);
         }
-        $listing->update([
-            'status' => 'published',
-            'published_at' => now(),
-            'archived_at' => null,
-        ]);
-        return response()->json(new ListingResource($listing->fresh(['images', 'facilities'])));
+
+        $listing->update(['address_key' => $addressKey]);
+        $listing = $listing->fresh(['images', 'facilities']);
+        $listing->setAttribute('warnings', $warnings);
+
+        return response()->json(new ListingResource($listing));
     }
 
     public function unpublish(Request $request, Listing $listing): JsonResponse
     {
         $this->authorize('update', $listing);
         $this->ensureOwnerOrAdmin($request->user(), $listing);
-        if ($listing->status !== 'published') {
-            return response()->json(['message' => 'Only published listings can be unpublished'], 422);
+        try {
+            $this->statusService->markPaused($listing);
+        } catch (\RuntimeException) {
+            return response()->json(['message' => 'Only active listings can be paused'], 422);
         }
-        $listing->update([
-            'status' => 'draft',
-            'published_at' => null,
-        ]);
-        return response()->json(new ListingResource($listing->fresh(['images', 'facilities'])));
+
+        $listing->refresh()->load(['images', 'facilities']);
+        return response()->json(new ListingResource($listing));
     }
 
     public function archive(Request $request, Listing $listing): JsonResponse
     {
         $this->authorize('update', $listing);
         $this->ensureOwnerOrAdmin($request->user(), $listing);
-        if ($listing->status === 'archived') {
+        if ($listing->status === ListingStatusService::STATUS_ARCHIVED) {
             return response()->json(new ListingResource($listing));
         }
-        $listing->update([
-            'status' => 'archived',
-            'archived_at' => now(),
-        ]);
+        try {
+            $this->statusService->markArchived($listing);
+        } catch (\RuntimeException) {
+            return response()->json(['message' => 'Cannot archive from current status'], 422);
+        }
+
         return response()->json(new ListingResource($listing->fresh(['images', 'facilities'])));
     }
 
@@ -193,14 +230,46 @@ class LandlordListingController extends Controller
     {
         $this->authorize('update', $listing);
         $this->ensureOwnerOrAdmin($request->user(), $listing);
-        if ($listing->status !== 'archived') {
-            return response()->json(['message' => 'Only archived listings can be restored'], 422);
+        try {
+            $this->statusService->markDraft($listing);
+        } catch (\RuntimeException) {
+            return response()->json(['message' => 'Only archived or expired listings can be restored'], 422);
         }
-        $listing->update([
-            'status' => 'draft',
-            'archived_at' => null,
-        ]);
+
         return response()->json(new ListingResource($listing->fresh(['images', 'facilities'])));
+    }
+
+    public function markRented(Request $request, Listing $listing): JsonResponse
+    {
+        $this->authorize('update', $listing);
+        $this->ensureOwnerOrAdmin($request->user(), $listing);
+        try {
+            $this->statusService->markRented($listing);
+        } catch (\RuntimeException) {
+            return response()->json(['message' => 'Cannot mark rented from current status'], 422);
+        }
+
+        return response()->json(new ListingResource($listing->fresh(['images', 'facilities'])));
+    }
+
+    public function markAvailable(Request $request, Listing $listing): JsonResponse
+    {
+        $this->authorize('update', $listing);
+        $this->ensureOwnerOrAdmin($request->user(), $listing);
+        $addressKey = $this->addressGuard->normalizeAddressKey($listing->address, $listing->city, $listing->country);
+        $warnings = $this->addressGuard->guardActiveAddress($listing, $addressKey);
+
+        try {
+            $this->statusService->markActive($listing);
+        } catch (\RuntimeException) {
+            return response()->json(['message' => 'Cannot activate from current status'], 422);
+        }
+
+        $listing->update(['address_key' => $addressKey]);
+        $listing = $listing->fresh(['images', 'facilities']);
+        $listing->setAttribute('warnings', $warnings);
+
+        return response()->json(new ListingResource($listing));
     }
 
     private function ensureOwnerOrAdmin($user, Listing $listing): void

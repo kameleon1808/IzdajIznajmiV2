@@ -23,6 +23,8 @@ class StoreListingRequest extends FormRequest
             'description' => ['nullable', 'string', 'min:30'],
             'beds' => ['required', 'integer', 'min:1', 'max:50'],
             'baths' => ['required', 'integer', 'min:1', 'max:50'],
+            'rooms' => ['sometimes', 'integer', 'min:1', 'max:50'],
+            'area' => ['sometimes', 'integer', 'min:10', 'max:100000'],
             'images' => ['nullable', 'array', 'max:10'],
             'images.*' => ['image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             'coverIndex' => ['sometimes', 'integer', 'min:0'],

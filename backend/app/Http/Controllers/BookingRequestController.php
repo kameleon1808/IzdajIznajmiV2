@@ -7,6 +7,7 @@ use App\Http\Requests\UpdateBookingRequestStatusRequest;
 use App\Http\Resources\BookingRequestResource;
 use App\Models\BookingRequest;
 use App\Models\Listing;
+use App\Services\ListingStatusService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -24,6 +25,10 @@ class BookingRequestController extends Controller
 
         if ((int) $listing->owner_id !== (int) $data['landlordId']) {
             return response()->json(['message' => 'Landlord does not own listing'], 422);
+        }
+
+        if ($listing->status !== ListingStatusService::STATUS_ACTIVE) {
+            return response()->json(['message' => 'Listing is not available for booking'], 422);
         }
 
         $bookingRequest = BookingRequest::create([

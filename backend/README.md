@@ -6,6 +6,9 @@ composer install
 cp .env.example .env
 php artisan key:generate
 php artisan migrate:fresh --seed
+php artisan schedule:work   # runs listings:expire auto-expiry
+# optional for image pipeline:
+# php artisan queue:work
 php artisan serve
 ```
 
@@ -16,6 +19,7 @@ php artisan serve
   - admin@example.com (admin)
   - lana@demo.com, leo@demo.com (landlords)
   - tena@demo.com, tomas@demo.com, tara@demo.com (seekers)
+- Listings parity: statuses `draft/active/paused/archived/rented/expired`, duplicate-address guard rails (block same-landlord active duplicates; warn cross-landlord), discovery filters include city/rooms/area/amenities/status, `listings:expire` auto-expires active listings after 30 days.
 
 ## Docs
 - Contract: `docs/api-contract.md`

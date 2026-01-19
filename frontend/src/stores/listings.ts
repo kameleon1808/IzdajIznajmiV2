@@ -12,6 +12,8 @@ import {
   unpublishListing,
   archiveListing,
   restoreListing,
+  markListingAvailable,
+  markListingRented,
 } from '../services'
 import { useAuthStore } from './auth'
 import type { Listing, ListingFilters } from '../types'
@@ -22,8 +24,13 @@ const defaultFilters: ListingFilters = {
   priceRange: [50, 400],
   instantBook: false,
   location: '',
+  city: '',
   facilities: [],
+  amenities: [],
   rating: null,
+  rooms: null,
+  areaRange: [0, 100000],
+  status: 'all',
 }
 
 const loadFavorites = (): string[] => {
@@ -45,6 +52,8 @@ type ListingFormInput = {
   country: string
   beds: number
   baths: number
+  rooms?: number
+  area?: number
   images?: string[]
   description?: string
   lat?: number
@@ -63,7 +72,7 @@ export const useListingsStore = defineStore('listings', {
     favoriteListings: [] as Listing[],
     favorites: loadFavorites(),
     landlordListings: [] as Listing[],
-    landlordStatusFilter: 'all' as 'all' | 'draft' | 'published' | 'archived',
+    landlordStatusFilter: 'all' as 'all' | 'draft' | 'active' | 'paused' | 'archived' | 'rented' | 'expired',
     filters: { ...defaultFilters },
     searchResults: [] as Listing[],
     searchMeta: null as any,
@@ -257,6 +266,24 @@ export const useListingsStore = defineStore('listings', {
     },
     async restoreListingAction(id: string) {
       const updated = await restoreListing(id)
+      if (isMockApi) {
+        this.landlordListings = this.landlordListings.map((l) => (l.id === id ? updated : l))
+      } else {
+        await this.fetchLandlordListings()
+      }
+      return updated
+    },
+    async markListingRentedAction(id: string) {
+      const updated = await markListingRented(id)
+      if (isMockApi) {
+        this.landlordListings = this.landlordListings.map((l) => (l.id === id ? updated : l))
+      } else {
+        await this.fetchLandlordListings()
+      }
+      return updated
+    },
+    async markListingAvailableAction(id: string) {
+      const updated = await markListingAvailable(id)
       if (isMockApi) {
         this.landlordListings = this.landlordListings.map((l) => (l.id === id ? updated : l))
       } else {

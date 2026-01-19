@@ -157,6 +157,13 @@ const submitRequest = async () => {
         <div class="flex gap-2 overflow-x-auto pb-1">
           <FacilityPill v-for="item in facilities.flatMap((g) => g.items).slice(0, 6)" :key="item" :label="item" />
         </div>
+        <p class="text-sm text-muted">
+          Rooms: {{ listing.rooms ?? listing.beds }}
+          · Beds: {{ listing.beds }}
+          · Baths: {{ listing.baths }}
+          <span v-if="listing.area">· Area: {{ listing.area }} sqm</span>
+          <span v-if="listing.beds">· Guests: {{ Math.max(listing.beds, listing.rooms ?? listing.beds) }}</span>
+        </p>
       </div>
 
       <div class="space-y-2">

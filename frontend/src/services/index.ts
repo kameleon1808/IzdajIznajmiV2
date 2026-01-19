@@ -31,5 +31,7 @@ export const publishListing = pick('publishListing')
 export const unpublishListing = pick('unpublishListing')
 export const archiveListing = pick('archiveListing')
 export const restoreListing = pick('restoreListing')
+export const markListingRented = pick('markListingRented')
+export const markListingAvailable = pick('markListingAvailable')
 
 export const isMockApi = useMock

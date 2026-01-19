@@ -2,8 +2,11 @@
 
 namespace Tests\Feature;
 
+use App\Models\Facility;
 use App\Models\Listing;
 use App\Models\User;
+use App\Services\ListingAddressGuardService;
+use Carbon\Carbon;
 use Illuminate\Foundation\Testing\WithFaker;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -31,7 +34,7 @@ class ListingsApiTest extends TestCase
             'baths' => 1,
             'category' => 'villa',
             'instant_book' => false,
-            'status' => 'published',
+            'status' => 'active',
         ]);
 
         $response = $this->getJson('/api/v1/listings');
@@ -236,10 +239,10 @@ class ListingsApiTest extends TestCase
         ]);
 
         $publish = $this->patchJson("/api/v1/landlord/listings/{$listing->id}/publish");
-        $publish->assertOk()->assertJsonFragment(['status' => 'published']);
+        $publish->assertOk()->assertJsonFragment(['status' => 'active']);
 
         $unpublish = $this->patchJson("/api/v1/landlord/listings/{$listing->id}/unpublish");
-        $unpublish->assertOk()->assertJsonFragment(['status' => 'draft']);
+        $unpublish->assertOk()->assertJsonFragment(['status' => 'paused']);
     }
 
     public function test_tenant_cannot_publish(): void
@@ -265,5 +268,266 @@ class ListingsApiTest extends TestCase
 
         $resp = $this->patchJson("/api/v1/landlord/listings/{$listing->id}/publish");
         $resp->assertForbidden();
+    }
+
+    public function test_same_landlord_cannot_activate_duplicate_address(): void
+    {
+        $landlord = User::factory()->create(['role' => 'landlord']);
+        $guard = app(ListingAddressGuardService::class);
+        $addressKey = $guard->normalizeAddressKey('123 Demo St', 'Zagreb', 'Croatia');
+
+        $this->actingAs($landlord);
+
+        Listing::create([
+            'owner_id' => $landlord->id,
+            'title' => 'First',
+            'address' => '123 Demo St',
+            'address_key' => $addressKey,
+            'city' => 'Zagreb',
+            'country' => 'Croatia',
+            'price_per_night' => 120,
+            'rating' => 4.5,
+            'reviews_count' => 12,
+            'beds' => 2,
+            'baths' => 1,
+            'rooms' => 2,
+            'category' => 'villa',
+            'instant_book' => false,
+            'status' => 'active',
+            'published_at' => now()->subDays(2),
+        ]);
+
+        $listingTwo = Listing::create([
+            'owner_id' => $landlord->id,
+            'title' => 'Second',
+            'address' => '123 Demo St',
+            'address_key' => $addressKey,
+            'city' => 'Zagreb',
+            'country' => 'Croatia',
+            'price_per_night' => 130,
+            'rating' => 4.5,
+            'reviews_count' => 12,
+            'beds' => 2,
+            'baths' => 1,
+            'rooms' => 2,
+            'category' => 'villa',
+            'instant_book' => false,
+            'status' => 'draft',
+        ]);
+
+        $resp = $this->patchJson("/api/v1/landlord/listings/{$listingTwo->id}/publish");
+        $resp->assertStatus(409);
+    }
+
+    public function test_warns_when_other_landlord_has_active_address(): void
+    {
+        $guard = app(ListingAddressGuardService::class);
+        $addressKey = $guard->normalizeAddressKey('45 Water St', 'Split', 'Croatia');
+
+        $landlordA = User::factory()->create(['role' => 'landlord']);
+        $landlordB = User::factory()->create(['role' => 'landlord']);
+
+        Listing::create([
+            'owner_id' => $landlordA->id,
+            'title' => 'Original',
+            'address' => '45 Water St',
+            'address_key' => $addressKey,
+            'city' => 'Split',
+            'country' => 'Croatia',
+            'price_per_night' => 150,
+            'rating' => 4.6,
+            'reviews_count' => 10,
+            'beds' => 3,
+            'baths' => 2,
+            'rooms' => 3,
+            'category' => 'villa',
+            'instant_book' => true,
+            'status' => 'active',
+            'published_at' => now()->subDays(5),
+        ]);
+
+        $this->actingAs($landlordB);
+        $listingB = Listing::create([
+            'owner_id' => $landlordB->id,
+            'title' => 'New',
+            'address' => '45 Water St',
+            'address_key' => $addressKey,
+            'city' => 'Split',
+            'country' => 'Croatia',
+            'price_per_night' => 155,
+            'rating' => 4.4,
+            'reviews_count' => 5,
+            'beds' => 3,
+            'baths' => 2,
+            'rooms' => 3,
+            'category' => 'villa',
+            'instant_book' => true,
+            'status' => 'draft',
+        ]);
+
+        $resp = $this->patchJson("/api/v1/landlord/listings/{$listingB->id}/publish");
+        $resp->assertOk();
+        $resp->assertJsonFragment(['status' => 'active']);
+        $this->assertNotEmpty($resp->json('warnings'));
+    }
+
+    public function test_auto_expire_command_marks_old_active_listings(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-02-01 00:00:00'));
+        $landlord = User::factory()->create(['role' => 'landlord']);
+        $guard = app(ListingAddressGuardService::class);
+        $oldKey = $guard->normalizeAddressKey('Old 1', 'Zagreb', 'Croatia');
+        $freshKey = $guard->normalizeAddressKey('Fresh 2', 'Split', 'Croatia');
+
+        $oldListing = Listing::create([
+            'owner_id' => $landlord->id,
+            'title' => 'Old',
+            'address' => 'Old 1',
+            'address_key' => $oldKey,
+            'city' => 'Zagreb',
+            'country' => 'Croatia',
+            'price_per_night' => 100,
+            'rating' => 4.4,
+            'reviews_count' => 1,
+            'beds' => 2,
+            'baths' => 1,
+            'rooms' => 2,
+            'category' => 'apartment',
+            'instant_book' => false,
+            'status' => 'active',
+            'published_at' => Carbon::now()->subDays(35),
+        ]);
+
+        $freshListing = Listing::create([
+            'owner_id' => $landlord->id,
+            'title' => 'Fresh',
+            'address' => 'Fresh 2',
+            'address_key' => $freshKey,
+            'city' => 'Split',
+            'country' => 'Croatia',
+            'price_per_night' => 120,
+            'rating' => 4.7,
+            'reviews_count' => 3,
+            'beds' => 2,
+            'baths' => 1,
+            'rooms' => 2,
+            'category' => 'apartment',
+            'instant_book' => true,
+            'status' => 'active',
+            'published_at' => Carbon::now()->subDays(10),
+        ]);
+
+        $this->artisan('listings:expire')->assertSuccessful();
+
+        $this->assertEquals('expired', $oldListing->fresh()->status);
+        $this->assertEquals('active', $freshListing->fresh()->status);
+        Carbon::setTestNow();
+    }
+
+    public function test_discovery_filters_city_rooms_area_price_amenities(): void
+    {
+        $guard = app(ListingAddressGuardService::class);
+        $wifi = Facility::create(['name' => 'wifi']);
+        $pool = Facility::create(['name' => 'pool']);
+
+        $listingA = Listing::create([
+            'owner_id' => User::factory()->create(['role' => 'landlord'])->id,
+            'title' => 'Filter Match',
+            'address' => '1 Main',
+            'address_key' => $guard->normalizeAddressKey('1 Main', 'Zagreb', 'Croatia'),
+            'city' => 'Zagreb',
+            'country' => 'Croatia',
+            'price_per_night' => 150,
+            'rating' => 4.8,
+            'reviews_count' => 20,
+            'beds' => 3,
+            'baths' => 2,
+            'rooms' => 3,
+            'area' => 95,
+            'category' => 'villa',
+            'instant_book' => true,
+            'status' => 'active',
+            'published_at' => now()->subDays(2),
+        ]);
+        $listingA->facilities()->sync([$wifi->id, $pool->id]);
+
+        $listingB = Listing::create([
+            'owner_id' => User::factory()->create(['role' => 'landlord'])->id,
+            'title' => 'Filter Miss',
+            'address' => '2 Side',
+            'address_key' => $guard->normalizeAddressKey('2 Side', 'Split', 'Croatia'),
+            'city' => 'Split',
+            'country' => 'Croatia',
+            'price_per_night' => 60,
+            'rating' => 4.1,
+            'reviews_count' => 5,
+            'beds' => 1,
+            'baths' => 1,
+            'rooms' => 1,
+            'area' => 40,
+            'category' => 'apartment',
+            'instant_book' => false,
+            'status' => 'active',
+            'published_at' => now()->subDays(2),
+        ]);
+        $listingB->facilities()->sync([$pool->id]);
+
+        $pausedListing = Listing::create([
+            'owner_id' => User::factory()->create(['role' => 'landlord'])->id,
+            'title' => 'Paused',
+            'address' => '3 Pause',
+            'address_key' => $guard->normalizeAddressKey('3 Pause', 'Zagreb', 'Croatia'),
+            'city' => 'Zagreb',
+            'country' => 'Croatia',
+            'price_per_night' => 110,
+            'rating' => 4.2,
+            'reviews_count' => 8,
+            'beds' => 2,
+            'baths' => 1,
+            'rooms' => 2,
+            'area' => 65,
+            'category' => 'apartment',
+            'instant_book' => false,
+            'status' => 'paused',
+        ]);
+
+        $luxListing = Listing::create([
+            'owner_id' => User::factory()->create(['role' => 'landlord'])->id,
+            'title' => 'Lux Listing',
+            'address' => '4 River',
+            'address_key' => $guard->normalizeAddressKey('4 River', 'South Ethelville', 'Luxembourg'),
+            'city' => 'South Ethelville',
+            'country' => 'Luxembourg',
+            'price_per_night' => 180,
+            'rating' => 4.9,
+            'reviews_count' => 15,
+            'beds' => 3,
+            'baths' => 2,
+            'rooms' => 3,
+            'area' => 120,
+            'category' => 'villa',
+            'instant_book' => true,
+            'status' => 'active',
+            'published_at' => now()->subDays(2),
+        ]);
+
+        $response = $this->getJson('/api/v1/listings?city=zag&rooms=2&areaMin=80&areaMax=120&priceMin=120&priceMax=180&amenities[]=wifi');
+        $response->assertOk();
+        $ids = collect($response->json('data'))->pluck('id')->map(fn ($id) => (int) $id);
+        $this->assertTrue($ids->contains($listingA->id));
+        $this->assertFalse($ids->contains($listingB->id));
+        $this->assertFalse($ids->contains($pausedListing->id));
+
+        $countryResponse = $this->getJson('/api/v1/listings?city=Luxembourg');
+        $countryIds = collect($countryResponse->json('data'))->pluck('id')->map(fn ($id) => (int) $id);
+        $this->assertTrue($countryIds->contains($luxListing->id));
+
+        $comboResponse = $this->getJson('/api/v1/listings?city=South%20Ethelville,%20Luxembourg');
+        $comboIds = collect($comboResponse->json('data'))->pluck('id')->map(fn ($id) => (int) $id);
+        $this->assertTrue($comboIds->contains($luxListing->id));
+
+        $statusResponse = $this->getJson('/api/v1/listings?status=paused');
+        $statusIds = collect($statusResponse->json('data'))->pluck('id')->map(fn ($id) => (int) $id);
+        $this->assertTrue($statusIds->contains($pausedListing->id));
     }
 }

@@ -16,6 +16,7 @@ class Listing extends Model
         'owner_id',
         'title',
         'address',
+        'address_key',
         'city',
         'country',
         'lat',
@@ -27,11 +28,14 @@ class Listing extends Model
         'description',
         'beds',
         'baths',
+        'rooms',
+        'area',
         'category',
         'instant_book',
         'status',
         'published_at',
         'archived_at',
+        'expired_at',
     ];
 
     protected $casts = [
@@ -41,6 +45,7 @@ class Listing extends Model
         'rating' => 'float',
         'published_at' => 'datetime',
         'archived_at' => 'datetime',
+        'expired_at' => 'datetime',
     ];
 
     public function owner(): BelongsTo

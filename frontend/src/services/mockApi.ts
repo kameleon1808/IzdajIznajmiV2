@@ -182,7 +182,10 @@ listings.forEach((item) => {
   if (!item.coverImage && item.images?.length) {
     item.coverImage = item.images[0] ?? ''
   }
-  ;(item as any).status = (item as any).status ?? 'published'
+  ;(item as any).status = (item as any).status ?? 'active'
+  ;(item as any).rooms = (item as any).rooms ?? item.beds
+  ;(item as any).area = (item as any).area ?? 80 + Math.floor(Math.random() * 70)
+  ;(item as any).warnings = []
 })
 
 const reviews: Record<string, Review[]> = {
@@ -334,12 +337,17 @@ const applyFilters = (items: Listing[], filters?: Partial<ListingFilters>) => {
     const matchLocation = filters.location
       ? `${item.city} ${item.country}`.toLowerCase().includes(filters.location.toLowerCase())
       : true
-    const matchRating = filters.rating ? item.rating >= filters.rating : true
-    const matchFacilities = filters.facilities && filters.facilities.length
-      ? filters.facilities.every((f) => item.facilities?.includes(f))
+    const matchCity = filters.city ? item.city.toLowerCase().includes(filters.city.toLowerCase()) : true
+    const matchRooms = filters.rooms ? (item.rooms ?? item.beds) >= filters.rooms : true
+    const matchArea = filters.areaRange
+      ? (item.area ?? 0) >= (filters.areaRange[0] ?? 0) && (item.area ?? 0) <= (filters.areaRange[1] ?? Infinity)
       : true
+    const matchRating = filters.rating ? item.rating >= filters.rating : true
+    const amenities = (filters.amenities?.length ? filters.amenities : filters.facilities) ?? []
+    const matchFacilities = amenities.length ? amenities.some((f) => item.facilities?.includes(f)) : true
+    const matchStatus = filters.status && filters.status !== 'all' ? item.status === filters.status : true
 
-    return matchCategory && matchGuests && matchPrice && matchInstant && matchLocation && matchRating && matchFacilities
+    return matchCategory && matchGuests && matchPrice && matchInstant && matchLocation && matchCity && matchRooms && matchArea && matchRating && matchFacilities && matchStatus
   })
 }
 
@@ -399,6 +407,8 @@ type ListingInput = {
   country: string
   beds: number
   baths: number
+  rooms?: number
+  area?: number
   images?: string[]
   description?: string
   lat?: number
@@ -427,12 +437,16 @@ export async function createListing(payload: ListingInput & { ownerId: string | 
     description: payload.description,
     beds: payload.beds,
     baths: payload.baths,
+    rooms: (payload as any).rooms ?? payload.beds,
+    area: (payload as any).area ?? 90,
     category: payload.category,
     isFavorite: false,
     instantBook: true,
     facilities: payload.facilities ?? [],
     ownerId: payload.ownerId,
     createdAt: new Date().toISOString(),
+    status: 'draft',
+    warnings: [],
   }
   listings.unshift(listing)
   return JSON.parse(JSON.stringify(listing))
@@ -449,6 +463,8 @@ export async function updateListing(id: string, payload: Partial<ListingInput>):
     ...payload,
     coverImage: payload.images?.[0] ?? current.coverImage,
     images: payload.images ?? current.images,
+    rooms: (payload as any).rooms ?? current.rooms,
+    area: (payload as any).area ?? current.area,
   }
   listings[index] = updated
   return JSON.parse(JSON.stringify(updated))
@@ -458,7 +474,7 @@ export async function publishListing(id: string): Promise<Listing | null> {
   await delay()
   const found = listings.find((l) => l.id === id)
   if (!found) return null
-  ;(found as any).status = 'published'
+  ;(found as any).status = 'active'
   return JSON.parse(JSON.stringify(found))
 }
 
@@ -466,7 +482,7 @@ export async function unpublishListing(id: string): Promise<Listing | null> {
   await delay()
   const found = listings.find((l) => l.id === id)
   if (!found) return null
-  ;(found as any).status = 'draft'
+  ;(found as any).status = 'paused'
   return JSON.parse(JSON.stringify(found))
 }
 
@@ -484,6 +500,18 @@ export async function restoreListing(id: string): Promise<Listing | null> {
   if (!found) return null
   ;(found as any).status = 'draft'
   return JSON.parse(JSON.stringify(found))
+}
+
+export async function markListingRented(id: string): Promise<Listing | null> {
+  await delay()
+  const found = listings.find((l) => l.id === id)
+  if (!found) return null
+  ;(found as any).status = 'rented'
+  return JSON.parse(JSON.stringify(found))
+}
+
+export async function markListingAvailable(id: string): Promise<Listing | null> {
+  return publishListing(id)
 }
 
 export async function createBookingRequest(

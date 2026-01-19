@@ -10,6 +10,8 @@ use Illuminate\Foundation\Http\Middleware\ValidatePostSize;
 use Illuminate\Http\Middleware\HandleCors;
 use Illuminate\Http\Middleware\TrustProxies;
 use Illuminate\Http\Middleware\ValidatePathEncoding;
+use Illuminate\Console\Scheduling\Schedule;
+use App\Console\Commands\ExpireListingsCommand;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -18,6 +20,12 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
+    ->withCommands([
+        ExpireListingsCommand::class,
+    ])
+    ->withSchedule(function (Schedule $schedule) {
+        $schedule->command('listings:expire')->dailyAt('02:00');
+    })
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->use([
             ValidatePathEncoding::class,

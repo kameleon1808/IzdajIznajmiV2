@@ -65,7 +65,7 @@ export const useAuthStore = defineStore('auth', {
     normalizeRole(role?: string): Role {
       if (!role) return 'guest'
       if (role === 'tenant') return 'seeker'
-      return (['seeker', 'landlord', 'admin'] as const).includes(role as Role) ? (role as Role) : 'guest'
+      return (['seeker', 'landlord', 'admin'] as const).includes(role as any) ? (role as Role) : 'guest'
     },
     persist() {
       if (typeof localStorage === 'undefined') return

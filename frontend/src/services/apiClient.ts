@@ -40,7 +40,7 @@ export const apiClient = axios.create({
 const readCookie = (name: string): string | null => {
   if (typeof document === 'undefined') return null
   const match = document.cookie.match(new RegExp('(^|; )' + name.replace(/([.*+?^${}()|[\\]\\\\])/g, '\\$1') + '=([^;]*)'))
-  return match ? decodeURIComponent(match[2]) : null
+  return match && match[2] !== undefined ? decodeURIComponent(match[2]) : null
 }
 
 apiClient.interceptors.request.use((config) => {

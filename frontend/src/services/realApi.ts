@@ -31,6 +31,8 @@ const mapListing = (data: any): Listing => {
     description: data.description ?? '',
     beds: Number(data.beds ?? 0),
     baths: Number(data.baths ?? 0),
+    rooms: data.rooms != null ? Number(data.rooms) : undefined,
+    area: data.area != null ? Number(data.area) : undefined,
     category: data.category,
     isFavorite: Boolean(data.isFavorite ?? false),
     instantBook: Boolean(data.instantBook ?? data.instant_book ?? false),
@@ -43,6 +45,8 @@ const mapListing = (data: any): Listing => {
     status: data.status,
     publishedAt: data.publishedAt ?? data.published_at,
     archivedAt: data.archivedAt ?? data.archived_at,
+    expiredAt: data.expiredAt ?? data.expired_at,
+    warnings: data.warnings ?? [],
   }
 }
 
@@ -92,8 +96,16 @@ const applyListingFilters = (filters?: ListingFilters) => {
   if (filters.guests) params.guests = filters.guests
   if (filters.instantBook) params.instantBook = filters.instantBook
   if (filters.location) params.location = filters.location
+  if (filters.city) params.city = filters.city
+  if (filters.rooms) params.rooms = filters.rooms
+  if (filters.areaRange?.length) {
+    params.areaMin = filters.areaRange[0]
+    params.areaMax = filters.areaRange[1]
+  }
   if (filters.facilities?.length) params.facilities = filters.facilities
+  if (filters.amenities?.length) params.amenities = filters.amenities
   if (filters.rating) params.rating = filters.rating
+  if (filters.status && filters.status !== 'all') params.status = filters.status
   return params
 }
 
@@ -165,6 +177,8 @@ export const createListing = async (payload: any): Promise<Listing> => {
   appendIfValue(form, 'description', payload.description)
   appendIfValue(form, 'beds', payload.beds)
   appendIfValue(form, 'baths', payload.baths)
+  appendIfValue(form, 'rooms', payload.rooms)
+  appendIfValue(form, 'area', payload.area)
   appendIfValue(form, 'lat', payload.lat)
   appendIfValue(form, 'lng', payload.lng)
   appendIfValue(form, 'instantBook', payload.instantBook)
@@ -187,6 +201,8 @@ export const updateListing = async (id: string, payload: any): Promise<Listing> 
   if (payload.description !== undefined) form.append('description', payload.description)
   if (payload.beds !== undefined) form.append('beds', payload.beds)
   if (payload.baths !== undefined) form.append('baths', payload.baths)
+  if (payload.rooms !== undefined) form.append('rooms', payload.rooms)
+  if (payload.area !== undefined) form.append('area', payload.area)
   if (payload.lat !== undefined) form.append('lat', payload.lat)
   if (payload.lng !== undefined) form.append('lng', payload.lng)
   if (payload.instantBook !== undefined) form.append('instantBook', payload.instantBook)
@@ -218,6 +234,16 @@ export const archiveListing = async (id: string): Promise<Listing> => {
 
 export const restoreListing = async (id: string): Promise<Listing> => {
   const { data } = await apiClient.patch(`/landlord/listings/${id}/restore`)
+  return mapListing(data.data ?? data)
+}
+
+export const markListingRented = async (id: string): Promise<Listing> => {
+  const { data } = await apiClient.patch(`/landlord/listings/${id}/mark-rented`)
+  return mapListing(data.data ?? data)
+}
+
+export const markListingAvailable = async (id: string): Promise<Listing> => {
+  const { data } = await apiClient.patch(`/landlord/listings/${id}/mark-available`)
   return mapListing(data.data ?? data)
 }
 

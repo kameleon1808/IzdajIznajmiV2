@@ -19,10 +19,12 @@ const router = useRouter()
 
 const searchQuery = ref('')
 const filterOpen = ref(false)
-const localFilters = ref<ListingFilters>({
+const localFilters = ref<ListingFilters & { areaRange: [number, number] }>({
   ...listingsStore.filters,
   priceRange: [...listingsStore.filters.priceRange] as [number, number],
   facilities: [...listingsStore.filters.facilities],
+  amenities: [...(listingsStore.filters.amenities ?? [])],
+  areaRange: [...(listingsStore.filters.areaRange ?? [0, 100000])] as [number, number],
 })
 const currentQuery = ref('')
 const debouncedSearch = useDebounceFn(() => runSearch(), 300)
@@ -39,11 +41,13 @@ watch(filterOpen, (open) => {
       ...listingsStore.filters,
       priceRange: [...listingsStore.filters.priceRange] as [number, number],
       facilities: [...listingsStore.filters.facilities],
+      amenities: [...(listingsStore.filters.amenities ?? [])],
+      areaRange: [...(listingsStore.filters.areaRange ?? [0, 100000])] as [number, number],
     }
 })
 
 const results = computed(() => (searchQuery.value ? listingsStore.searchResults : listingsStore.filteredRecommended))
-const popular = computed(() => listingsStore.popular)
+const popular = computed(() => listingsStore.popular.slice(0, 2))
 const loading = computed(() => listingsStore.loading)
 const loadingMore = computed(() => listingsStore.loadingMore)
 const error = computed(() => listingsStore.error)
@@ -53,7 +57,22 @@ const runSearch = () => {
   listingsStore.search(currentQuery.value)
 }
 const applyFilters = () => {
+  localFilters.value.amenities = [...(localFilters.value.amenities ?? localFilters.value.facilities ?? [])]
+  localFilters.value.facilities = [...(localFilters.value.amenities ?? [])]
   listingsStore.setFilters(localFilters.value)
+  filterOpen.value = false
+  runSearch()
+}
+
+const resetFilters = () => {
+  listingsStore.resetFilters()
+  localFilters.value = {
+    ...listingsStore.filters,
+    priceRange: [...listingsStore.filters.priceRange] as [number, number],
+    facilities: [...listingsStore.filters.facilities],
+    amenities: [...(listingsStore.filters.amenities ?? [])],
+    areaRange: [...(listingsStore.filters.areaRange ?? [0, 100000])] as [number, number],
+  }
   filterOpen.value = false
   runSearch()
 }
@@ -161,20 +180,22 @@ watch(searchQuery, () => {
           <p class="font-semibold text-slate-900">Price range</p>
           <span class="text-sm text-muted">${{ localFilters.priceRange[0] }} - ${{ localFilters.priceRange[1] }}</span>
         </div>
-        <div class="flex items-center gap-3">
-          <input
-            v-model.number="localFilters.priceRange[0]"
-            type="range"
-            min="50"
-            max="400"
-            class="w-full accent-primary"
+        <div class="grid grid-cols-2 gap-3">
+          <Input
+            v-model="localFilters.priceRange[0]"
+            type="number"
+            inputmode="decimal"
+            step="0.01"
+            min="0"
+            placeholder="Min"
           />
-          <input
-            v-model.number="localFilters.priceRange[1]"
-            type="range"
-            min="100"
-            max="500"
-            class="w-full accent-primary"
+          <Input
+            v-model="localFilters.priceRange[1]"
+            type="number"
+            inputmode="decimal"
+            step="0.01"
+            min="0"
+            placeholder="Max"
           />
         </div>
       </div>
@@ -200,24 +221,62 @@ watch(searchQuery, () => {
             {{ city }}
           </Chip>
         </div>
+        <Input v-model="localFilters.city" class="mt-2" placeholder="City contains (e.g. Zagreb)" />
       </div>
 
       <div class="space-y-2">
-        <p class="font-semibold text-slate-900">Facilities</p>
+        <div class="flex items-center justify-between">
+          <p class="font-semibold text-slate-900">Rooms</p>
+          <span class="text-sm text-muted">{{ localFilters.rooms ?? 0 }}+</span>
+        </div>
+        <div class="flex gap-2">
+          <Button size="md" variant="secondary" @click="localFilters.rooms = Math.max(0, (localFilters.rooms ?? 0) - 1)">-</Button>
+          <Button size="md" variant="secondary" class="flex-1">{{ localFilters.rooms ?? 0 }}</Button>
+          <Button size="md" variant="secondary" @click="localFilters.rooms = (localFilters.rooms ?? 0) + 1">+</Button>
+        </div>
+      </div>
+
+      <div class="space-y-2">
+        <div class="flex items-center justify-between">
+          <p class="font-semibold text-slate-900">Area (sqm)</p>
+          <span class="text-sm text-muted">{{ localFilters.areaRange[0] }} - {{ localFilters.areaRange[1] }}</span>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <Input v-model.number="localFilters.areaRange[0]" type="number" min="0" placeholder="Min" />
+          <Input v-model.number="localFilters.areaRange[1]" type="number" min="0" placeholder="Max" />
+        </div>
+      </div>
+
+      <div class="space-y-2">
+        <p class="font-semibold text-slate-900">Amenities</p>
         <div class="grid grid-cols-2 gap-2">
           <label
-            v-for="facility in ['Pool', 'Spa', 'Wi-Fi', 'Breakfast', 'Parking', 'Kitchen']"
+            v-for="facility in ['Pool', 'Spa', 'Wi-Fi', 'Breakfast', 'Parking', 'Kitchen', 'Workspace']"
             :key="facility"
             class="flex items-center gap-2 rounded-xl border border-line px-3 py-2 text-sm font-semibold text-slate-800"
           >
             <input
-              v-model="localFilters.facilities"
+              v-model="localFilters.amenities"
               :value="facility"
               type="checkbox"
               class="h-4 w-4 accent-primary"
             />
             {{ facility }}
           </label>
+        </div>
+      </div>
+
+      <div class="space-y-2">
+        <p class="font-semibold text-slate-900">Status</p>
+        <div class="flex flex-wrap gap-2">
+          <Chip
+            v-for="status in ['all', 'active', 'paused', 'rented', 'archived', 'expired']"
+            :key="status"
+            :active="localFilters.status === status"
+            @click="localFilters.status = status as any"
+          >
+            {{ status === 'all' ? 'Any' : status }}
+          </Chip>
         </div>
       </div>
 
@@ -237,6 +296,7 @@ watch(searchQuery, () => {
       </div>
 
       <Button block size="lg" @click="applyFilters">Apply Filters</Button>
+      <Button block size="lg" variant="secondary" @click="resetFilters">Reset Filters</Button>
     </div>
   </ModalSheet>
 </template>

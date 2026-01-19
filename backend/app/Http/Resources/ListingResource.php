@@ -40,6 +40,8 @@ class ListingResource extends JsonResource
             'description' => $this->description,
             'beds' => $this->beds,
             'baths' => $this->baths,
+            'rooms' => $this->rooms ?? $this->beds,
+            'area' => $this->area,
             'category' => $this->category,
             'isFavorite' => false,
             'instantBook' => (bool) $this->instant_book,
@@ -49,6 +51,8 @@ class ListingResource extends JsonResource
             'status' => $this->status,
             'publishedAt' => optional($this->published_at)->toISOString(),
             'archivedAt' => optional($this->archived_at)->toISOString(),
+            'expiredAt' => optional($this->expired_at)->toISOString(),
+            'warnings' => $this->when(isset($this->warnings), fn () => array_values((array) $this->warnings)),
         ];
     }
 

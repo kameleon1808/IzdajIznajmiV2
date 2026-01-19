@@ -12,12 +12,12 @@ Legend: ✅ = verified/implemented, ⚠️ = partial, ❌ = missing.
 - ⚠️ Policies: `ListingPolicy`, `BookingRequestPolicy` exist; applied in `AppServiceProvider::boot()` (basic checks only).
 
 ## Listings guard rails + statuses + auto-expire
-- ⚠️ Endpoints: `/api/listings` (public browse), `/api/listings/{id}`, `/api/landlord/listings` CRUD + publish/unpublish/archive/restore (all under `/api/*`, auth:sanctum).
-- ❌ Status set is `draft/published/archived` only (no `active/paused/rented/expired`); no auto-expire after 30 days.
-- ❌ Guard rails: no duplicate active listing prevention by landlord+address; no warning when address exists for another landlord.
+- ✅ Endpoints: `/api/v1/listings` (public browse with filters), `/api/v1/listings/{id}`, `/api/v1/landlord/listings` CRUD + activate/pause/archive/restore + mark-rented (aliases under `/api/*`, auth:sanctum).
+- ✅ Status set expanded to `draft/active/paused/archived/rented/expired`; publish/activate maps to `active`, pause maps to `paused`, archive/restore intact; auto-expire command marks active listings older than 30 days as `expired`.
+- ✅ Guard rails: normalized `address_key` with block for same landlord active duplicates (409) and warning when another landlord has an active listing at that address; warnings returned in payload.
 
 ## Discovery filters
-- ⚠️ Supported filters in `ListingController@index`: `category`, `priceMin`, `priceMax`, `guests` (beds), `instantBook`, `location` (city/country contains), `facilities[]`, `rating`, pagination (`page`, `perPage`). Missing `city` dedicated field filter, `rooms`, `area`, `status`.
+- ✅ Filters include `city`, `location` (contains), `priceMin/priceMax`, `rooms`, `areaMin/areaMax`, `guests`, `instantBook`, `facilities`/`amenities`, `rating`, `status`, and pagination (`page`, `perPage`).
 
 ## Applications (apply once + separate lists)
 - ❌ No applications model/endpoints. Booking Requests exist instead: `/api/booking-requests` (POST create, GET list by role query param, PATCH status). No `/api/v1/listings/{listing}/apply` or apply-once enforcement; no seeker/landlord list separation beyond query param.

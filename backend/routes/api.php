@@ -31,6 +31,8 @@ $apiRoutes = function () use ($authRoutes) {
         Route::patch('/landlord/listings/{listing}/unpublish', [LandlordListingController::class, 'unpublish'])->middleware('throttle:landlord_write');
         Route::patch('/landlord/listings/{listing}/archive', [LandlordListingController::class, 'archive'])->middleware('throttle:landlord_write');
         Route::patch('/landlord/listings/{listing}/restore', [LandlordListingController::class, 'restore'])->middleware('throttle:landlord_write');
+        Route::patch('/landlord/listings/{listing}/mark-rented', [LandlordListingController::class, 'markRented'])->middleware('throttle:landlord_write');
+        Route::patch('/landlord/listings/{listing}/mark-available', [LandlordListingController::class, 'markAvailable'])->middleware('throttle:landlord_write');
 
         Route::post('/booking-requests', [BookingRequestController::class, 'store'])->middleware('throttle:booking_requests');
         Route::get('/booking-requests', [BookingRequestController::class, 'index']);

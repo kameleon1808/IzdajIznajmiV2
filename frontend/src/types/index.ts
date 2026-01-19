@@ -17,15 +17,19 @@ export interface Listing {
   description?: string
   beds: number
   baths: number
+  rooms?: number
+  area?: number
   category: ListingCategory
   isFavorite: boolean
   instantBook?: boolean
   facilities?: string[]
   ownerId?: string | number
   createdAt?: string
-  status?: 'draft' | 'published' | 'archived'
+  status?: 'draft' | 'active' | 'paused' | 'archived' | 'rented' | 'expired'
   publishedAt?: string | null
   archivedAt?: string | null
+  expiredAt?: string | null
+  warnings?: string[]
 }
 
 export interface Review {
@@ -88,4 +92,9 @@ export interface ListingFilters {
   location: string
   facilities: string[]
   rating: number | null
+  city?: string
+  rooms?: number | null
+  areaRange?: [number, number] | null
+  status?: Listing['status'] | 'all'
+  amenities?: string[]
 }

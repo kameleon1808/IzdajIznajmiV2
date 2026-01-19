@@ -9,7 +9,7 @@ class ListingPolicy
 {
     public function view(?User $user, Listing $listing): bool
     {
-        if ($listing->status === 'published') {
+        if ($listing->status === 'active') {
             return true;
         }
 
@@ -24,7 +24,7 @@ class ListingPolicy
     public function update(User $user, Listing $listing): bool
     {
         $isAdmin = (method_exists($user, 'hasRole') && $user->hasRole('admin')) || $user->role === 'admin';
-        if ($listing->status === 'archived' && !$isAdmin) {
+        if (in_array($listing->status, ['archived'], true) && !$isAdmin) {
             return false;
         }
         return $isAdmin || $listing->owner_id === $user->id;

@@ -2,7 +2,7 @@
 import { computed, type Component } from 'vue'
 
 const props = defineProps({
-  modelValue: { type: String, default: '' },
+  modelValue: { type: [String, Number], default: '' },
   placeholder: { type: String, default: '' },
   leftIcon: { type: Object as () => Component, default: undefined },
   rightIcon: { type: Object as () => Component, default: undefined },

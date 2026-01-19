@@ -188,7 +188,10 @@ const save = async () => {
     if (isEdit.value) {
       await listingsStore.updateListingAction(route.params.id as string, payload)
     } else {
-      payload.coverIndex = ordered.findIndex((g) => g.isCover)
+      const coverIndex = ordered.findIndex((g) => g.isCover)
+      if (coverIndex >= 0) {
+        payload.coverIndex = coverIndex
+      }
       await listingsStore.createListing(payload)
     }
     router.push('/landlord/listings')
@@ -216,6 +219,10 @@ const publishNow = async () => {
         ownerId: auth.user.id,
         keepImages: [],
         imagesFiles: activeGallery.value.filter((g) => g.isNew && g.file).map((g) => g.file),
+        coverIndex: (() => {
+          const idx = activeGallery.value.findIndex((g) => g.isCover)
+          return idx >= 0 ? idx : undefined
+        })(),
       } as any)
       listingId = created.id
     } else {

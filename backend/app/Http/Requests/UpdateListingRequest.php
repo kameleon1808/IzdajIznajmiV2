@@ -33,6 +33,8 @@ class UpdateListingRequest extends FormRequest
             'description' => ['sometimes', 'nullable', 'string', 'min:30'],
             'beds' => ['sometimes', 'integer', 'min:1', 'max:50'],
             'baths' => ['sometimes', 'integer', 'min:1', 'max:50'],
+            'rooms' => ['sometimes', 'integer', 'min:1', 'max:50'],
+            'area' => ['sometimes', 'integer', 'min:10', 'max:100000'],
             'images' => ['sometimes', 'array', 'max:10'],
             'images.*' => ['image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             'keepImages' => ['sometimes', 'array'],
