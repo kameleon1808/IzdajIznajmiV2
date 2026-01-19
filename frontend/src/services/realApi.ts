@@ -1,5 +1,5 @@
 import { apiClient } from './apiClient'
-import type { BookingRequest, Conversation, Listing, ListingFilters, Message } from '../types'
+import type { Application, Conversation, Listing, ListingFilters, Message, PublicProfile } from '../types'
 import { useAuthStore } from '../stores/auth'
 
 const mapListing = (data: any): Listing => {
@@ -36,52 +36,80 @@ const mapListing = (data: any): Listing => {
     category: data.category,
     isFavorite: Boolean(data.isFavorite ?? false),
     instantBook: Boolean(data.instantBook ?? data.instant_book ?? false),
-    facilities:
-      data.facilities?.map((f: any) => (typeof f === 'string' ? f : f.name)) ??
-      data.facilities ??
+  facilities:
+    data.facilities?.map((f: any) => (typeof f === 'string' ? f : f.name)) ??
+    data.facilities ??
       [],
-    ownerId: data.ownerId ?? data.owner_id,
-    createdAt: data.createdAt ?? data.created_at,
-    status: data.status,
-    publishedAt: data.publishedAt ?? data.published_at,
-    archivedAt: data.archivedAt ?? data.archived_at,
-    expiredAt: data.expiredAt ?? data.expired_at,
+  ownerId: data.ownerId ?? data.owner_id,
+  landlord: data.landlord
+    ? {
+        id: data.landlord.id ?? data.landlordId,
+        fullName: data.landlord.fullName ?? data.landlord.full_name ?? data.landlord.name,
+      }
+    : undefined,
+  createdAt: data.createdAt ?? data.created_at,
+  status: data.status,
+  publishedAt: data.publishedAt ?? data.published_at,
+  archivedAt: data.archivedAt ?? data.archived_at,
+  expiredAt: data.expiredAt ?? data.expired_at,
     warnings: data.warnings ?? [],
   }
 }
 
-const mapBookingRequest = (data: any): BookingRequest => ({
+const mapApplication = (data: any): Application => ({
   id: String(data.id),
-  listingId: String(data.listingId ?? data.listing_id),
-  tenantId: String(data.tenantId ?? data.tenant_id),
-  landlordId: String(data.landlordId ?? data.landlord_id),
-  startDate: data.startDate ?? data.start_date ?? undefined,
-  endDate: data.endDate ?? data.end_date ?? undefined,
-  guests: Number(data.guests ?? 1),
-  message: data.message ?? '',
   status: data.status,
+  message: data.message ?? null,
   createdAt: data.createdAt ?? data.created_at ?? '',
+  listing: {
+    id: String(data.listing?.id ?? data.listingId ?? data.listing_id ?? ''),
+    title: data.listing?.title ?? data.listingTitle,
+    city: data.listing?.city,
+    coverImage: data.listing?.coverImage ?? data.listing?.cover_image,
+    pricePerNight: data.listing?.pricePerNight ?? data.listing?.price_per_night,
+    status: data.listing?.status,
+  },
+  participants: {
+    seekerId: String(data.participants?.seekerId ?? data.seekerId ?? data.seeker_id ?? ''),
+    landlordId: String(data.participants?.landlordId ?? data.landlordId ?? data.landlord_id ?? ''),
+  },
 })
 
-const mapConversation = (data: any): Conversation => ({
-  id: String(data.id),
-  userName: data.userName ?? data.tenant?.name ?? data.landlord?.name ?? 'Conversation',
-  avatarUrl: data.avatarUrl ?? data.avatar_url ?? '',
-  lastMessage: data.lastMessage ?? data.last_message ?? '',
-  time: data.time ?? data.updated_at ?? '',
-  unreadCount: Number(data.unreadCount ?? data.unread_count ?? 0),
-  online: Boolean(data.online ?? false),
-})
+const mapConversation = (data: any): Conversation => {
+  const rawTime = data.time ?? data.updated_at ?? ''
+  const formattedTime =
+    rawTime && typeof rawTime === 'string' && rawTime.includes('T')
+      ? new Date(rawTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      : rawTime
+
+  return {
+    id: String(data.id),
+    listingId: String(data.listingId ?? data.listing_id ?? data.listing?.id ?? ''),
+    listingTitle: data.listingTitle ?? data.listing?.title,
+    listingCity: data.listingCity ?? data.listing?.city,
+    listingCoverImage:
+      data.listingCoverImage ?? data.listing?.coverImage ?? data.listing?.cover_image ?? data.listing?.images?.[0] ?? '',
+    userName: data.userName ?? data.tenant?.name ?? data.landlord?.name ?? 'Conversation',
+    avatarUrl: data.avatarUrl ?? data.avatar_url ?? '',
+    lastMessage: data.lastMessage ?? data.last_message ?? '',
+    time: formattedTime || '',
+    unreadCount: Number(data.unreadCount ?? data.unread_count ?? 0),
+    online: Boolean(data.online ?? false),
+  }
+}
 
 const mapMessage = (data: any): Message => {
   const auth = useAuthStore()
   const senderId = String(data.sender_id ?? data.senderId ?? '')
+  const rawTime = data.createdAt ?? data.created_at ?? data.time ?? ''
   return {
     id: String(data.id),
     conversationId: String(data.conversation_id ?? data.conversationId ?? ''),
+    senderId,
     from: auth.user.id && senderId === String(auth.user.id) ? 'me' : 'them',
     text: data.body ?? data.text ?? '',
-    time: data.created_at ?? data.time ?? '',
+    createdAt: rawTime,
+    time: rawTime ? new Date(rawTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : data.time ?? '',
   }
 }
 
@@ -247,39 +275,26 @@ export const markListingAvailable = async (id: string): Promise<Listing> => {
   return mapListing(data.data ?? data)
 }
 
-export const createBookingRequest = async (
-  payload: Omit<BookingRequest, 'id' | 'tenantId' | 'status' | 'createdAt'>,
-): Promise<BookingRequest> => {
-  const body = {
-    listingId: payload.listingId,
-    landlordId: payload.landlordId,
-    startDate: payload.startDate,
-    endDate: payload.endDate,
-    guests: payload.guests,
-    message: payload.message,
-  }
-  const { data } = await apiClient.post('/booking-requests', body)
-  return mapBookingRequest(data.data ?? data)
+export const applyToListing = async (listingId: string, message?: string | null): Promise<Application> => {
+  const { data } = await apiClient.post(`/listings/${listingId}/apply`, { message })
+  return mapApplication(data.data ?? data)
 }
 
-export const getBookingRequestsForTenant = async (): Promise<BookingRequest[]> => {
-  const { data } = await apiClient.get('/booking-requests', { params: { role: 'seeker' } })
+export const getApplicationsForSeeker = async (): Promise<Application[]> => {
+  const { data } = await apiClient.get('/seeker/applications')
   const list = (data.data ?? data) as any[]
-  return list.map(mapBookingRequest)
+  return list.map(mapApplication)
 }
 
-export const getBookingRequestsForLandlord = async (): Promise<BookingRequest[]> => {
-  const { data } = await apiClient.get('/booking-requests', { params: { role: 'landlord' } })
+export const getApplicationsForLandlord = async (): Promise<Application[]> => {
+  const { data } = await apiClient.get('/landlord/applications')
   const list = (data.data ?? data) as any[]
-  return list.map(mapBookingRequest)
+  return list.map(mapApplication)
 }
 
-export const updateBookingRequestStatus = async (
-  id: string,
-  status: BookingRequest['status'],
-): Promise<BookingRequest> => {
-  const { data } = await apiClient.patch(`/booking-requests/${id}`, { status })
-  return mapBookingRequest(data.data ?? data)
+export const updateApplicationStatus = async (id: string, status: Application['status']): Promise<Application> => {
+  const { data } = await apiClient.patch(`/applications/${id}`, { status })
+  return mapApplication(data.data ?? data)
 }
 
 export const getConversations = async (): Promise<Conversation[]> => {
@@ -288,10 +303,69 @@ export const getConversations = async (): Promise<Conversation[]> => {
   return list.map(mapConversation)
 }
 
+export const getConversationForListing = async (listingId: string): Promise<Conversation> => {
+  const { data } = await apiClient.get(`/listings/${listingId}/conversation`)
+  return mapConversation(data.data ?? data)
+}
+
 export const getMessages = async (conversationId: string): Promise<Message[]> => {
   const { data } = await apiClient.get(`/conversations/${conversationId}/messages`)
   const list = (data.data ?? data) as any[]
   return list.map(mapMessage)
+}
+
+export const getMessagesForListing = async (listingId: string): Promise<Message[]> => {
+  const { data } = await apiClient.get(`/listings/${listingId}/messages`)
+  const list = (data.data ?? data) as any[]
+  return list.map(mapMessage)
+}
+
+export const sendMessageToListing = async (listingId: string, message: string): Promise<Message> => {
+  const { data } = await apiClient.post(`/listings/${listingId}/messages`, { message })
+  return mapMessage(data.data ?? data)
+}
+
+export const sendMessageToConversation = async (conversationId: string, message: string): Promise<Message> => {
+  const { data } = await apiClient.post(`/conversations/${conversationId}/messages`, { message })
+  return mapMessage(data.data ?? data)
+}
+
+export const markConversationRead = async (conversationId: string): Promise<void> => {
+  await apiClient.post(`/conversations/${conversationId}/read`)
+}
+
+export const getOrCreateConversationForApplication = async (applicationId: string): Promise<Conversation> => {
+  const { data } = await apiClient.post(`/applications/${applicationId}/conversation`)
+  return mapConversation(data.data ?? data)
+}
+
+const mapProfile = (data: any): PublicProfile => ({
+  id: String(data.id),
+  fullName: data.fullName ?? data.full_name ?? data.name ?? '',
+  joinedAt: data.joinedAt ?? data.joined_at ?? data.created_at,
+  verifications: {
+    email: Boolean(data.verifications?.email),
+    phone: Boolean(data.verifications?.phone),
+    address: Boolean(data.verifications?.address),
+  },
+  ratingStats: {
+    average: Number(data.ratingStats?.average ?? 0),
+    total: Number(data.ratingStats?.total ?? 0),
+    breakdown: data.ratingStats?.breakdown ?? {},
+  },
+  recentRatings:
+    data.recentRatings?.map((r: any) => ({
+      raterName: r.raterName ?? r.rater_name,
+      rating: Number(r.rating ?? 0),
+      comment: r.comment,
+      createdAt: r.createdAt ?? r.created_at,
+      listingTitle: r.listingTitle ?? r.listing_title,
+    })) ?? [],
+})
+
+export const getPublicProfile = async (userId: string): Promise<PublicProfile> => {
+  const { data } = await apiClient.get(`/users/${userId}`)
+  return mapProfile(data.data ?? data)
 }
 
 export const getBookings = async () => {

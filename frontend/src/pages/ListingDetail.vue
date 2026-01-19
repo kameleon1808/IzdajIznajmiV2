@@ -11,6 +11,7 @@ import ModalSheet from '../components/ui/ModalSheet.vue'
 import RatingStars from '../components/ui/RatingStars.vue'
 import { useAuthStore } from '../stores/auth'
 import { useListingsStore } from '../stores/listings'
+import { useChatStore } from '../stores/chat'
 import { useRequestsStore } from '../stores/requests'
 import { useToastStore } from '../stores/toast'
 import { getListingById, getListingFacilities, getListingReviews } from '../services'
@@ -21,6 +22,7 @@ const router = useRouter()
 const listingsStore = useListingsStore()
 const auth = useAuthStore()
 const requestsStore = useRequestsStore()
+const chatStore = useChatStore()
 const toast = useToastStore()
 
 const listing = ref<Listing | null>(null)
@@ -32,6 +34,7 @@ const expanded = ref(false)
 const loading = ref(true)
 const error = ref('')
 const submitting = ref(false)
+const chatLoading = ref(false)
 
 const requestForm = reactive({
   startDate: '',
@@ -47,6 +50,10 @@ const description = computed(
 )
 
 const isFormValid = computed(() => requestForm.guests > 0 && requestForm.message.trim().length >= 5)
+const hasApplied = computed(
+  () => !!listing.value && requestsStore.tenantRequests.some((app) => app.listing.id === listing.value?.id),
+)
+const landlordName = computed(() => listing.value?.landlord?.fullName || `User ${listing.value?.ownerId ?? ''}`)
 
 const loadData = async () => {
   loading.value = true
@@ -56,6 +63,9 @@ const loadData = async () => {
     listing.value = (await getListingById(id)) || null
     facilities.value = await getListingFacilities(id)
     reviews.value = await getListingReviews(id)
+    if (auth.hasRole('seeker')) {
+      requestsStore.fetchTenantRequests()
+    }
   } catch (err) {
     error.value = (err as Error).message || 'Failed to load listing.'
   } finally {
@@ -82,6 +92,10 @@ const openInquiry = () => {
     toast.push({ title: 'Access denied', message: 'Switch to Seeker role to send request.', type: 'error' })
     return
   }
+  if (hasApplied.value) {
+    toast.push({ title: 'Already applied', message: 'You can only apply once to this listing.', type: 'info' })
+    return
+  }
   requestSheet.value = true
 }
 
@@ -91,10 +105,6 @@ const submitRequest = async () => {
   try {
     await requestsStore.sendRequest({
       listingId: listing.value.id,
-      landlordId: String(listing.value.ownerId || 'landlord-1'),
-      startDate: requestForm.startDate || undefined,
-      endDate: requestForm.endDate || undefined,
-      guests: requestForm.guests,
       message: requestForm.message,
     })
     toast.push({ title: 'Request sent', message: 'Landlord will respond shortly.', type: 'success' })
@@ -108,6 +118,33 @@ const submitRequest = async () => {
   } finally {
     submitting.value = false
   }
+}
+
+const openChat = async () => {
+  if (!listing.value) return
+  if (!auth.isAuthenticated && !auth.isMockMode) {
+    router.push({ path: '/login', query: { returnUrl: route.fullPath } })
+    return
+  }
+  if (!auth.hasRole('seeker')) {
+    toast.push({ title: 'Access denied', message: 'Switch to Seeker role to chat with hosts.', type: 'error' })
+    return
+  }
+  chatLoading.value = true
+  try {
+    const conversation = await chatStore.fetchConversationForListing(listing.value.id)
+    await chatStore.fetchMessages(conversation.id)
+    router.push(`/messages/${conversation.id}`)
+  } catch (err) {
+    toast.push({ title: 'Chat unavailable', message: (err as Error).message, type: 'error' })
+  } finally {
+    chatLoading.value = false
+  }
+}
+
+const viewProfile = () => {
+  if (!listing.value?.ownerId) return
+  router.push(`/users/${listing.value.ownerId}`)
 }
 </script>
 
@@ -214,6 +251,16 @@ const submitRequest = async () => {
           <p v-if="!reviews.length" class="text-sm text-muted">No reviews yet.</p>
         </div>
       </div>
+
+      <div class="rounded-2xl border border-line bg-white p-4 shadow-soft">
+        <div class="flex items-center justify-between gap-3">
+          <div>
+            <p class="text-xs text-muted">Published by</p>
+            <p class="text-base font-semibold text-slate-900">{{ landlordName }}</p>
+          </div>
+          <Button variant="secondary" size="md" @click="viewProfile">View profile</Button>
+        </div>
+      </div>
     </div>
 
     <EmptyState v-else-if="!loading" title="Listing unavailable" subtitle="Try again later or choose another stay" />
@@ -225,7 +272,12 @@ const submitRequest = async () => {
           <p class="text-lg font-semibold text-slate-900">${{ listing.pricePerNight }}/night</p>
         </div>
         <Badge variant="info">Rating {{ listing.rating }}</Badge>
-        <Button size="lg" @click="openInquiry">Send Inquiry</Button>
+        <Button variant="secondary" size="lg" :disabled="chatLoading" @click="openChat">
+          {{ chatLoading ? 'Opening...' : 'Message host' }}
+        </Button>
+        <Button size="lg" :disabled="hasApplied" @click="openInquiry">
+          {{ hasApplied ? 'Already applied' : 'Apply' }}
+        </Button>
       </div>
     </div>
   </div>

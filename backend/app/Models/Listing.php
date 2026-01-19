@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Models\Facility;
 use App\Models\ListingImage;
 use App\Models\User;
+use App\Models\Application;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -61,5 +62,10 @@ class Listing extends Model
     public function facilities(): BelongsToMany
     {
         return $this->belongsToMany(Facility::class);
+    }
+
+    public function applications(): HasMany
+    {
+        return $this->hasMany(Application::class);
     }
 }

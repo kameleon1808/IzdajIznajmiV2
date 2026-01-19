@@ -20,10 +20,14 @@ const messages = computed(() => chatStore.messages[route.params.id as string] ||
 const loading = computed(() => chatStore.loading)
 const error = computed(() => chatStore.error)
 
-const send = () => {
+const send = async () => {
   if (!message.value.trim()) return
-  chatStore.sendMessage(route.params.id as string, message.value)
-  message.value = ''
+  try {
+    await chatStore.sendMessage(route.params.id as string, message.value)
+    message.value = ''
+  } catch (e) {
+    // error state handled in store
+  }
 }
 </script>
 

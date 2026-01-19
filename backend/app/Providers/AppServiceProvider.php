@@ -3,8 +3,10 @@
 namespace App\Providers;
 
 use App\Models\BookingRequest;
+use App\Models\Application;
 use App\Models\Listing;
 use App\Policies\BookingRequestPolicy;
+use App\Policies\ApplicationPolicy;
 use App\Policies\ListingPolicy;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
@@ -29,6 +31,7 @@ class AppServiceProvider extends ServiceProvider
     {
         Gate::policy(Listing::class, ListingPolicy::class);
         Gate::policy(BookingRequest::class, BookingRequestPolicy::class);
+        Gate::policy(Application::class, ApplicationPolicy::class);
 
         RateLimiter::for('api', function (Request $request) {
             return Limit::perMinute(60)->by($request->user()?->id ?? $request->ip());
@@ -44,6 +47,12 @@ class AppServiceProvider extends ServiceProvider
 
         RateLimiter::for('booking_requests', function (Request $request) {
             $key = $request->user()?->id ?? $request->ip();
+            return Limit::perMinute(20)->by($key);
+        });
+
+        RateLimiter::for('applications', function (Request $request) {
+            $key = $request->user()?->id ?? $request->ip();
+
             return Limit::perMinute(20)->by($key);
         });
 

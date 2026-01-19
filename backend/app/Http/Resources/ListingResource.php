@@ -47,6 +47,12 @@ class ListingResource extends JsonResource
             'instantBook' => (bool) $this->instant_book,
             'facilities' => $this->whenLoaded('facilities', fn () => $this->facilities->pluck('name')),
             'ownerId' => $this->owner_id,
+            'landlord' => $this->whenLoaded('owner', function () {
+                return [
+                    'id' => $this->owner?->id,
+                    'fullName' => $this->owner?->full_name ?? $this->owner?->name,
+                ];
+            }),
             'createdAt' => optional($this->created_at)->toISOString(),
             'status' => $this->status,
             'publishedAt' => optional($this->published_at)->toISOString(),

@@ -24,6 +24,10 @@ export interface Listing {
   instantBook?: boolean
   facilities?: string[]
   ownerId?: string | number
+  landlord?: {
+    id: string | number
+    fullName?: string
+  }
   createdAt?: string
   status?: 'draft' | 'active' | 'paused' | 'archived' | 'rented' | 'expired'
   publishedAt?: string | null
@@ -53,21 +57,31 @@ export interface Booking {
   status: 'booked' | 'history'
 }
 
-export interface BookingRequest {
+export interface Application {
   id: string
-  listingId: string
-  tenantId: string
-  landlordId: string
-  startDate?: string
-  endDate?: string
-  guests: number
-  message: string
-  status: 'pending' | 'accepted' | 'rejected' | 'cancelled'
-  createdAt: string
+  status: 'submitted' | 'accepted' | 'rejected' | 'withdrawn'
+  message?: string | null
+  createdAt?: string
+  listing: {
+    id: string
+    title?: string
+    city?: string
+    coverImage?: string
+    pricePerNight?: number
+    status?: Listing['status']
+  }
+  participants: {
+    seekerId: string
+    landlordId: string
+  }
 }
 
 export interface Conversation {
   id: string
+  listingId: string
+  listingTitle?: string
+  listingCity?: string
+  listingCoverImage?: string
   userName: string
   avatarUrl: string
   lastMessage: string
@@ -79,9 +93,34 @@ export interface Conversation {
 export interface Message {
   id: string
   conversationId: string
+  senderId?: string
   from: 'me' | 'them'
   text: string
+  createdAt?: string
   time: string
+}
+
+export interface PublicProfile {
+  id: string
+  fullName: string
+  joinedAt?: string
+  verifications: {
+    email: boolean
+    phone: boolean
+    address: boolean
+  }
+  ratingStats: {
+    average: number
+    total: number
+    breakdown: Record<string, number>
+  }
+  recentRatings: Array<{
+    raterName?: string
+    rating: number
+    comment?: string
+    createdAt?: string
+    listingTitle?: string
+  }>
 }
 
 export interface ListingFilters {

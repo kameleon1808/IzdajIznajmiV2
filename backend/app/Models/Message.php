@@ -15,6 +15,8 @@ class Message extends Model
         'body',
     ];
 
+    protected $touches = ['conversation'];
+
     public function conversation(): BelongsTo
     {
         return $this->belongsTo(Conversation::class);

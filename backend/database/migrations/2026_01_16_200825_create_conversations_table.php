@@ -15,8 +15,11 @@ return new class extends Migration
             $table->id();
             $table->foreignId('tenant_id')->constrained('users')->cascadeOnDelete();
             $table->foreignId('landlord_id')->constrained('users')->cascadeOnDelete();
-            $table->foreignId('listing_id')->nullable()->constrained('listings')->nullOnDelete();
+            $table->foreignId('listing_id')->constrained('listings')->cascadeOnDelete();
+            $table->timestamp('tenant_last_read_at')->nullable();
+            $table->timestamp('landlord_last_read_at')->nullable();
             $table->timestamps();
+            $table->unique(['listing_id', 'tenant_id', 'landlord_id']);
         });
     }
 

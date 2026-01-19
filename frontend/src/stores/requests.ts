@@ -1,18 +1,18 @@
 import { defineStore } from 'pinia'
 import {
-  createBookingRequest,
-  getBookingRequestsForLandlord,
-  getBookingRequestsForTenant,
+  applyToListing,
+  getApplicationsForLandlord,
+  getApplicationsForSeeker,
   isMockApi,
-  updateBookingRequestStatus,
+  updateApplicationStatus,
 } from '../services'
 import { useAuthStore } from './auth'
-import type { BookingRequest } from '../types'
+import type { Application } from '../types'
 
 export const useRequestsStore = defineStore('requests', {
   state: () => ({
-    tenantRequests: [] as BookingRequest[],
-    landlordRequests: [] as BookingRequest[],
+    tenantRequests: [] as Application[],
+    landlordRequests: [] as Application[],
     loading: false,
     error: '',
   }),
@@ -20,12 +20,11 @@ export const useRequestsStore = defineStore('requests', {
     clearError() {
       this.error = ''
     },
-    async fetchTenantRequests(tenantId?: string) {
+    async fetchTenantRequests() {
       this.loading = true
       this.error = ''
       try {
-        const auth = useAuthStore()
-        this.tenantRequests = await getBookingRequestsForTenant(tenantId ?? auth.user.id)
+        this.tenantRequests = await getApplicationsForSeeker()
       } catch (error) {
         this.error = (error as Error).message || 'Failed to load requests.'
         this.tenantRequests = []
@@ -33,12 +32,11 @@ export const useRequestsStore = defineStore('requests', {
         this.loading = false
       }
     },
-    async fetchLandlordRequests(landlordId?: string) {
+    async fetchLandlordRequests() {
       this.loading = true
       this.error = ''
       try {
-        const auth = useAuthStore()
-        this.landlordRequests = await getBookingRequestsForLandlord(landlordId ?? auth.user.id)
+        this.landlordRequests = await getApplicationsForLandlord()
       } catch (error) {
         this.error = (error as Error).message || 'Failed to load incoming requests.'
         this.landlordRequests = []
@@ -46,15 +44,13 @@ export const useRequestsStore = defineStore('requests', {
         this.loading = false
       }
     },
-    async sendRequest(
-      payload: Omit<BookingRequest, 'id' | 'status' | 'createdAt' | 'tenantId'> & { tenantId?: string },
-    ) {
+    async sendRequest(payload: { listingId: string; message?: string; tenantId?: string }) {
       this.error = ''
       try {
         const auth = useAuthStore()
         const body = { ...payload } as any
         if (isMockApi) body.tenantId = payload.tenantId ?? auth.user.id
-        const created = await createBookingRequest(body)
+        const created = await applyToListing(body.listingId, body.message)
         this.tenantRequests = [created, ...this.tenantRequests]
         return created
       } catch (error) {
@@ -62,10 +58,10 @@ export const useRequestsStore = defineStore('requests', {
         throw error
       }
     },
-    async updateStatus(id: string, status: BookingRequest['status']) {
+    async updateStatus(id: string, status: Application['status']) {
       this.error = ''
       try {
-        const updated = await updateBookingRequestStatus(id, status)
+        const updated = await updateApplicationStatus(id, status)
         if (updated) {
           this.tenantRequests = this.tenantRequests.map((r) => (r.id === id ? updated : r))
           this.landlordRequests = this.landlordRequests.map((r) => (r.id === id ? updated : r))

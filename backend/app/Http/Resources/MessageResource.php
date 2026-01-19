@@ -13,9 +13,12 @@ class MessageResource extends JsonResource
         return [
             'id' => $this->id,
             'conversationId' => $this->conversation_id,
+            'senderId' => $this->sender_id,
             'from' => $this->sender_id === $authId ? 'me' : 'them',
+            'body' => $this->body,
             'text' => $this->body,
             'time' => optional($this->created_at)->format('H:i'),
+            'createdAt' => optional($this->created_at)->toISOString(),
         ];
     }
 }

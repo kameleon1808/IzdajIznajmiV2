@@ -1,10 +1,11 @@
 <?php
 
+use App\Http\Controllers\ApplicationController;
 use App\Http\Controllers\AuthController;
-use App\Http\Controllers\BookingRequestController;
 use App\Http\Controllers\ConversationController;
 use App\Http\Controllers\LandlordListingController;
 use App\Http\Controllers\ListingController;
+use App\Http\Controllers\UserProfileController;
 use Illuminate\Support\Facades\Route;
 
 $authRoutes = function () {
@@ -22,6 +23,7 @@ $apiRoutes = function () use ($authRoutes) {
 
     Route::get('/listings', [ListingController::class, 'index'])->middleware('throttle:listings_search');
     Route::get('/listings/{listing}', [ListingController::class, 'show']);
+    Route::get('/users/{user}', [UserProfileController::class, 'show']);
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::get('/landlord/listings', [LandlordListingController::class, 'index']);
@@ -34,12 +36,20 @@ $apiRoutes = function () use ($authRoutes) {
         Route::patch('/landlord/listings/{listing}/mark-rented', [LandlordListingController::class, 'markRented'])->middleware('throttle:landlord_write');
         Route::patch('/landlord/listings/{listing}/mark-available', [LandlordListingController::class, 'markAvailable'])->middleware('throttle:landlord_write');
 
-        Route::post('/booking-requests', [BookingRequestController::class, 'store'])->middleware('throttle:booking_requests');
-        Route::get('/booking-requests', [BookingRequestController::class, 'index']);
-        Route::patch('/booking-requests/{bookingRequest}', [BookingRequestController::class, 'updateStatus']);
+        Route::post('/listings/{listing}/apply', [ApplicationController::class, 'apply'])->middleware('throttle:applications');
+        Route::get('/seeker/applications', [ApplicationController::class, 'seekerIndex']);
+        Route::get('/landlord/applications', [ApplicationController::class, 'landlordIndex']);
+        Route::patch('/applications/{application}', [ApplicationController::class, 'update']);
 
         Route::get('/conversations', [ConversationController::class, 'index']);
+        Route::get('/listings/{listing}/conversation', [ConversationController::class, 'conversationForListing']);
+        Route::post('/listings/{listing}/conversation', [ConversationController::class, 'conversationForListing']);
+        Route::get('/listings/{listing}/messages', [ConversationController::class, 'messagesForListing']);
+        Route::post('/listings/{listing}/messages', [ConversationController::class, 'sendMessageForListing']);
+        Route::post('/applications/{application}/conversation', [ConversationController::class, 'conversationForApplication']);
         Route::get('/conversations/{conversation}/messages', [ConversationController::class, 'messages']);
+        Route::post('/conversations/{conversation}/messages', [ConversationController::class, 'send']);
+        Route::post('/conversations/{conversation}/read', [ConversationController::class, 'markRead']);
     });
 };
 

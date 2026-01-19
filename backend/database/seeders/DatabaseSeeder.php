@@ -4,10 +4,11 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
-use Database\Seeders\BookingRequestsSeeder;
+use Database\Seeders\ApplicationsSeeder;
 use Database\Seeders\ConversationsSeeder;
 use Database\Seeders\FacilitiesSeeder;
 use Database\Seeders\ListingsSeeder;
+use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RolesUsersSeeder;
 
 class DatabaseSeeder extends Seeder
@@ -24,7 +25,7 @@ class DatabaseSeeder extends Seeder
             PermissionSeeder::class,
             FacilitiesSeeder::class,
             ListingsSeeder::class,
-            BookingRequestsSeeder::class,
+            ApplicationsSeeder::class,
             ConversationsSeeder::class,
         ]);
     }

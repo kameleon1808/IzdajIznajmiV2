@@ -18,6 +18,7 @@ class ListingController extends Controller
                     $q->where('processing_status', 'done')->orderBy('sort_order');
                 },
                 'facilities',
+                'owner:id,full_name,name',
             ]);
 
         $statuses = array_filter((array) $request->input('status'));
@@ -106,7 +107,11 @@ class ListingController extends Controller
 
     public function show(Listing $listing): JsonResponse
     {
-        $listing->load(['images' => fn ($q) => $q->where('processing_status', 'done')->orderBy('sort_order'), 'facilities']);
+        $listing->load([
+            'images' => fn ($q) => $q->where('processing_status', 'done')->orderBy('sort_order'),
+            'facilities',
+            'owner:id,full_name,name',
+        ]);
         $user = request()->user();
         $isAdmin = $user && ((method_exists($user, 'hasRole') && $user->hasRole('admin')) || $user->role === 'admin');
         if ($listing->status !== ListingStatusService::STATUS_ACTIVE && !($user && ($isAdmin || $user->id === $listing->owner_id))) {

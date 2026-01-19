@@ -20,18 +20,18 @@ Legend: ✅ = verified/implemented, ⚠️ = partial, ❌ = missing.
 - ✅ Filters include `city`, `location` (contains), `priceMin/priceMax`, `rooms`, `areaMin/areaMax`, `guests`, `instantBook`, `facilities`/`amenities`, `rating`, `status`, and pagination (`page`, `perPage`).
 
 ## Applications (apply once + separate lists)
-- ❌ No applications model/endpoints. Booking Requests exist instead: `/api/booking-requests` (POST create, GET list by role query param, PATCH status). No `/api/v1/listings/{listing}/apply` or apply-once enforcement; no seeker/landlord list separation beyond query param.
+- ✅ Applications domain live: `/api/v1/listings/{listing}/apply`, seeker `/seeker/applications`, landlord `/landlord/applications`, status update `/applications/{id}` with apply-once + active-listing guard.
 
 ## Chat (listing-scoped + anti-spam + read)
-- ⚠️ Conversations/messages endpoints: `/api/conversations`, `/api/conversations/{conversation}/messages` (auth:sanctum). Not listing-scoped; no anti-spam rule; no read markers; access control not participant-scoped.
-- ⚠️ Seeded one conversation/messages via `ConversationsSeeder` (listing_id null).
+- ✅ Conversations scoped to listing + participants with spam guard (3 seeker messages until landlord reply), read markers, participant-only access, endpoints for listing + conversation threads.
+- ✅ Seeds include listing-scoped conversations with reply + spam-block scenario.
 
 ## Ratings & trust
 - ❌ No ratings models/endpoints; no limits (1 per pair/listing, 5/24h), no verification checks, no IP/User-Agent capture, no reporting/admin actions, no suspicious flagging.
 
 ## Seeds / demo data
-- ⚠️ Seeds present: roles users (admin/landlord/seekers), facilities, listings (~20), booking requests, one conversation/messages. Missing applications, ratings. Credentials documented in frontend/backend READMEs.
+- ⚠️ Seeds now include applications and listing-scoped conversations/messages plus landlord with active listings; ratings still missing. Credentials documented in frontend/backend READMEs.
 
 ## Frontend essentials
-- ⚠️ SPA pages: browse listings (`/`, `/search`, `/listing/:id`), landlord CRUD (`/landlord/listings/*`), favorites (local), booking requests list (`/bookings`), messages UI (`/messages`, `/messages/:id`). No apply-to-listing UI; chat not listing-scoped; ratings UI absent.
+- ✅ SPA pages: browse listings (`/`, `/search`, `/listing/:id`), landlord CRUD (`/landlord/listings/*`), favorites (local), applications list (`/bookings` tab), apply-from-detail button, listing-scoped chat (`/messages`, `/messages/:id`). Ratings UI still absent.
 - ✅ Auth store uses Sanctum cookie flow (`/sanctum/csrf-cookie` + `/api/v1/auth/*`, withCredentials on), role guard uses backend roles; mock switch only in mock mode.

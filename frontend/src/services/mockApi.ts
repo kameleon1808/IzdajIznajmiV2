@@ -1,12 +1,4 @@
-import type {
-  Booking,
-  BookingRequest,
-  Conversation,
-  Listing,
-  ListingFilters,
-  Message,
-  Review,
-} from '../types'
+import type { Application, Booking, Conversation, Listing, ListingFilters, Message, PublicProfile, Review } from '../types'
 
 const makeId = () =>
   typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -234,46 +226,52 @@ const bookings: Booking[] = [
   },
 ]
 
-const bookingRequests: BookingRequest[] = [
+const toAppListing = (listingId: string) => {
+  const listing = listings.find((l) => l.id === listingId)
+  return {
+    id: listingId,
+    title: listing?.title ?? 'Listing',
+    city: listing?.city,
+    coverImage: listing?.coverImage ?? listing?.images?.[0],
+    pricePerNight: listing?.pricePerNight,
+    status: (listing as any)?.status ?? 'active',
+  }
+}
+
+const applications: Application[] = [
   {
-    id: 'br1',
-    listingId: '1',
-    tenantId: 'tenant-1',
-    landlordId: 'landlord-1',
-    startDate: '2026-03-02',
-    endDate: '2026-03-07',
-    guests: 3,
+    id: 'app1',
+    status: 'submitted',
     message: 'We would love a quiet family stay. Can we check in early?',
-    status: 'pending',
     createdAt: '2026-01-05T10:00:00Z',
+    listing: toAppListing('1'),
+    participants: { seekerId: 'tenant-1', landlordId: 'landlord-1' },
   },
   {
-    id: 'br2',
-    listingId: '2',
-    tenantId: 'tenant-1',
-    landlordId: 'landlord-2',
-    startDate: '2026-02-18',
-    endDate: '2026-02-20',
-    guests: 2,
-    message: 'Celebrating anniversary, need late checkout.',
+    id: 'app2',
     status: 'accepted',
+    message: 'Celebrating anniversary, need late checkout.',
     createdAt: '2026-01-08T12:30:00Z',
+    listing: toAppListing('2'),
+    participants: { seekerId: 'tenant-1', landlordId: 'landlord-2' },
   },
   {
-    id: 'br3',
-    listingId: '3',
-    tenantId: 'tenant-2',
-    landlordId: 'landlord-1',
-    guests: 1,
-    message: 'Workcation with stable Wi-Fi, flexible dates.',
+    id: 'app3',
     status: 'rejected',
+    message: 'Workcation with stable Wi-Fi, flexible dates.',
     createdAt: '2026-01-10T09:20:00Z',
+    listing: toAppListing('3'),
+    participants: { seekerId: 'tenant-2', landlordId: 'landlord-1' },
   },
 ]
 
 const conversations: Conversation[] = [
   {
     id: 'c1',
+    listingId: '1',
+    listingTitle: listings[0]?.title ?? 'Listing',
+    listingCity: listings[0]?.city,
+    listingCoverImage: listings[0]?.coverImage ?? '',
     userName: 'Evelyn Hunt',
     avatarUrl: 'https://i.pravatar.cc/100?img=12',
     lastMessage: 'See you at 4PM for check-in.',
@@ -283,6 +281,10 @@ const conversations: Conversation[] = [
   },
   {
     id: 'c2',
+    listingId: '2',
+    listingTitle: listings[1]?.title ?? 'Listing',
+    listingCity: listings[1]?.city,
+    listingCoverImage: listings[1]?.coverImage ?? '',
     userName: 'Marco Silva',
     avatarUrl: 'https://i.pravatar.cc/100?img=9',
     lastMessage: 'Thanks for booking!',
@@ -294,11 +296,11 @@ const conversations: Conversation[] = [
 
 const messages: Record<string, Message[]> = {
   c1: [
-    { id: 'm1', conversationId: 'c1', from: 'them', text: 'Welcome to Aurora!', time: '09:15' },
-    { id: 'm2', conversationId: 'c1', from: 'me', text: 'Excited to arrive.', time: '09:17' },
+    { id: 'm1', conversationId: 'c1', senderId: 'landlord-1', from: 'them', text: 'Welcome to Aurora!', time: '09:15' },
+    { id: 'm2', conversationId: 'c1', senderId: 'tenant-1', from: 'me', text: 'Excited to arrive.', time: '09:17' },
   ],
   c2: [
-    { id: 'm3', conversationId: 'c2', from: 'them', text: 'Let me know if you need anything.', time: 'Yesterday' },
+    { id: 'm3', conversationId: 'c2', senderId: 'landlord-2', from: 'them', text: 'Let me know if you need anything.', time: 'Yesterday' },
   ],
 }
 
@@ -392,6 +394,105 @@ export async function getConversations(): Promise<Conversation[]> {
 
 export async function getMessages(conversationId: string): Promise<Message[]> {
   return simulate(messages[conversationId] ?? [])
+}
+
+export async function getConversationForListing(listingId: string): Promise<Conversation> {
+  let conversation = conversations.find((c) => c.listingId === listingId)
+  if (!conversation) {
+    const listing = listings.find((l) => l.id === listingId)
+    conversation = {
+      id: makeId(),
+      listingId,
+      listingTitle: listing?.title ?? 'Listing',
+      listingCity: listing?.city,
+      listingCoverImage: listing?.coverImage ?? '',
+      userName: listing?.ownerId ? `Landlord ${listing.ownerId}` : 'Host',
+      avatarUrl: '',
+      lastMessage: 'Start chatting',
+      time: new Date().toISOString(),
+      unreadCount: 0,
+      online: false,
+    }
+    conversations.unshift(conversation)
+    messages[conversation.id] = []
+  }
+
+  return simulate(conversation)
+}
+
+export async function getMessagesForListing(listingId: string): Promise<Message[]> {
+  const convo = conversations.find((c) => c.listingId === listingId)
+  if (!convo) return simulate([])
+  return getMessages(convo.id)
+}
+
+export async function sendMessageToListing(listingId: string, message: string): Promise<Message> {
+  const convo = (await getConversationForListing(listingId)) as Conversation
+  return sendMessageToConversation(convo.id, message)
+}
+
+export async function sendMessageToConversation(conversationId: string, message: string): Promise<Message> {
+  await delay()
+  const msg: Message = {
+    id: makeId(),
+    conversationId,
+    senderId: 'mock-seeker',
+    from: 'me',
+    text: message,
+    time: new Date().toISOString(),
+  }
+  messages[conversationId] = [...(messages[conversationId] ?? []), msg]
+  const convo = conversations.find((c) => c.id === conversationId)
+  if (convo) {
+    convo.lastMessage = message
+    convo.time = msg.time
+    convo.unreadCount = 0
+  }
+  return JSON.parse(JSON.stringify(msg))
+}
+
+export async function markConversationRead(_conversationId: string): Promise<void> {
+  await delay()
+}
+
+export async function getOrCreateConversationForApplication(applicationId: string): Promise<Conversation> {
+  await delay()
+  const app = applications.find((a) => a.id === applicationId)
+  if (!app) throw new Error('Application not found')
+  let convo = conversations.find(
+    (c) => c.listingId === app.listing.id && c.userName === app.participants.seekerId.toString(),
+  )
+  if (!convo) {
+    convo = {
+      id: makeId(),
+      listingId: app.listing.id,
+      listingTitle: app.listing.title,
+      listingCity: app.listing.city,
+      listingCoverImage: app.listing.coverImage,
+      userName: `Seeker ${app.participants.seekerId}`,
+      avatarUrl: '',
+      lastMessage: 'Start chatting',
+      time: new Date().toISOString(),
+      unreadCount: 0,
+      online: false,
+    }
+    conversations.unshift(convo)
+    messages[convo.id] = []
+  }
+  return JSON.parse(JSON.stringify(convo))
+}
+
+export async function getPublicProfile(userId: string): Promise<PublicProfile> {
+  await delay()
+  const profile: PublicProfile = {
+    id: userId,
+    fullName: `Landlord ${userId}`,
+    joinedAt: new Date().toISOString(),
+    verifications: { email: true, phone: false, address: false },
+    ratingStats: { average: 0, total: 0, breakdown: {} },
+    recentRatings: [],
+  }
+  return JSON.parse(JSON.stringify(profile))
 }
 
 export async function getLandlordListings(ownerId: string | number): Promise<Listing[]> {
@@ -514,39 +615,39 @@ export async function markListingAvailable(id: string): Promise<Listing | null> 
   return publishListing(id)
 }
 
-export async function createBookingRequest(
-  payload: Omit<BookingRequest, 'id' | 'status' | 'createdAt'>,
-): Promise<BookingRequest> {
+export async function applyToListing(listingId: string, message?: string | null): Promise<Application> {
   await delay()
   maybeFail()
-  const request: BookingRequest = {
-    ...payload,
+  const listing = listings.find((l) => l.id === listingId)
+  const application: Application = {
     id: makeId(),
-    status: 'pending',
+    status: 'submitted',
+    message: message ?? '',
     createdAt: new Date().toISOString(),
+    listing: toAppListing(listingId),
+    participants: {
+      seekerId: 'mock-seeker',
+      landlordId: (listing as any)?.ownerId ?? 'mock-landlord',
+    },
   }
-  bookingRequests.unshift(request)
-  return JSON.parse(JSON.stringify(request))
+  applications.unshift(application)
+  return JSON.parse(JSON.stringify(application))
 }
 
-export async function getBookingRequestsForTenant(tenantId: string): Promise<BookingRequest[]> {
-  return simulate(bookingRequests.filter((r) => r.tenantId === tenantId))
+export async function getApplicationsForSeeker(): Promise<Application[]> {
+  return simulate(applications)
 }
 
-export async function getBookingRequestsForLandlord(landlordId: string): Promise<BookingRequest[]> {
-  return simulate(bookingRequests.filter((r) => r.landlordId === landlordId))
+export async function getApplicationsForLandlord(): Promise<Application[]> {
+  return simulate(applications)
 }
 
-export async function updateBookingRequestStatus(
-  id: string,
-  status: BookingRequest['status'],
-): Promise<BookingRequest | null> {
+export async function updateApplicationStatus(id: string, status: Application['status']): Promise<Application | null> {
   await delay()
   maybeFail()
-  const index = bookingRequests.findIndex((r) => r.id === id)
+  const index = applications.findIndex((a) => a.id === id)
   if (index === -1) return null
-  const current = bookingRequests[index]
-  if (!current) return null
-  bookingRequests[index] = { ...current, status }
-  return JSON.parse(JSON.stringify(bookingRequests[index]))
+  const current = applications[index]!
+  applications[index] = { ...current, status }
+  return JSON.parse(JSON.stringify(applications[index]))
 }

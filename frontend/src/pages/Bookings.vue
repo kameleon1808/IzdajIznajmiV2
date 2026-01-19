@@ -8,10 +8,12 @@ import EmptyState from '../components/ui/EmptyState.vue'
 import ErrorBanner from '../components/ui/ErrorBanner.vue'
 import ListSkeleton from '../components/ui/ListSkeleton.vue'
 import { useAuthStore } from '../stores/auth'
+import { useChatStore } from '../stores/chat'
 import { useBookingsStore } from '../stores/bookings'
 import { useListingsStore } from '../stores/listings'
 import { useRequestsStore } from '../stores/requests'
 import { useToastStore } from '../stores/toast'
+import type { Application } from '../types'
 
 const bookingsStore = useBookingsStore()
 const requestsStore = useRequestsStore()
@@ -20,6 +22,7 @@ const auth = useAuthStore()
 const toast = useToastStore()
 const route = useRoute()
 const router = useRouter()
+const chatStore = useChatStore()
 
 const tab = ref<'booked' | 'history' | 'requests'>((route.query.tab as any) || 'booked')
 
@@ -52,9 +55,9 @@ watch(
 
 const loadRequests = () => {
   if (auth.hasRole('seeker')) {
-    requestsStore.fetchTenantRequests(auth.user.id)
+    requestsStore.fetchTenantRequests()
   } else if (auth.hasRole('landlord')) {
-    requestsStore.fetchLandlordRequests(auth.user.id)
+    requestsStore.fetchLandlordRequests()
   }
 }
 
@@ -78,21 +81,21 @@ const errorMessage = computed(() =>
   tab.value === 'requests' ? requestsStore.error : bookingsStore.error,
 )
 
-const statusCopy: Record<string, string> = {
-  pending: 'Pending',
+const statusCopy: Record<Application['status'], string> = {
+  submitted: 'Submitted',
   accepted: 'Accepted',
   rejected: 'Rejected',
-  cancelled: 'Cancelled',
+  withdrawn: 'Withdrawn',
 }
 
-const statusVariant: Record<string, any> = {
-  pending: 'pending',
+const statusVariant: Record<Application['status'], any> = {
+  submitted: 'pending',
   accepted: 'accepted',
   rejected: 'rejected',
-  cancelled: 'cancelled',
+  withdrawn: 'cancelled',
 }
 
-const updateStatus = async (id: string, status: 'accepted' | 'rejected') => {
+const updateStatus = async (id: string, status: Application['status']) => {
   try {
     await requestsStore.updateStatus(id, status)
     toast.push({ title: `Request ${statusCopy[status]}`, type: status === 'accepted' ? 'success' : 'info' })
@@ -101,11 +104,21 @@ const updateStatus = async (id: string, status: 'accepted' | 'rejected') => {
   }
 }
 
-const badgeLabel = (request: any) => `${statusCopy[request.status]} • ${new Date(request.createdAt).toLocaleDateString()}`
+const openMessage = async (applicationId: string) => {
+  try {
+    const convo = await chatStore.fetchConversationForApplication(applicationId)
+    await chatStore.fetchMessages(convo.id)
+    router.push(`/messages/${convo.id}`)
+  } catch (error) {
+    toast.push({ title: 'Chat unavailable', message: (error as Error).message, type: 'error' })
+  }
+}
 
-const datesText = (request: any) =>
-  request.startDate && request.endDate ? `${request.startDate} - ${request.endDate}` : 'Flexible dates'
-const listingTitle = (listingId: string) => listingLookup.value.get(listingId) ?? listingId
+const badgeLabel = (request: Application) =>
+  `${statusCopy[request.status]} • ${new Date(request.createdAt ?? Date.now()).toLocaleDateString()}`
+
+const listingTitle = (request: Application) =>
+  request.listing.title ?? listingLookup.value.get(request.listing.id) ?? request.listing.id
 
 const goToListing = (listingId: string) => router.push(`/listing/${listingId}`)
 </script>
@@ -137,23 +150,36 @@ const goToListing = (listingId: string) => router.push(`/listing/${listingId}`)
         >
           <div class="flex items-start justify-between gap-2">
             <div>
-              <p class="text-base font-semibold text-slate-900">{{ listingTitle(request.listingId) }}</p>
-              <p class="text-xs text-muted">{{ datesText(request) }}</p>
+              <p class="text-base font-semibold text-slate-900">{{ listingTitle(request) }}</p>
+              <p class="text-xs text-muted">
+                {{ request.listing.city || 'View details' }}
+                <span v-if="request.listing.pricePerNight">· ${{ request.listing.pricePerNight }}/night</span>
+              </p>
             </div>
             <Badge :variant="statusVariant[request.status]">{{ badgeLabel(request) }}</Badge>
           </div>
-          <p class="text-sm text-slate-800">Guests: {{ request.guests }}</p>
-          <p class="rounded-2xl bg-surface p-3 text-sm text-slate-800">{{ request.message }}</p>
+          <p class="rounded-2xl bg-surface p-3 text-sm text-slate-800">{{ request.message || 'No message' }}</p>
           <div class="flex items-center justify-between text-xs text-muted">
-            <span>Seeker: {{ request.tenantId }}</span>
-            <span>Landlord: {{ request.landlordId }}</span>
+            <span>Seeker: {{ request.participants.seekerId }}</span>
+            <span>Landlord: {{ request.participants.landlordId }}</span>
           </div>
-          <div class="flex gap-2" v-if="auth.hasRole('landlord') && request.status === 'pending'">
+          <div class="flex gap-2" v-if="auth.hasRole('landlord') && request.status === 'submitted'">
             <Button class="flex-1" variant="primary" @click="updateStatus(request.id, 'accepted')">Accept</Button>
             <Button class="flex-1" variant="secondary" @click="updateStatus(request.id, 'rejected')">Reject</Button>
           </div>
-          <div class="flex justify-end">
-            <Button variant="secondary" size="md" @click="goToListing(request.listingId)">View listing</Button>
+          <div class="flex justify-end" v-else-if="auth.hasRole('seeker') && request.status === 'submitted'">
+            <Button variant="secondary" size="md" @click="updateStatus(request.id, 'withdrawn')">Withdraw</Button>
+          </div>
+          <div class="flex justify-end gap-2">
+            <Button
+              v-if="auth.hasRole('landlord')"
+              variant="primary"
+              size="md"
+              @click="openMessage(request.id)"
+            >
+              Message
+            </Button>
+            <Button variant="secondary" size="md" @click="goToListing(request.listing.id)">View listing</Button>
           </div>
         </div>
         <EmptyState

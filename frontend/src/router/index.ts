@@ -10,6 +10,7 @@ import ListingForm from '../pages/ListingForm.vue'
 import MapPage from '../pages/Map.vue'
 import Messages from '../pages/Messages.vue'
 import Profile from '../pages/Profile.vue'
+import PublicProfile from '../pages/PublicProfile.vue'
 import Reviews from '../pages/Reviews.vue'
 import Search from '../pages/Search.vue'
 import SettingsLanguage from '../pages/SettingsLanguage.vue'
@@ -69,6 +70,12 @@ const router = createRouter({
       meta: { topBar: { type: 'chat' }, showTabs: false, contentClass: 'p-0 pb-20', roles: ['seeker', 'landlord'] },
     },
     { path: '/profile', name: 'profile', component: Profile, meta: { topBar: { type: 'title', title: 'Profile' }, showTabs: true } },
+    {
+      path: '/users/:id',
+      name: 'public-profile',
+      component: PublicProfile,
+      meta: { topBar: { type: 'back', title: 'Profile' }, showTabs: false },
+    },
     {
       path: '/settings/personal',
       name: 'settings-personal',

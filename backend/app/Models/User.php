@@ -4,6 +4,7 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Models\BookingRequest;
+use App\Models\Application;
 use App\Models\Conversation;
 use App\Models\Listing;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -87,5 +88,15 @@ class User extends Authenticatable
     public function conversationsAsLandlord()
     {
         return $this->hasMany(Conversation::class, 'landlord_id');
+    }
+
+    public function applicationsAsSeeker()
+    {
+        return $this->hasMany(Application::class, 'seeker_id');
+    }
+
+    public function applicationsAsLandlord()
+    {
+        return $this->hasMany(Application::class, 'landlord_id');
     }
 }

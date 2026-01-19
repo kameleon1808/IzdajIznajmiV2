@@ -17,7 +17,9 @@ onMounted(() => {
 })
 
 const items = computed(() =>
-  chatStore.conversations.filter((c) => c.userName.toLowerCase().includes(query.value.toLowerCase())),
+  chatStore.conversations.filter((c) =>
+    `${c.userName} ${c.listingTitle ?? ''}`.toLowerCase().includes(query.value.toLowerCase()),
+  ),
 )
 const loading = computed(() => chatStore.loading)
 const error = computed(() => chatStore.error)
@@ -37,7 +39,7 @@ const error = computed(() => chatStore.error)
         @click="router.push(`/messages/${conv.id}`)"
       >
         <div class="relative">
-          <img :src="conv.avatarUrl" alt="avatar" class="h-12 w-12 rounded-2xl object-cover" />
+          <img :src="conv.listingCoverImage || conv.avatarUrl" alt="avatar" class="h-12 w-12 rounded-2xl object-cover" />
           <span
             v-if="conv.online"
             class="absolute -right-1 -top-1 h-3 w-3 rounded-full border-2 border-white bg-primary"
@@ -45,15 +47,16 @@ const error = computed(() => chatStore.error)
         </div>
         <div class="flex-1">
           <div class="flex items-center justify-between">
-            <p class="font-semibold text-slate-900">{{ conv.userName }}</p>
+            <div>
+              <p class="font-semibold text-slate-900">{{ conv.listingTitle || conv.userName }}</p>
+              <p class="text-xs text-muted">{{ conv.userName }}</p>
+            </div>
             <span class="text-xs text-muted">{{ conv.time }}</span>
           </div>
-          <div class="flex items-center justify-between">
-            <p class="truncate text-sm text-muted">{{ conv.lastMessage }}</p>
-            <span v-if="conv.unreadCount" class="rounded-full bg-primary px-2 py-0.5 text-xs font-semibold text-white">
-              {{ conv.unreadCount }}
-            </span>
-          </div>
+          <p class="truncate text-sm text-muted">{{ conv.lastMessage }}</p>
+          <span v-if="conv.unreadCount" class="ml-auto mt-1 inline-block rounded-full bg-primary px-2 py-0.5 text-xs font-semibold text-white">
+            {{ conv.unreadCount }}
+          </span>
         </div>
       </div>
       <EmptyState
