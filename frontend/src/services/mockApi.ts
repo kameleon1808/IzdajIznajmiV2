@@ -1,4 +1,4 @@
-import type { Application, Booking, Conversation, Listing, ListingFilters, Message, PublicProfile, Review } from '../types'
+import type { Application, Booking, Conversation, Listing, ListingFilters, Message, PublicProfile, Rating, Review } from '../types'
 
 const makeId = () =>
   typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -493,6 +493,60 @@ export async function getPublicProfile(userId: string): Promise<PublicProfile> {
     recentRatings: [],
   }
   return JSON.parse(JSON.stringify(profile))
+}
+
+const mapRating = (data: any): Rating => ({
+  id: String(data.id),
+  listingId: String(data.listingId ?? ''),
+  rating: Number(data.rating ?? 0),
+  comment: data.comment ?? null,
+  createdAt: data.createdAt ?? new Date().toISOString(),
+  rater: data.rater,
+  rateeId: data.rateeId,
+  listing: data.listing,
+  reportCount: data.reportCount ?? 0,
+})
+
+export async function leaveRating(
+  listingId: string,
+  rateeUserId: string | number,
+  payload: { rating: number; comment?: string },
+) {
+  await delay()
+  const rating = mapRating({
+    id: makeId(),
+    listingId,
+    rating: payload.rating,
+    comment: payload.comment,
+    createdAt: new Date().toISOString(),
+    rater: { id: 'mock-seeker', name: 'Mock Seeker' },
+    rateeId: rateeUserId,
+  })
+  return rating
+}
+
+export async function getUserRatings(_userId: string): Promise<Rating[]> {
+  await delay()
+  return []
+}
+
+export async function reportRating(_ratingId: string, _reason: string, _details?: string) {
+  await delay()
+  return null
+}
+
+export async function getAdminRatings(): Promise<Rating[]> {
+  await delay()
+  return []
+}
+
+export async function deleteAdminRating(_ratingId: string) {
+  await delay()
+}
+
+export async function flagUserSuspicious(_userId: string | number, _isSuspicious: boolean) {
+  await delay()
+  return { isSuspicious: _isSuspicious }
 }
 
 export async function getLandlordListings(ownerId: string | number): Promise<Listing[]> {

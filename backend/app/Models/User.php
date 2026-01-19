@@ -7,6 +7,7 @@ use App\Models\BookingRequest;
 use App\Models\Application;
 use App\Models\Conversation;
 use App\Models\Listing;
+use App\Models\Rating;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -98,5 +99,15 @@ class User extends Authenticatable
     public function applicationsAsLandlord()
     {
         return $this->hasMany(Application::class, 'landlord_id');
+    }
+
+    public function ratingsGiven()
+    {
+        return $this->hasMany(Rating::class, 'rater_id');
+    }
+
+    public function ratingsReceived()
+    {
+        return $this->hasMany(Rating::class, 'ratee_id');
     }
 }

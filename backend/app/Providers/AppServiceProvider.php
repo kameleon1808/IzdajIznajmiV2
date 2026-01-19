@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Models\BookingRequest;
 use App\Models\Application;
 use App\Models\Listing;
+use App\Models\Rating;
 use App\Policies\BookingRequestPolicy;
 use App\Policies\ApplicationPolicy;
 use App\Policies\ListingPolicy;

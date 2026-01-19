@@ -27,7 +27,7 @@ Legend: ✅ = verified/implemented, ⚠️ = partial, ❌ = missing.
 - ✅ Seeds include listing-scoped conversations with reply + spam-block scenario.
 
 ## Ratings & trust
-- ❌ No ratings models/endpoints; no limits (1 per pair/listing, 5/24h), no verification checks, no IP/User-Agent capture, no reporting/admin actions, no suspicious flagging.
+- ✅ Ratings domain implemented: one per pair+listing, 5/24h limit, verification + chat preconditions, IP/User-Agent captured, reporting, admin delete/review, suspicious flagging.
 
 ## Seeds / demo data
 - ⚠️ Seeds now include applications and listing-scoped conversations/messages plus landlord with active listings; ratings still missing. Credentials documented in frontend/backend READMEs.

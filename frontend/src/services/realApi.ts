@@ -1,5 +1,5 @@
 import { apiClient } from './apiClient'
-import type { Application, Conversation, Listing, ListingFilters, Message, PublicProfile } from '../types'
+import type { Application, Conversation, Listing, ListingFilters, Message, PublicProfile, Rating } from '../types'
 import { useAuthStore } from '../stores/auth'
 
 const mapListing = (data: any): Listing => {
@@ -95,6 +95,9 @@ const mapConversation = (data: any): Conversation => {
     time: formattedTime || '',
     unreadCount: Number(data.unreadCount ?? data.unread_count ?? 0),
     online: Boolean(data.online ?? false),
+    participants: data.participants
+      ? data.participants
+      : undefined,
   }
 }
 
@@ -366,6 +369,63 @@ const mapProfile = (data: any): PublicProfile => ({
 export const getPublicProfile = async (userId: string): Promise<PublicProfile> => {
   const { data } = await apiClient.get(`/users/${userId}`)
   return mapProfile(data.data ?? data)
+}
+
+const mapRating = (data: any): Rating => ({
+  id: String(data.id),
+  listingId: String(data.listingId ?? data.listing_id ?? data.listing?.id ?? ''),
+  rating: Number(data.rating ?? 0),
+  comment: data.comment ?? null,
+  createdAt: data.createdAt ?? data.created_at,
+  rater: data.rater
+    ? { id: data.rater.id, name: data.rater.fullName ?? data.rater.name }
+    : data.rater_id
+    ? { id: data.rater_id, name: data.rater_name }
+    : undefined,
+  rateeId: data.rateeId ?? data.ratee_id,
+  listing: data.listing
+    ? { id: data.listing.id, title: data.listing.title, city: data.listing.city }
+    : undefined,
+  reportCount: data.reportCount ?? data.report_count,
+})
+
+export const leaveRating = async (
+  listingId: string,
+  rateeUserId: string | number,
+  payload: { rating: number; comment?: string },
+): Promise<Rating> => {
+  const { data } = await apiClient.post(`/listings/${listingId}/ratings`, {
+    ratee_user_id: rateeUserId,
+    rating: payload.rating,
+    comment: payload.comment,
+  })
+  return mapRating(data.data ?? data)
+}
+
+export const getUserRatings = async (userId: string): Promise<Rating[]> => {
+  const { data } = await apiClient.get(`/users/${userId}/ratings`)
+  const list = (data.data ?? data) as any[]
+  return list.map(mapRating)
+}
+
+export const reportRating = async (ratingId: string, reason: string, details?: string) => {
+  const { data } = await apiClient.post(`/ratings/${ratingId}/report`, { reason, details })
+  return mapRating(data.data ?? data)
+}
+
+export const getAdminRatings = async (params?: { reported?: boolean }): Promise<Rating[]> => {
+  const { data } = await apiClient.get('/admin/ratings', { params })
+  const list = (data.data ?? data) as any[]
+  return list.map(mapRating)
+}
+
+export const deleteAdminRating = async (ratingId: string) => {
+  await apiClient.delete(`/admin/ratings/${ratingId}`)
+}
+
+export const flagUserSuspicious = async (userId: string | number, isSuspicious: boolean) => {
+  const { data } = await apiClient.patch(`/admin/users/${userId}/flag-suspicious`, { is_suspicious: isSuspicious })
+  return data
 }
 
 export const getBookings = async () => {

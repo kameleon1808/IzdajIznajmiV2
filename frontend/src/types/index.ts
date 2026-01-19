@@ -88,6 +88,10 @@ export interface Conversation {
   time: string
   unreadCount: number
   online: boolean
+  participants?: {
+    tenantId: string | number
+    landlordId: string | number
+  }
 }
 
 export interface Message {
@@ -121,6 +125,18 @@ export interface PublicProfile {
     createdAt?: string
     listingTitle?: string
   }>
+}
+
+export interface Rating {
+  id: string
+  listingId: string
+  rating: number
+  comment?: string | null
+  createdAt?: string
+  rater?: { id?: string | number; name?: string }
+  rateeId?: string | number
+  listing?: { id?: string | number; title?: string; city?: string }
+  reportCount?: number
 }
 
 export interface ListingFilters {

@@ -107,7 +107,7 @@ class ApplicationsApiTest extends TestCase
         $response->assertOk();
         $payload = $response->json('data') ?? $response->json();
         $this->assertCount(1, $payload);
-        $this->assertSame($listing->id, $payload[0]['listing']['id']);
+        $this->assertSame($listing->id, (int) $payload[0]['listing']['id']);
     }
 
     public function test_landlord_list_shows_only_their_listing_applications(): void
@@ -140,7 +140,7 @@ class ApplicationsApiTest extends TestCase
         $response->assertOk();
         $payload = $response->json('data') ?? $response->json();
         $this->assertCount(1, $payload);
-        $this->assertSame($listing->id, $payload[0]['listing']['id']);
+        $this->assertSame($listing->id, (int) $payload[0]['listing']['id']);
     }
 
     public function test_cannot_apply_to_inactive_listing(): void

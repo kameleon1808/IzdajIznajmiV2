@@ -6,6 +6,7 @@ use App\Models\Facility;
 use App\Models\ListingImage;
 use App\Models\User;
 use App\Models\Application;
+use App\Models\Rating;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -67,5 +68,10 @@ class Listing extends Model
     public function applications(): HasMany
     {
         return $this->hasMany(Application::class);
+    }
+
+    public function ratings(): HasMany
+    {
+        return $this->hasMany(Rating::class);
     }
 }

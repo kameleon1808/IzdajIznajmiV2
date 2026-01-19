@@ -26,6 +26,10 @@ class ConversationResource extends JsonResource
             'time' => optional($lastMessage?->created_at ?? $this->created_at)->toISOString(),
             'unreadCount' => $this->unread_count ?? 0,
             'online' => false,
+            'participants' => [
+                'tenantId' => $this->tenant_id,
+                'landlordId' => $this->landlord_id,
+            ],
         ];
     }
 }

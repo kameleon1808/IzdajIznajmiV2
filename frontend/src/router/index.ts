@@ -11,6 +11,7 @@ import MapPage from '../pages/Map.vue'
 import Messages from '../pages/Messages.vue'
 import Profile from '../pages/Profile.vue'
 import PublicProfile from '../pages/PublicProfile.vue'
+import AdminRatings from '../pages/AdminRatings.vue'
 import Reviews from '../pages/Reviews.vue'
 import Search from '../pages/Search.vue'
 import SettingsLanguage from '../pages/SettingsLanguage.vue'
@@ -111,6 +112,12 @@ const router = createRouter({
       name: 'landlord-listing-edit',
       component: ListingForm,
       meta: { topBar: { type: 'back', title: 'Edit Listing' }, showTabs: false, roles: ['landlord', 'admin'] },
+    },
+    {
+      path: '/admin/ratings',
+      name: 'admin-ratings',
+      component: AdminRatings,
+      meta: { topBar: { type: 'title', title: 'Ratings Admin' }, showTabs: false, roles: ['admin'] },
     },
     { path: '/login', name: 'login', component: Login, meta: { topBar: { type: 'title', title: 'Login' }, showTabs: false } },
     {

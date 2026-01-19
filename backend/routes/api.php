@@ -5,7 +5,10 @@ use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ConversationController;
 use App\Http\Controllers\LandlordListingController;
 use App\Http\Controllers\ListingController;
+use App\Http\Controllers\RatingController;
+use App\Http\Controllers\RatingReportController;
 use App\Http\Controllers\UserProfileController;
+use App\Http\Controllers\Admin\RatingAdminController;
 use Illuminate\Support\Facades\Route;
 
 $authRoutes = function () {
@@ -24,6 +27,7 @@ $apiRoutes = function () use ($authRoutes) {
     Route::get('/listings', [ListingController::class, 'index'])->middleware('throttle:listings_search');
     Route::get('/listings/{listing}', [ListingController::class, 'show']);
     Route::get('/users/{user}', [UserProfileController::class, 'show']);
+    Route::get('/users/{user}/ratings', [RatingController::class, 'userRatings']);
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::get('/landlord/listings', [LandlordListingController::class, 'index']);
@@ -50,6 +54,17 @@ $apiRoutes = function () use ($authRoutes) {
         Route::get('/conversations/{conversation}/messages', [ConversationController::class, 'messages']);
         Route::post('/conversations/{conversation}/messages', [ConversationController::class, 'send']);
         Route::post('/conversations/{conversation}/read', [ConversationController::class, 'markRead']);
+
+        Route::post('/listings/{listing}/ratings', [RatingController::class, 'store']);
+        Route::get('/me/ratings', [RatingController::class, 'myRatings']);
+        Route::post('/ratings/{rating}/report', [RatingReportController::class, 'store']);
+
+        Route::prefix('admin')->group(function () {
+            Route::get('/ratings', [RatingAdminController::class, 'index']);
+            Route::get('/ratings/{rating}', [RatingAdminController::class, 'show']);
+            Route::delete('/ratings/{rating}', [RatingAdminController::class, 'destroy']);
+            Route::patch('/users/{user}/flag-suspicious', [RatingAdminController::class, 'flagUser']);
+        });
     });
 };
 
