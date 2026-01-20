@@ -10,6 +10,7 @@ use App\Models\Rating;
 use App\Models\Report;
 use App\Models\User;
 use App\Services\AuditLogService;
+use App\Events\ReportUpdated;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -94,6 +95,8 @@ class ModerationController extends Controller
         $report->reviewed_by = $admin->id;
         $report->reviewed_at = now();
         $report->save();
+
+        event(new ReportUpdated($report));
 
         $this->auditLog->record(
             $admin->id,

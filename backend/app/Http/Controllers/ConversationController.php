@@ -12,6 +12,7 @@ use App\Models\Message;
 use App\Models\User;
 use App\Services\ChatSpamGuardService;
 use App\Services\ListingStatusService;
+use App\Events\MessageCreated;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -136,7 +137,11 @@ class ConversationController extends Controller
             'body' => $body,
         ]);
 
-        return $message->fresh();
+        $message = $message->fresh();
+
+        event(new MessageCreated($message));
+
+        return $message;
     }
 
     private function participantOrAbort(Request $request, Conversation $conversation): User

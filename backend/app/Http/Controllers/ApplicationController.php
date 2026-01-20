@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\ApplicationCreated;
+use App\Events\ApplicationStatusChanged;
 use App\Http\Requests\ApplyToListingRequest;
 use App\Http\Requests\UpdateApplicationStatusRequest;
 use App\Http\Resources\ApplicationResource;
@@ -45,6 +47,8 @@ class ApplicationController extends Controller
             throw $e;
         }
 
+        event(new ApplicationCreated($application->load('listing')));
+
         return response()->json(new ApplicationResource($application->load('listing.images')), 201);
     }
 
@@ -86,6 +90,8 @@ class ApplicationController extends Controller
         Gate::authorize('updateStatus', [$application, $status]);
 
         $application->update(['status' => $status]);
+
+        event(new ApplicationStatusChanged($application->fresh('listing')));
 
         return response()->json(new ApplicationResource($application->load('listing.images')));
     }

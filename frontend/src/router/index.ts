@@ -19,6 +19,8 @@ import Search from '../pages/Search.vue'
 import SettingsLanguage from '../pages/SettingsLanguage.vue'
 import SettingsLegal from '../pages/SettingsLegal.vue'
 import SettingsPersonalInfo from '../pages/SettingsPersonalInfo.vue'
+import SettingsNotifications from '../pages/SettingsNotifications.vue'
+import Notifications from '../pages/Notifications.vue'
 import { useAuthStore, type Role } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
 import Login from '../pages/Login.vue'
@@ -96,6 +98,18 @@ const router = createRouter({
       name: 'settings-language',
       component: SettingsLanguage,
       meta: { topBar: { type: 'back', title: 'Language' }, showTabs: false },
+    },
+    {
+      path: '/settings/notifications',
+      name: 'settings-notifications',
+      component: SettingsNotifications,
+      meta: { topBar: { type: 'back', title: 'Notifications' }, showTabs: false },
+    },
+    {
+      path: '/notifications',
+      name: 'notifications',
+      component: Notifications,
+      meta: { topBar: null, showTabs: false },
     },
     {
       path: '/landlord/listings',

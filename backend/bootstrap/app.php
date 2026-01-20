@@ -25,9 +25,12 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withCommands([
         ExpireListingsCommand::class,
+        \App\Console\Commands\SendNotificationDigestCommand::class,
     ])
     ->withSchedule(function (Schedule $schedule) {
         $schedule->command('listings:expire')->dailyAt('02:00');
+        $schedule->command('notifications:digest --frequency=daily')->dailyAt('09:00');
+        $schedule->command('notifications:digest --frequency=weekly')->weeklyOn(1, '09:00'); // Monday
     })
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->use([

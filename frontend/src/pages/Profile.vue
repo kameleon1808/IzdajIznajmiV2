@@ -18,7 +18,7 @@ const showRoleSwitch = computed(() => auth.isMockMode)
 const baseItems = [
   { label: 'Your Card', icon: CreditCard, action: () => {} },
   { label: 'Security', icon: Shield, action: () => {} },
-  { label: 'Notification', icon: Bell, action: () => {} },
+  { label: 'Notification', icon: Bell, action: () => router.push('/settings/notifications') },
   { label: 'Languages', icon: Languages, action: () => router.push('/settings/language') },
   { label: 'Help & Support', icon: HelpCircle, action: () => router.push('/settings/legal') },
 ]

@@ -14,6 +14,8 @@ use App\Http\Controllers\ListingReportController;
 use App\Http\Controllers\Admin\ModerationController;
 use App\Http\Controllers\Admin\KpiController;
 use App\Http\Controllers\Admin\ImpersonationController;
+use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\NotificationPreferenceController;
 use Illuminate\Support\Facades\Route;
 
 $authRoutes = function () {
@@ -65,6 +67,14 @@ $apiRoutes = function () use ($authRoutes) {
         Route::post('/ratings/{rating}/report', [RatingReportController::class, 'store']);
         Route::post('/messages/{message}/report', [MessageReportController::class, 'store']);
         Route::post('/listings/{listing}/report', [ListingReportController::class, 'store']);
+
+        Route::get('/notifications', [NotificationController::class, 'index']);
+        Route::patch('/notifications/{notification}/read', [NotificationController::class, 'markRead']);
+        Route::patch('/notifications/read-all', [NotificationController::class, 'markAllRead']);
+        Route::get('/notifications/unread-count', [NotificationController::class, 'unreadCount']);
+
+        Route::get('/notification-preferences', [NotificationPreferenceController::class, 'show']);
+        Route::put('/notification-preferences', [NotificationPreferenceController::class, 'update']);
 
         Route::prefix('admin')->group(function () {
             Route::post('/impersonate/stop', [ImpersonationController::class, 'stop']);

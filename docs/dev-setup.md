@@ -13,7 +13,11 @@
   - `QUEUE_CONNECTION=database`
   - Pokrenite worker: `php artisan queue:work`
   - Migracije uključuju jobs tabelu (default).
-- Scheduler (auto-expire listings): `php artisan schedule:work` uključuje zadatak `listings:expire` koji dnevno prebacuje stare aktivne oglase u `expired`.
+- Scheduler (auto-expire listings + notifications): `php artisan schedule:work` uključuje zadatke:
+  - `listings:expire` - dnevno prebacuje stare aktivne oglase u `expired` (02:00)
+  - `notifications:digest --frequency=daily` - dnevno digest notifikacije (09:00)
+  - `notifications:digest --frequency=weekly` - nedeljni digest notifikacije (ponedeljak 09:00)
+- Notifikacije: sistem za in-app notifikacije sa preferencama i digest podrškom. Tipovi: `application.created`, `application.status_changed`, `message.received`, `rating.received`, `report.update`, `admin.notice`, `digest.daily`, `digest.weekly`. Korisnici mogu da konfigurišu tipove i digest frekvenciju (none/daily/weekly) kroz `/settings/notifications`.
 
 ## Frontend (Vue 3 + Vite)
 - Lokacija: `/frontend`

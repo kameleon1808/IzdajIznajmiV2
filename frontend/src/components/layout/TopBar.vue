@@ -3,13 +3,13 @@ import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   ArrowLeft,
-  Bell,
   EllipsisVertical,
   MapPin,
   Phone,
   Search,
   Video,
 } from 'lucide-vue-next'
+import NotificationBell from '../notifications/NotificationBell.vue'
 
 const props = defineProps<{ config?: { type?: string; title?: string; location?: string; userName?: string } }>()
 const router = useRouter()
@@ -46,10 +46,7 @@ const goSearch = () => router.push('/search')
         <button class="rounded-full bg-white p-2 shadow-soft" aria-label="search" @click="goSearch">
           <Search class="h-5 w-5 text-slate-800" />
         </button>
-        <button class="relative rounded-full bg-white p-2 shadow-soft" aria-label="notifications">
-          <Bell class="h-5 w-5 text-slate-800" />
-          <span class="absolute right-1 top-1 h-2 w-2 rounded-full bg-primary"></span>
-        </button>
+        <NotificationBell />
       </div>
     </div>
 
@@ -62,14 +59,14 @@ const goSearch = () => router.push('/search')
           <span class="text-sm font-semibold text-slate-900">{{ props.config?.title ?? 'Discover' }}</span>
           <span v-if="variant === 'search'" class="text-xs text-muted">Find the best place</span>
         </div>
-        <Bell v-if="variant === 'search'" class="h-5 w-5 text-slate-800" />
+        <NotificationBell v-if="variant === 'search'" />
       </div>
     </div>
 
     <div v-else-if="variant === 'title'" class="flex items-center">
       <div class="flex w-full items-center justify-between rounded-2xl bg-white px-4 py-3 shadow-soft">
         <span class="text-base font-semibold text-slate-900">{{ props.config?.title ?? 'Discover' }}</span>
-        <Bell class="h-5 w-5 text-slate-800" />
+        <NotificationBell />
       </div>
     </div>
 

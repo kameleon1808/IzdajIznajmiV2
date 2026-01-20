@@ -6,7 +6,7 @@ composer install
 cp .env.example .env
 php artisan key:generate
 php artisan migrate:fresh --seed
-php artisan schedule:work   # runs listings:expire auto-expiry
+php artisan schedule:work   # runs listings:expire auto-expiry + notification digests (daily 09:00, weekly Monday 09:00)
 # optional for image pipeline:
 # php artisan queue:work
 php artisan serve
@@ -20,6 +20,7 @@ php artisan serve
   - lana@demo.com, leo@demo.com (landlords)
   - tena@demo.com, tomas@demo.com, tara@demo.com (seekers)
 - Listings parity: statuses `draft/active/paused/archived/rented/expired`, duplicate-address guard rails (block same-landlord active duplicates; warn cross-landlord), discovery filters include city/rooms/area/amenities/status, `listings:expire` auto-expires active listings after 30 days.
+- Notifications: in-app notification system with preferences and digest support. Run `php artisan notifications:digest --frequency=daily|weekly` manually or via scheduler (daily at 09:00, weekly Monday at 09:00). Notification types: `application.created`, `application.status_changed`, `message.received`, `rating.received`, `report.update`, `admin.notice`, `digest.daily`, `digest.weekly`.
 
 ## Docs
 - Contract: `docs/api-contract.md`

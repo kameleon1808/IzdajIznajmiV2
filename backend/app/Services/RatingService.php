@@ -37,7 +37,7 @@ class RatingService
     {
         $this->assertCanRate($rater, $listing, $rateeId);
 
-        return Rating::create([
+        $rating = Rating::create([
             'listing_id' => $listing->id,
             'rater_id' => $rater->id,
             'ratee_id' => $rateeId,
@@ -46,6 +46,10 @@ class RatingService
             'ip_address' => $ip,
             'user_agent' => $ua,
         ]);
+
+        event(new \App\Events\RatingCreated($rating));
+
+        return $rating;
     }
 
     private function isVerified(User $user): bool
