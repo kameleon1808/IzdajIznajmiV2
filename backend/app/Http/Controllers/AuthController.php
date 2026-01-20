@@ -67,6 +67,7 @@ class AuthController extends Controller
     {
         Auth::guard('web')->logout();
 
+        $request->session()->forget(['impersonator_id', 'impersonated_id']);
         $request->session()->invalidate();
         $request->session()->regenerateToken();
 
@@ -79,7 +80,16 @@ class AuthController extends Controller
 
     public function me(Request $request): JsonResponse
     {
-        return response()->json(['user' => new UserResource($request->user()->load('roles'))]);
+        $impersonatedId = $request->session()->get('impersonated_id');
+        $user = $impersonatedId ? User::find($impersonatedId)?->load('roles') : $request->user()?->load('roles');
+        $impersonatorId = $request->session()->get('impersonator_id');
+        $impersonator = $impersonatorId ? User::find($impersonatorId)?->load('roles') : null;
+
+        return response()->json([
+            'user' => $user ? new UserResource($user) : null,
+            'impersonating' => (bool) $impersonatorId,
+            'impersonator' => $impersonator ? new UserResource($impersonator) : null,
+        ]);
     }
 
     private function normalizeRole(string $role): string

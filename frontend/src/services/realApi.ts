@@ -1,5 +1,17 @@
 import { apiClient } from './apiClient'
-import type { Application, Conversation, Listing, ListingFilters, Message, PublicProfile, Rating } from '../types'
+import type {
+  AdminConversion,
+  AdminKpiSummary,
+  AdminTrendPoint,
+  Application,
+  Conversation,
+  Listing,
+  ListingFilters,
+  Message,
+  PublicProfile,
+  Rating,
+  Report,
+} from '../types'
 import { useAuthStore } from '../stores/auth'
 
 const mapListing = (data: any): Listing => {
@@ -389,6 +401,30 @@ const mapRating = (data: any): Rating => ({
   reportCount: data.reportCount ?? data.report_count,
 })
 
+const mapReportType = (targetType?: string): Report['type'] => {
+  if (!targetType) return 'other'
+  if (targetType.includes('Rating')) return 'rating'
+  if (targetType.includes('Message')) return 'message'
+  if (targetType.includes('Listing')) return 'listing'
+  return 'other'
+}
+
+const mapReport = (data: any): Report => ({
+  id: String(data.id),
+  type: data.type ?? mapReportType(data.target_type),
+  status: data.status,
+  reason: data.reason,
+  details: data.details ?? null,
+  resolution: data.resolution ?? null,
+  createdAt: data.createdAt ?? data.created_at,
+  reviewedAt: data.reviewedAt ?? data.reviewed_at,
+  reporter: data.reporter
+    ? { id: data.reporter.id, name: data.reporter.fullName ?? data.reporter.name }
+    : undefined,
+  target: data.target ?? data.target_summary,
+  totalReports: Number(data.totalReports ?? data.total_reports ?? 1),
+})
+
 export const leaveRating = async (
   listingId: string,
   rateeUserId: string | number,
@@ -425,6 +461,68 @@ export const deleteAdminRating = async (ratingId: string) => {
 
 export const flagUserSuspicious = async (userId: string | number, isSuspicious: boolean) => {
   const { data } = await apiClient.patch(`/admin/users/${userId}/flag-suspicious`, { is_suspicious: isSuspicious })
+  return data
+}
+
+export const getAdminReports = async (params?: {
+  type?: 'rating' | 'message' | 'listing'
+  status?: 'open' | 'resolved' | 'dismissed'
+  q?: string
+}): Promise<Report[]> => {
+  const { data } = await apiClient.get('/admin/moderation/queue', { params })
+  const list = (data.data ?? data) as any[]
+  return list.map(mapReport)
+}
+
+export const getAdminReport = async (id: string): Promise<Report> => {
+  const { data } = await apiClient.get(`/admin/moderation/reports/${id}`)
+  return mapReport(data.data ?? data)
+}
+
+export const updateAdminReport = async (
+  id: string,
+  payload: { action: 'dismiss' | 'resolve'; resolution?: string; deleteTarget?: boolean; flagUserId?: string | number },
+): Promise<Report> => {
+  const body: any = {
+    action: payload.action,
+    resolution: payload.resolution,
+    delete_target: payload.deleteTarget,
+    flag_user_id: payload.flagUserId,
+  }
+  const { data } = await apiClient.patch(`/admin/moderation/reports/${id}`, body)
+  return mapReport(data.data ?? data)
+}
+
+export const getAdminKpiSummary = async (): Promise<AdminKpiSummary> => {
+  const { data } = await apiClient.get('/admin/kpi/summary')
+  return data
+}
+
+export const getAdminKpiConversion = async (): Promise<AdminConversion> => {
+  const { data } = await apiClient.get('/admin/kpi/conversion')
+  return data
+}
+
+export const getAdminKpiTrends = async (range: '7d' | '30d' = '7d'): Promise<AdminTrendPoint[]> => {
+  const { data } = await apiClient.get('/admin/kpi/trends', { params: { range } })
+  const list = (data.data ?? data) as any[]
+  return list.map((item: any) => ({
+    date: item.date,
+    listings: Number(item.listings ?? 0),
+    applications: Number(item.applications ?? 0),
+    messages: Number(item.messages ?? 0),
+    ratings: Number(item.ratings ?? 0),
+    reports: Number(item.reports ?? 0),
+  }))
+}
+
+export const startImpersonation = async (userId: string | number) => {
+  const { data } = await apiClient.post(`/admin/impersonate/${userId}`)
+  return data
+}
+
+export const stopImpersonation = async () => {
+  const { data } = await apiClient.post('/admin/impersonate/stop')
   return data
 }
 

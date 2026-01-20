@@ -139,6 +139,46 @@ export interface Rating {
   reportCount?: number
 }
 
+export type ReportType = 'rating' | 'message' | 'listing' | 'other'
+
+export interface Report {
+  id: string
+  type: ReportType
+  status: 'open' | 'resolved' | 'dismissed'
+  reason: string
+  details?: string | null
+  resolution?: string | null
+  createdAt?: string
+  reviewedAt?: string
+  reporter?: { id?: string | number; name?: string }
+  target?: Record<string, any>
+  totalReports?: number
+}
+
+export interface AdminKpiSummary {
+  listings: { last24h: number; last7d: number }
+  applications: { last24h: number; last7d: number }
+  messages: { last24h: number; last7d: number }
+  ratings: { last24h: number; last7d: number }
+  reports: { last24h: number; last7d: number }
+  suspiciousUsers: number
+}
+
+export interface AdminConversion {
+  browseToApply: { from: number; to: number; rate: number }
+  applyToChat: { from: number; to: number; rate: number }
+  chatToRating: { from: number; to: number; rate: number }
+}
+
+export interface AdminTrendPoint {
+  date: string
+  listings: number
+  applications: number
+  messages: number
+  ratings: number
+  reports: number
+}
+
 export interface ListingFilters {
   category: 'all' | ListingCategory
   guests: number

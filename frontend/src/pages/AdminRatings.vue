@@ -49,6 +49,12 @@ const flagSuspicious = async (userId: string | number, isSuspicious: boolean) =>
 
 <template>
   <div class="space-y-4">
+    <div class="flex flex-wrap gap-3 text-sm font-semibold text-indigo-600">
+      <router-link to="/admin" class="opacity-80 hover:opacity-100">Dashboard</router-link>
+      <router-link to="/admin/moderation" class="opacity-80 hover:opacity-100">Moderacija</router-link>
+      <router-link to="/admin/ratings">Ocene</router-link>
+    </div>
+
     <div class="flex items-center gap-3">
       <Button variant="secondary" @click="load(false)">All</Button>
       <Button variant="primary" @click="load(true)">Reported</Button>

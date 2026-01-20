@@ -35,3 +35,7 @@ Legend: ✅ = verified/implemented, ⚠️ = partial, ❌ = missing.
 ## Frontend essentials
 - ✅ SPA pages: browse listings (`/`, `/search`, `/listing/:id`), landlord CRUD (`/landlord/listings/*`), favorites (local), applications list (`/bookings` tab), apply-from-detail button, listing-scoped chat (`/messages`, `/messages/:id`). Ratings UI still absent.
 - ✅ Auth store uses Sanctum cookie flow (`/sanctum/csrf-cookie` + `/api/v1/auth/*`, withCredentials on), role guard uses backend roles; mock switch only in mock mode.
+
+## Admin operations
+- ✅ KPI API + dashboard cards/trends, moderation queue for reports (ratings/messages/listings) with resolve/dismiss actions and audit logging.
+- ✅ Admin impersonation start/stop with session marker, banner, and audit events; suspicious-flag toggle available via admin tools.

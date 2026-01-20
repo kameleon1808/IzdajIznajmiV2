@@ -12,6 +12,8 @@ import Messages from '../pages/Messages.vue'
 import Profile from '../pages/Profile.vue'
 import PublicProfile from '../pages/PublicProfile.vue'
 import AdminRatings from '../pages/AdminRatings.vue'
+import AdminDashboard from '../pages/AdminDashboard.vue'
+import AdminModeration from '../pages/AdminModeration.vue'
 import Reviews from '../pages/Reviews.vue'
 import Search from '../pages/Search.vue'
 import SettingsLanguage from '../pages/SettingsLanguage.vue'
@@ -118,6 +120,18 @@ const router = createRouter({
       name: 'admin-ratings',
       component: AdminRatings,
       meta: { topBar: { type: 'title', title: 'Ratings Admin' }, showTabs: false, roles: ['admin'] },
+    },
+    {
+      path: '/admin',
+      name: 'admin-dashboard',
+      component: AdminDashboard,
+      meta: { topBar: { type: 'title', title: 'Admin Ops' }, showTabs: false, roles: ['admin'] },
+    },
+    {
+      path: '/admin/moderation',
+      name: 'admin-moderation',
+      component: AdminModeration,
+      meta: { topBar: { type: 'title', title: 'Moderation' }, showTabs: false, roles: ['admin'] },
     },
     { path: '/login', name: 'login', component: Login, meta: { topBar: { type: 'title', title: 'Login' }, showTabs: false } },
     {

@@ -14,6 +14,8 @@ interface User {
 
 interface PersistedState {
   user: User
+  impersonating?: boolean
+  impersonator?: User | null
 }
 
 const STORAGE_KEY = 'ii-auth-state'
@@ -40,6 +42,8 @@ export const useAuthStore = defineStore('auth', {
     isAuthenticated: storedState.user.role !== 'guest',
     loading: false,
     initialized: false,
+    impersonating: storedState.impersonating ?? false,
+    impersonator: storedState.impersonator ?? null,
     isMockMode: (import.meta.env.VITE_USE_MOCK_API ?? 'true') !== 'false',
   }),
   getters: {
@@ -47,20 +51,29 @@ export const useAuthStore = defineStore('auth', {
     hasRole: (state) => (role: Role) => state.user.roles.includes(role) || state.user.role === role,
   },
   actions: {
-    setUser(user: any) {
-      const roles = (user.roles as Role[] | undefined)?.map(this.normalizeRole) ?? []
-      const primary = roles[0] ?? this.normalizeRole(user.role) ?? 'guest'
+    mapUser(user: any): User {
+      const roles = (user?.roles as Role[] | undefined)?.map(this.normalizeRole) ?? []
+      const primary = roles[0] ?? this.normalizeRole(user?.role) ?? 'guest'
       const normalizedRoles = roles.length ? roles : [primary]
-      this.user = {
-        id: String(user.id ?? 'guest'),
-        name: user.name ?? user.fullName ?? user.full_name ?? 'User',
-        fullName: user.fullName ?? user.full_name,
-        email: user.email,
+      return {
+        id: String(user?.id ?? 'guest'),
+        name: user?.name ?? user?.fullName ?? user?.full_name ?? 'User',
+        fullName: user?.fullName ?? user?.full_name,
+        email: user?.email,
         role: primary,
         roles: normalizedRoles,
       }
-      this.isAuthenticated = primary !== 'guest'
+    },
+    setSession(payload: { user?: any; impersonating?: boolean; impersonator?: any }) {
+      const nextUser = payload.user ? this.mapUser(payload.user) : { ...defaultUser }
+      this.user = nextUser
+      this.isAuthenticated = nextUser.role !== 'guest'
+      this.impersonating = Boolean(payload.impersonating) && nextUser.role !== 'guest'
+      this.impersonator = payload.impersonator ? this.mapUser(payload.impersonator) : null
       this.persist()
+    },
+    setUser(user: any) {
+      this.setSession({ user, impersonating: false, impersonator: null })
     },
     normalizeRole(role?: string): Role {
       if (!role) return 'guest'
@@ -69,7 +82,11 @@ export const useAuthStore = defineStore('auth', {
     },
     persist() {
       if (typeof localStorage === 'undefined') return
-      const payload: PersistedState = { user: this.user }
+      const payload: PersistedState = {
+        user: this.user,
+        impersonating: this.impersonating,
+        impersonator: this.impersonator,
+      }
       localStorage.setItem(STORAGE_KEY, JSON.stringify(payload))
     },
     async initialize() {
@@ -134,7 +151,11 @@ export const useAuthStore = defineStore('auth', {
     async fetchMe() {
       if (this.isMockMode) return
       const { data } = await apiClient.get('/auth/me')
-      this.setUser(data.user)
+      this.setSession({
+        user: data.user,
+        impersonating: data.impersonating,
+        impersonator: data.impersonator,
+      })
     },
     async logout() {
       try {
@@ -147,6 +168,41 @@ export const useAuthStore = defineStore('auth', {
       } finally {
         this.clearSession()
       }
+    },
+    async startImpersonation(userId: string | number) {
+      if (this.isMockMode) {
+        this.impersonator = { ...this.user }
+        this.user = { id: String(userId), name: `Impersonated ${userId}`, role: 'seeker', roles: ['seeker'] }
+        this.impersonating = true
+        this.isAuthenticated = true
+        this.persist()
+        return
+      }
+      await ensureCsrfCookie()
+      const { data } = await apiClient.post(`/admin/impersonate/${userId}`)
+      this.setSession({
+        user: data.user ?? data.data ?? data,
+        impersonating: data.impersonating ?? true,
+        impersonator: data.impersonator,
+      })
+    },
+    async stopImpersonation() {
+      if (this.isMockMode) {
+        this.impersonating = false
+        this.impersonator = null
+        this.user = { ...defaultUser }
+        this.isAuthenticated = false
+        this.persist()
+        return
+      }
+      await ensureCsrfCookie()
+      const { data } = await apiClient.post('/admin/impersonate/stop')
+      this.setSession({
+        user: data.user ?? defaultUser,
+        impersonating: false,
+        impersonator: null,
+      })
+      await this.fetchMe()
     },
     loginAs(role: Role) {
       if (!this.isMockMode) return
@@ -163,6 +219,8 @@ export const useAuthStore = defineStore('auth', {
     clearSession() {
       this.user = { ...defaultUser }
       this.isAuthenticated = false
+      this.impersonating = false
+      this.impersonator = null
       this.persist()
     },
     async handleUnauthorized() {

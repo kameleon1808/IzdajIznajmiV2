@@ -9,6 +9,11 @@ use App\Http\Controllers\RatingController;
 use App\Http\Controllers\RatingReportController;
 use App\Http\Controllers\UserProfileController;
 use App\Http\Controllers\Admin\RatingAdminController;
+use App\Http\Controllers\MessageReportController;
+use App\Http\Controllers\ListingReportController;
+use App\Http\Controllers\Admin\ModerationController;
+use App\Http\Controllers\Admin\KpiController;
+use App\Http\Controllers\Admin\ImpersonationController;
 use Illuminate\Support\Facades\Route;
 
 $authRoutes = function () {
@@ -58,12 +63,24 @@ $apiRoutes = function () use ($authRoutes) {
         Route::post('/listings/{listing}/ratings', [RatingController::class, 'store']);
         Route::get('/me/ratings', [RatingController::class, 'myRatings']);
         Route::post('/ratings/{rating}/report', [RatingReportController::class, 'store']);
+        Route::post('/messages/{message}/report', [MessageReportController::class, 'store']);
+        Route::post('/listings/{listing}/report', [ListingReportController::class, 'store']);
 
         Route::prefix('admin')->group(function () {
-            Route::get('/ratings', [RatingAdminController::class, 'index']);
-            Route::get('/ratings/{rating}', [RatingAdminController::class, 'show']);
-            Route::delete('/ratings/{rating}', [RatingAdminController::class, 'destroy']);
-            Route::patch('/users/{user}/flag-suspicious', [RatingAdminController::class, 'flagUser']);
+            Route::post('/impersonate/stop', [ImpersonationController::class, 'stop']);
+            Route::middleware('role:admin')->group(function () {
+                Route::get('/ratings', [RatingAdminController::class, 'index']);
+                Route::get('/ratings/{rating}', [RatingAdminController::class, 'show']);
+                Route::delete('/ratings/{rating}', [RatingAdminController::class, 'destroy']);
+                Route::patch('/users/{user}/flag-suspicious', [RatingAdminController::class, 'flagUser']);
+                Route::get('/moderation/queue', [ModerationController::class, 'queue']);
+                Route::get('/moderation/reports/{report}', [ModerationController::class, 'show']);
+                Route::patch('/moderation/reports/{report}', [ModerationController::class, 'update']);
+                Route::get('/kpi/summary', [KpiController::class, 'summary']);
+                Route::get('/kpi/conversion', [KpiController::class, 'conversion']);
+                Route::get('/kpi/trends', [KpiController::class, 'trends']);
+                Route::post('/impersonate/{user}', [ImpersonationController::class, 'start'])->whereNumber('user');
+            });
         });
     });
 };

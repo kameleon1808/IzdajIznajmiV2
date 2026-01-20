@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Resources\RatingResource;
 use App\Models\Rating;
 use App\Models\RatingReport;
+use App\Models\Report;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -35,6 +36,19 @@ class RatingReportController extends Controller
             'reason' => $data['reason'],
             'details' => $data['details'] ?? null,
         ]);
+
+        Report::firstOrCreate(
+            [
+                'reporter_id' => $user->id,
+                'target_type' => Rating::class,
+                'target_id' => $rating->id,
+            ],
+            [
+                'reason' => $data['reason'],
+                'details' => $data['details'] ?? null,
+                'status' => 'open',
+            ]
+        );
 
         return response()->json(new RatingResource($rating->loadCount('reports')), 201);
     }

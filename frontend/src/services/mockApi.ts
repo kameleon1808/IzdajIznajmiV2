@@ -1,4 +1,18 @@
-import type { Application, Booking, Conversation, Listing, ListingFilters, Message, PublicProfile, Rating, Review } from '../types'
+import type {
+  AdminConversion,
+  AdminKpiSummary,
+  AdminTrendPoint,
+  Application,
+  Booking,
+  Conversation,
+  Listing,
+  ListingFilters,
+  Message,
+  PublicProfile,
+  Rating,
+  Report,
+  Review,
+} from '../types'
 
 const makeId = () =>
   typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -303,6 +317,72 @@ const messages: Record<string, Message[]> = {
     { id: 'm3', conversationId: 'c2', senderId: 'landlord-2', from: 'them', text: 'Let me know if you need anything.', time: 'Yesterday' },
   ],
 }
+
+const moderationReports: Report[] = [
+  {
+    id: 'rpt-1',
+    type: 'rating',
+    status: 'open',
+    reason: 'abuse',
+    details: 'Contains offensive language',
+    createdAt: '2026-01-15T10:00:00Z',
+    reporter: { id: 'tenant-1', name: 'Tenant One' },
+    target: { id: 'rating-1', rating: 1, comment: 'Rude host', listingTitle: listings[0]?.title },
+    totalReports: 2,
+  },
+  {
+    id: 'rpt-2',
+    type: 'message',
+    status: 'open',
+    reason: 'spam',
+    details: 'Repeated unsolicited offers',
+    createdAt: '2026-01-16T12:00:00Z',
+    reporter: { id: 'landlord-2', name: 'Landlord Two' },
+    target: { id: 'm3', body: 'Check my other listings', listingTitle: listings[1]?.title },
+    totalReports: 1,
+  },
+  {
+    id: 'rpt-3',
+    type: 'listing',
+    status: 'dismissed',
+    reason: 'fake',
+    details: 'Photos look AI-generated',
+    createdAt: '2026-01-12T08:00:00Z',
+    reporter: { id: 'tenant-2', name: 'Tenant Two' },
+    target: { id: listings[2]?.id, title: listings[2]?.title, city: listings[2]?.city, status: 'active' },
+    resolution: 'Verified photos',
+    reviewedAt: '2026-01-13T09:00:00Z',
+    totalReports: 1,
+  },
+]
+
+const adminKpiSummary: AdminKpiSummary = {
+  listings: { last24h: 3, last7d: 12 },
+  applications: { last24h: 8, last7d: 24 },
+  messages: { last24h: 45, last7d: 180 },
+  ratings: { last24h: 6, last7d: 18 },
+  reports: { last24h: 4, last7d: 9 },
+  suspiciousUsers: 2,
+}
+
+const adminConversion: AdminConversion = {
+  browseToApply: { from: 120, to: 30, rate: 0.25 },
+  applyToChat: { from: 30, to: 20, rate: 0.67 },
+  chatToRating: { from: 20, to: 8, rate: 0.4 },
+}
+
+const adminTrends: AdminTrendPoint[] = Array.from({ length: 14 }).map((_, idx) => {
+  const date = new Date()
+  date.setDate(date.getDate() - (13 - idx))
+  return {
+    date: date.toISOString().slice(0, 10),
+    listings: Math.max(0, Math.floor(Math.random() * 5)),
+    applications: Math.max(1, Math.floor(Math.random() * 6)),
+    messages: Math.max(5, Math.floor(Math.random() * 30)),
+    ratings: Math.max(0, Math.floor(Math.random() * 4)),
+    reports: Math.floor(Math.random() * 3),
+  }
+})
 
 const facilityGroups: Record<string, { title: string; items: string[] }[]> = {
   default: [
@@ -704,4 +784,76 @@ export async function updateApplicationStatus(id: string, status: Application['s
   const current = applications[index]!
   applications[index] = { ...current, status }
   return JSON.parse(JSON.stringify(applications[index]))
+}
+
+export async function getAdminReports(params?: {
+  type?: 'rating' | 'message' | 'listing'
+  status?: 'open' | 'resolved' | 'dismissed'
+  q?: string
+}): Promise<Report[]> {
+  await delay()
+  let list = [...moderationReports]
+  if (params?.type) list = list.filter((r) => r.type === params.type)
+  if (params?.status) list = list.filter((r) => r.status === params.status)
+  if (params?.q) {
+    const q = params.q.toLowerCase()
+    list = list.filter((r) => r.reason.toLowerCase().includes(q) || (r.details ?? '').toLowerCase().includes(q))
+  }
+  return JSON.parse(JSON.stringify(list))
+}
+
+export async function getAdminReport(id: string): Promise<Report> {
+  await delay()
+  const found = moderationReports.find((r) => r.id === id)
+  if (!found) throw new Error('Not found')
+  return JSON.parse(JSON.stringify(found))
+}
+
+export async function updateAdminReport(
+  id: string,
+  payload: { action: 'dismiss' | 'resolve'; resolution?: string; deleteTarget?: boolean; flagUserId?: string | number },
+): Promise<Report> {
+  await delay()
+  const index = moderationReports.findIndex((r) => r.id === id)
+  if (index === -1) throw new Error('Not found')
+  const current = moderationReports[index]!
+  const updated: Report = {
+    ...current,
+    status: payload.action === 'dismiss' ? 'dismissed' : 'resolved',
+    resolution: payload.resolution ?? payload.action,
+    reviewedAt: new Date().toISOString(),
+  }
+  moderationReports[index] = updated
+  return JSON.parse(JSON.stringify(updated))
+}
+
+export async function getAdminKpiSummary(): Promise<AdminKpiSummary> {
+  return simulate(adminKpiSummary)
+}
+
+export async function getAdminKpiConversion(): Promise<AdminConversion> {
+  return simulate(adminConversion)
+}
+
+export async function getAdminKpiTrends(range: '7d' | '30d' = '7d'): Promise<AdminTrendPoint[]> {
+  await delay()
+  const slice = range === '30d' ? adminTrends.concat(adminTrends).slice(-30) : adminTrends.slice(-7)
+  return JSON.parse(JSON.stringify(slice))
+}
+
+export async function startImpersonation(userId: string | number) {
+  await delay()
+  return {
+    user: { id: userId, name: `Impersonated ${userId}`, role: 'seeker', roles: ['seeker'] },
+    impersonating: true,
+    impersonator: { id: 'admin-1', name: 'Admin', role: 'admin', roles: ['admin'] },
+  }
+}
+
+export async function stopImpersonation() {
+  await delay()
+  return {
+    user: { id: 'admin-1', name: 'Admin', role: 'admin', roles: ['admin'] },
+    impersonating: false,
+  }
 }
