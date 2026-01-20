@@ -21,6 +21,11 @@ php artisan serve
   - tena@demo.com, tomas@demo.com, tara@demo.com (seekers)
 - Listings parity: statuses `draft/active/paused/archived/rented/expired`, duplicate-address guard rails (block same-landlord active duplicates; warn cross-landlord), discovery filters include city/rooms/area/amenities/status, `listings:expire` auto-expires active listings after 30 days.
 - Notifications: in-app notification system with preferences and digest support. Run `php artisan notifications:digest --frequency=daily|weekly` manually or via scheduler (daily at 09:00, weekly Monday at 09:00). Notification types: `application.created`, `application.status_changed`, `message.received`, `rating.received`, `report.update`, `admin.notice`, `digest.daily`, `digest.weekly`.
+- Notification deep links (SPA, cookie auth):
+  - Chat: `/chat?conversationId={id}` (all participants), `/chat?listingId={id}` (seekers) or `/chat?applicationId={id}` (landlords); resolves to `/chat/{conversationId}` after hydration.
+  - Applications: `/applications?applicationId={id}` (seekers) and `/applications?applicationId={id}` for landlords (opens requests tab).
+  - Listings: `/listing/{id}` always resolves and hydrates.
+  - Admin moderation: `/admin/moderation/reports/{id}` (admins only).
 
 ## Docs
 - Contract: `docs/api-contract.md`

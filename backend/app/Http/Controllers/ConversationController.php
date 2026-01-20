@@ -110,6 +110,20 @@ class ConversationController extends Controller
         return response()->json(MessageResource::collection($messages));
     }
 
+    public function show(Request $request, Conversation $conversation): JsonResponse
+    {
+        $user = $this->participantOrAbort($request, $conversation);
+        $conversation->loadMissing([
+            'tenant:id,name',
+            'landlord:id,name',
+            'listing.images',
+            'messages' => fn ($query) => $query->latest()->limit(1),
+        ]);
+        $conversation->unread_count = $conversation->unreadCountFor($user);
+
+        return response()->json(new ConversationResource($conversation));
+    }
+
     public function send(SendMessageRequest $request, Conversation $conversation): JsonResponse
     {
         $user = $this->participantOrAbort($request, $conversation);

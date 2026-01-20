@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { Heart, MapPin, Share2 } from 'lucide-vue-next'
 import FacilityPill from '../components/listing/FacilityPill.vue'
@@ -77,6 +77,11 @@ onMounted(() => {
   loadData()
 })
 
+watch(
+  () => route.params.id,
+  () => loadData(),
+)
+
 const toggleFavorite = () => {
   if (!listing.value) return
   listingsStore.toggleFavorite(listing.value.id)
@@ -134,7 +139,7 @@ const openChat = async () => {
   try {
     const conversation = await chatStore.fetchConversationForListing(listing.value.id)
     await chatStore.fetchMessages(conversation.id)
-    router.push(`/messages/${conversation.id}`)
+    router.push(`/chat/${conversation.id}`)
   } catch (err) {
     toast.push({ title: 'Chat unavailable', message: (err as Error).message, type: 'error' })
   } finally {

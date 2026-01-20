@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { Send } from 'lucide-vue-next'
 
-const props = defineProps<{ modelValue: string }>()
+const props = defineProps<{ modelValue: string; disabled?: boolean }>()
 const emit = defineEmits(['update:modelValue', 'send'])
 
 const onKey = (e: KeyboardEvent) => {
   if (e.key === 'Enter' && !e.shiftKey) {
     e.preventDefault()
+    if (props.disabled) return
     emit('send')
   }
 }
@@ -19,11 +20,17 @@ const onKey = (e: KeyboardEvent) => {
         class="min-h-[48px] flex-1 resize-none bg-transparent text-sm font-medium text-slate-900 placeholder:text-muted focus:outline-none"
         :value="modelValue"
         placeholder="Write a message"
+        :disabled="disabled"
         rows="1"
         @input="emit('update:modelValue', ($event.target as HTMLTextAreaElement).value)"
         @keydown="onKey"
       ></textarea>
-      <button class="rounded-full bg-primary p-3 text-white shadow-card" @click="emit('send')" aria-label="send">
+      <button
+        class="rounded-full bg-primary p-3 text-white shadow-card disabled:opacity-60"
+        :disabled="disabled"
+        @click="emit('send')"
+        aria-label="send"
+      >
         <Send class="h-5 w-5" />
       </button>
     </div>

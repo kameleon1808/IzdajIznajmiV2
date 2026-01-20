@@ -31,7 +31,7 @@ class SendApplicationNotifications
                 'listing_id' => $listing->id,
                 'seeker_id' => $application->seeker_id,
             ],
-            'url' => '/applications?role=landlord',
+            'url' => sprintf('/landlord/applications?applicationId=%d', $application->id),
         ]);
     }
 
@@ -53,7 +53,7 @@ class SendApplicationNotifications
                 'listing_id' => $listing->id,
                 'status' => $application->status,
             ],
-            'url' => '/applications?role=seeker',
+            'url' => sprintf('/applications?applicationId=%d', $application->id),
         ]);
     }
 }

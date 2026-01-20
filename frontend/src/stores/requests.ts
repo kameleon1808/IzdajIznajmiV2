@@ -32,11 +32,11 @@ export const useRequestsStore = defineStore('requests', {
         this.loading = false
       }
     },
-    async fetchLandlordRequests() {
+    async fetchLandlordRequests(listingId?: string) {
       this.loading = true
       this.error = ''
       try {
-        this.landlordRequests = await getApplicationsForLandlord()
+        this.landlordRequests = await getApplicationsForLandlord(listingId)
       } catch (error) {
         this.error = (error as Error).message || 'Failed to load incoming requests.'
         this.landlordRequests = []

@@ -36,7 +36,7 @@ const error = computed(() => chatStore.error)
         v-for="conv in items"
         :key="conv.id"
         class="flex items-center gap-3 rounded-2xl bg-white p-3 shadow-soft border border-white/60"
-        @click="router.push(`/messages/${conv.id}`)"
+        @click="router.push(`/chat/${conv.id}`)"
       >
         <div class="relative">
           <img :src="conv.listingCoverImage || conv.avatarUrl" alt="avatar" class="h-12 w-12 rounded-2xl object-cover" />

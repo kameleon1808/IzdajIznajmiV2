@@ -59,6 +59,7 @@ $apiRoutes = function () use ($authRoutes) {
         Route::post('/listings/{listing}/messages', [ConversationController::class, 'sendMessageForListing']);
         Route::post('/applications/{application}/conversation', [ConversationController::class, 'conversationForApplication']);
         Route::get('/conversations/{conversation}/messages', [ConversationController::class, 'messages']);
+        Route::get('/conversations/{conversation}', [ConversationController::class, 'show']);
         Route::post('/conversations/{conversation}/messages', [ConversationController::class, 'send']);
         Route::post('/conversations/{conversation}/read', [ConversationController::class, 'markRead']);
 

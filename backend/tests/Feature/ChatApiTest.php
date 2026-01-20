@@ -192,4 +192,24 @@ class ChatApiTest extends TestCase
         $payloadAfter = $afterRead->json('data') ?? $afterRead->json();
         $this->assertSame(0, $payloadAfter[0]['unreadCount']);
     }
+
+    public function test_participant_can_fetch_single_conversation(): void
+    {
+        $seeker = User::factory()->create(['role' => 'seeker']);
+        $landlord = User::factory()->create(['role' => 'landlord']);
+        $listing = $this->createListing($landlord);
+
+        $conversation = Conversation::create([
+            'tenant_id' => $seeker->id,
+            'landlord_id' => $landlord->id,
+            'listing_id' => $listing->id,
+        ]);
+
+        $this->actingAs($seeker);
+        $response = $this->getJson("/api/v1/conversations/{$conversation->id}");
+        $response->assertOk()->assertJsonPath('id', $conversation->id);
+
+        $this->actingAs(User::factory()->create(['role' => 'seeker']));
+        $this->getJson("/api/v1/conversations/{$conversation->id}")->assertForbidden();
+    }
 }

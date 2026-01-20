@@ -76,8 +76,11 @@ class ApplicationController extends Controller
             ? (int) $request->input('landlordId')
             : $user->id;
 
+        $listingId = $request->input('listing_id');
+
         $applications = Application::with(['listing.images'])
             ->where('landlord_id', $landlordId)
+            ->when($listingId, fn ($query) => $query->where('listing_id', (int) $listingId))
             ->latest()
             ->get();
 

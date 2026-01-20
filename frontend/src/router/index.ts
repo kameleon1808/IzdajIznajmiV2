@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import Bookings from '../pages/Bookings.vue'
 import Chat from '../pages/Chat.vue'
+import ChatDeepLink from '../pages/ChatDeepLink.vue'
 import Facilities from '../pages/Facilities.vue'
 import Favorites from '../pages/Favorites.vue'
 import Home from '../pages/Home.vue'
@@ -63,16 +64,38 @@ const router = createRouter({
       meta: { topBar: { type: 'title', title: 'My Booking' }, showTabs: true, roles: ['seeker', 'landlord'] },
     },
     {
+      path: '/applications',
+      name: 'applications',
+      component: Bookings,
+      meta: { topBar: { type: 'title', title: 'Applications' }, showTabs: true, roles: ['seeker', 'landlord', 'admin'] },
+    },
+    {
+      path: '/landlord/applications',
+      name: 'landlord-applications',
+      component: Bookings,
+      meta: { topBar: { type: 'title', title: 'Applications' }, showTabs: true, roles: ['landlord', 'admin'] },
+    },
+    {
       path: '/messages',
       name: 'messages',
       component: Messages,
-      meta: { topBar: { type: 'title', title: 'Messages' }, showTabs: true, roles: ['seeker', 'landlord'] },
+      meta: { topBar: { type: 'title', title: 'Messages' }, showTabs: true, roles: ['seeker', 'landlord', 'admin'] },
+    },
+    {
+      path: '/chat',
+      name: 'chat-entry',
+      component: ChatDeepLink,
+      meta: { topBar: { type: 'title', title: 'Chat' }, showTabs: false, roles: ['seeker', 'landlord', 'admin'] },
+    },
+    {
+      path: '/chat/:id',
+      name: 'chat',
+      component: Chat,
+      meta: { topBar: { type: 'chat' }, showTabs: false, contentClass: 'p-0 pb-20', roles: ['seeker', 'landlord', 'admin'] },
     },
     {
       path: '/messages/:id',
-      name: 'chat',
-      component: Chat,
-      meta: { topBar: { type: 'chat' }, showTabs: false, contentClass: 'p-0 pb-20', roles: ['seeker', 'landlord'] },
+      redirect: (to) => ({ path: `/chat/${to.params.id}`, query: to.query }),
     },
     { path: '/profile', name: 'profile', component: Profile, meta: { topBar: { type: 'title', title: 'Profile' }, showTabs: true } },
     {
@@ -147,6 +170,12 @@ const router = createRouter({
       component: AdminModeration,
       meta: { topBar: { type: 'title', title: 'Moderation' }, showTabs: false, roles: ['admin'] },
     },
+    {
+      path: '/admin/moderation/reports/:id',
+      name: 'admin-report-detail',
+      component: () => import('../pages/AdminReportDetail.vue'),
+      meta: { topBar: { type: 'back', title: 'Report Detail' }, showTabs: false, roles: ['admin'] },
+    },
     { path: '/login', name: 'login', component: Login, meta: { topBar: { type: 'title', title: 'Login' }, showTabs: false } },
     {
       path: '/register',
@@ -164,6 +193,11 @@ router.beforeEach(async (to, _from, next) => {
   const auth = useAuthStore()
   const toast = useToastStore()
   const allowedRoles = (to.meta.roles as Role[] | undefined) || undefined
+
+  if (to.path === '/applications' && to.query.role === 'landlord') {
+    const { role, ...rest } = to.query
+    return next({ path: '/landlord/applications', query: rest })
+  }
 
   await auth.initialize()
 

@@ -48,7 +48,7 @@ class SendMessageNotification
                 'listing_id' => $listing?->id,
                 'sender_id' => $message->sender_id,
             ],
-            'url' => $listing ? sprintf('/chat?listingId=%d', $listing->id) : '/chat',
+            'url' => sprintf('/chat?conversationId=%d', $conversation->id),
         ]);
     }
 }

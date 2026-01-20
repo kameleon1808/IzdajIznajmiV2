@@ -25,10 +25,11 @@ const router = useRouter()
 const chatStore = useChatStore()
 
 const tab = ref<'booked' | 'history' | 'requests'>((route.query.tab as any) || 'booked')
+const highlightedApplicationId = computed(() => route.query.applicationId as string | undefined)
 
 const tabs = computed<string[]>(() => {
   if (auth.hasRole('seeker')) return ['booked', 'history', 'requests']
-  if (auth.hasRole('landlord')) return ['requests']
+  if (auth.hasRole('landlord') || auth.hasRole('admin')) return ['requests']
   return ['booked', 'history']
 })
 
@@ -38,7 +39,19 @@ const normalizeTab = () => {
   }
 }
 
+const syncTabFromRoute = () => {
+  if (route.path.includes('/applications') || highlightedApplicationId.value) {
+    tab.value = 'requests'
+    return
+  }
+  if (route.query.tab) {
+    tab.value = route.query.tab as any
+  }
+  normalizeTab()
+}
+
 onMounted(() => {
+  syncTabFromRoute()
   normalizeTab()
   if (!listingsStore.recommended.length) listingsStore.fetchRecommended()
   bookingsStore.fetchBookings()
@@ -46,10 +59,27 @@ onMounted(() => {
 })
 
 watch(
+  () => route.fullPath,
+  () => {
+    syncTabFromRoute()
+    loadRequests()
+  },
+)
+
+watch(
   () => auth.primaryRole,
   () => {
     normalizeTab()
     loadRequests()
+  },
+)
+
+watch(
+  () => route.query.applicationId,
+  (val) => {
+    if (val) {
+      tab.value = 'requests'
+    }
   },
 )
 
@@ -145,8 +175,9 @@ const goToListing = (listingId: string) => router.push(`/listing/${listingId}`)
       <div v-else class="space-y-3">
         <div
           v-for="request in requestItems"
-          :key="request.id"
+        :key="request.id"
           class="flex flex-col gap-3 rounded-2xl bg-white p-3 shadow-soft border border-white/60"
+          :class="highlightedApplicationId === request.id ? 'ring-2 ring-primary' : ''"
         >
           <div class="flex items-start justify-between gap-2">
             <div>

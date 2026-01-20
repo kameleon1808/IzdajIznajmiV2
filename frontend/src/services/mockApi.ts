@@ -472,6 +472,12 @@ export async function getConversations(): Promise<Conversation[]> {
   return simulate(conversations)
 }
 
+export async function getConversationById(conversationId: string): Promise<Conversation> {
+  const found = conversations.find((c) => c.id === conversationId)
+  if (!found) throw new Error('Conversation not found')
+  return simulate(found)
+}
+
 export async function getMessages(conversationId: string): Promise<Message[]> {
   return simulate(messages[conversationId] ?? [])
 }
@@ -772,8 +778,9 @@ export async function getApplicationsForSeeker(): Promise<Application[]> {
   return simulate(applications)
 }
 
-export async function getApplicationsForLandlord(): Promise<Application[]> {
-  return simulate(applications)
+export async function getApplicationsForLandlord(listingId?: string): Promise<Application[]> {
+  const filtered = listingId ? applications.filter((a) => a.listing.id === listingId) : applications
+  return simulate(filtered)
 }
 
 export async function updateApplicationStatus(id: string, status: Application['status']): Promise<Application | null> {

@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, onMounted, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import ChatBubble from '../components/chat/ChatBubble.vue'
 import ChatInput from '../components/chat/ChatInput.vue'
 import EmptyState from '../components/ui/EmptyState.vue'
@@ -13,6 +13,7 @@ import Button from '../components/ui/Button.vue'
 import { leaveRating } from '../services'
 
 const route = useRoute()
+const router = useRouter()
 const chatStore = useChatStore()
 const message = ref('')
 const auth = useAuthStore()
@@ -22,17 +23,18 @@ const ratingComment = ref('')
 const ratingSubmitting = ref(false)
 const ratingSubmitted = ref(false)
 
-onMounted(() => {
-  if (!chatStore.conversations.length) {
-    chatStore.fetchConversations()
-  }
-  chatStore.fetchMessages(route.params.id as string)
-})
-
-const messages = computed(() => chatStore.messages[route.params.id as string] || [])
-const loading = computed(() => chatStore.loading)
+const conversationId = computed(() => route.params.id as string | undefined)
+const loading = computed(() => chatStore.loading || chatStore.resolving)
 const error = computed(() => chatStore.error)
-const conversation = computed(() => chatStore.conversations.find((c) => c.id === (route.params.id as string)))
+const conversation = computed(() => {
+  const activeId = chatStore.activeConversationId || conversationId.value
+  return chatStore.conversations.find((c) => c.id === activeId)
+})
+const messages = computed(() => {
+  const activeId = chatStore.activeConversationId || conversationId.value
+  if (!activeId) return []
+  return chatStore.messages[activeId] || []
+})
 const rateeId = computed(() => {
   if (!conversation.value?.participants) return null
   if (auth.hasRole('seeker')) return conversation.value.participants.landlordId
@@ -40,10 +42,46 @@ const rateeId = computed(() => {
   return null
 })
 
+watch(
+  () => conversation.value?.id,
+  () => {
+    ratingScore.value = 0
+    ratingComment.value = ''
+    ratingSubmitted.value = false
+  },
+)
+
+const resolveConversation = async (id?: string) => {
+  if (!id) return
+  try {
+    chatStore.clearError()
+    chatStore.setActiveConversation(id)
+    await chatStore.openByConversationId(id)
+  } catch (err) {
+    toast.push({ title: 'Chat unavailable', message: (err as Error).message, type: 'error' })
+  }
+}
+
+onMounted(() => {
+  if (!chatStore.conversations.length) {
+    chatStore.fetchConversations()
+  }
+  resolveConversation(conversationId.value)
+})
+
+watch(
+  () => conversationId.value,
+  (val) => resolveConversation(val),
+)
+
 const send = async () => {
   if (!message.value.trim()) return
+  if (!conversation.value?.id) {
+    toast.push({ title: 'Select a chat', message: 'Open a conversation first.', type: 'error' })
+    return
+  }
   try {
-    await chatStore.sendMessage(route.params.id as string, message.value)
+    await chatStore.sendMessage(conversation.value.id, message.value)
     message.value = ''
   } catch (e) {
     // error state handled in store
@@ -77,12 +115,41 @@ const submitRating = async () => {
     <div class="flex-1 space-y-3 px-4 pt-4 pb-28">
       <ListSkeleton v-if="loading" :count="3" />
       <template v-else>
+        <div v-if="conversation" class="rounded-2xl border border-line bg-white p-3 shadow-soft">
+          <div class="flex items-center justify-between gap-2">
+            <div>
+              <p class="text-sm font-semibold text-slate-900">{{ conversation.listingTitle || 'Chat thread' }}</p>
+              <p class="text-xs text-muted">
+                {{ conversation.userName }}
+                <span v-if="conversation.listingCity">· {{ conversation.listingCity }}</span>
+              </p>
+            </div>
+            <Button
+              size="sm"
+              variant="secondary"
+              :disabled="!conversation.listingId"
+              @click="router.push(`/listing/${conversation.listingId}`)"
+            >
+              View listing
+            </Button>
+          </div>
+        </div>
         <ChatBubble v-for="msg in messages" :key="msg.id" :from="msg.from" :text="msg.text" :time="msg.time" />
-        <EmptyState v-if="!messages.length && !error" title="No messages" subtitle="Say hello to start the conversation" />
-        <div
-          v-if="conversation"
-          class="mt-4 space-y-3 rounded-2xl border border-line bg-white p-4 shadow-soft"
+        <EmptyState
+          v-if="!messages.length && !error && conversation"
+          title="No messages"
+          subtitle="Say hello to start the conversation"
+        />
+        <EmptyState
+          v-else-if="!conversation && !error"
+          title="No conversation selected"
+          subtitle="Open chat from Notifications or Messages."
         >
+          <template #actions>
+            <Button variant="primary" @click="router.push('/messages')">Back to messages</Button>
+          </template>
+        </EmptyState>
+        <div v-if="conversation" class="mt-4 space-y-3 rounded-2xl border border-line bg-white p-4 shadow-soft">
           <div class="flex items-center justify-between">
             <p class="font-semibold text-slate-900">Leave a rating</p>
             <span class="text-xs text-muted">Listing #{{ conversation?.listingId }}</span>
@@ -117,6 +184,6 @@ const submitRating = async () => {
         </div>
       </template>
     </div>
-    <ChatInput v-model="message" @send="send" />
+    <ChatInput v-model="message" :disabled="!conversation" @send="send" />
   </div>
 </template>

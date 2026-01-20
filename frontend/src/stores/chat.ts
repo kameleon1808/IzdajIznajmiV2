@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import {
+  getConversationById,
   getConversationForListing,
   getConversations,
   getMessages,
@@ -15,9 +16,28 @@ export const useChatStore = defineStore('chat', {
     conversations: [] as Conversation[],
     messages: {} as Record<string, Message[]>,
     loading: false,
+    resolving: false,
     error: '',
+    activeConversationId: '' as string | null,
   }),
   actions: {
+    upsertConversation(conversation: Conversation) {
+      const existing = this.conversations.find((c) => c.id === conversation.id)
+      if (existing) {
+        Object.assign(existing, conversation)
+      } else {
+        this.conversations = [conversation, ...this.conversations]
+      }
+    },
+
+    setActiveConversation(conversationId: string | null) {
+      this.activeConversationId = conversationId
+    },
+
+    clearError() {
+      this.error = ''
+    },
+
     async fetchConversations() {
       this.loading = true
       this.error = ''
@@ -50,24 +70,65 @@ export const useChatStore = defineStore('chat', {
     async fetchConversationForListing(listingId: string) {
       this.error = ''
       const convo = await getConversationForListing(listingId)
-      const existing = this.conversations.find((c) => c.id === convo.id)
-      if (existing) {
-        Object.assign(existing, convo)
-      } else {
-        this.conversations = [convo, ...this.conversations]
-      }
+      this.upsertConversation(convo)
       return convo
     },
     async fetchConversationForApplication(applicationId: string) {
       this.error = ''
       const convo = await getOrCreateConversationForApplication(applicationId)
-      const existing = this.conversations.find((c) => c.id === convo.id)
-      if (existing) {
-        Object.assign(existing, convo)
-      } else {
-        this.conversations = [convo, ...this.conversations]
-      }
+      this.upsertConversation(convo)
       return convo
+    },
+    async fetchConversationById(conversationId: string) {
+      this.error = ''
+      const convo = await getConversationById(conversationId)
+      this.upsertConversation(convo)
+      return convo
+    },
+    async openByListingId(listingId: string) {
+      this.resolving = true
+      this.error = ''
+      try {
+        const conversation = await this.fetchConversationForListing(listingId)
+        this.setActiveConversation(conversation.id)
+        await this.fetchMessages(conversation.id)
+        return conversation
+      } catch (error) {
+        this.error = (error as Error).message || 'Could not open chat.'
+        throw error
+      } finally {
+        this.resolving = false
+      }
+    },
+    async openByApplicationId(applicationId: string) {
+      this.resolving = true
+      this.error = ''
+      try {
+        const conversation = await this.fetchConversationForApplication(applicationId)
+        this.setActiveConversation(conversation.id)
+        await this.fetchMessages(conversation.id)
+        return conversation
+      } catch (error) {
+        this.error = (error as Error).message || 'Could not open chat.'
+        throw error
+      } finally {
+        this.resolving = false
+      }
+    },
+    async openByConversationId(conversationId: string) {
+      this.resolving = true
+      this.error = ''
+      try {
+        const conversation = await this.fetchConversationById(conversationId)
+        this.setActiveConversation(conversation.id)
+        await this.fetchMessages(conversation.id)
+        return conversation
+      } catch (error) {
+        this.error = (error as Error).message || 'Could not open chat.'
+        throw error
+      } finally {
+        this.resolving = false
+      }
     },
     async sendMessage(conversationId: string, text: string) {
       this.error = ''

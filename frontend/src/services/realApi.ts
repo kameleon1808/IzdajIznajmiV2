@@ -301,8 +301,10 @@ export const getApplicationsForSeeker = async (): Promise<Application[]> => {
   return list.map(mapApplication)
 }
 
-export const getApplicationsForLandlord = async (): Promise<Application[]> => {
-  const { data } = await apiClient.get('/landlord/applications')
+export const getApplicationsForLandlord = async (listingId?: string): Promise<Application[]> => {
+  const params: Record<string, any> = {}
+  if (listingId) params.listing_id = listingId
+  const { data } = await apiClient.get('/landlord/applications', { params })
   const list = (data.data ?? data) as any[]
   return list.map(mapApplication)
 }
@@ -320,6 +322,11 @@ export const getConversations = async (): Promise<Conversation[]> => {
 
 export const getConversationForListing = async (listingId: string): Promise<Conversation> => {
   const { data } = await apiClient.get(`/listings/${listingId}/conversation`)
+  return mapConversation(data.data ?? data)
+}
+
+export const getConversationById = async (conversationId: string): Promise<Conversation> => {
+  const { data } = await apiClient.get(`/conversations/${conversationId}`)
   return mapConversation(data.data ?? data)
 }
 
