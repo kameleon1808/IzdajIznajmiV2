@@ -18,6 +18,11 @@
   - `notifications:digest --frequency=daily` - dnevno digest notifikacije (09:00)
   - `notifications:digest --frequency=weekly` - nedeljni digest notifikacije (ponedeljak 09:00)
 - Notifikacije: sistem za in-app notifikacije sa preferencama i digest podrškom. Tipovi: `application.created`, `application.status_changed`, `message.received`, `rating.received`, `report.update`, `admin.notice`, `digest.daily`, `digest.weekly`. Korisnici mogu da konfigurišu tipove i digest frekvenciju (none/daily/weekly) kroz `/settings/notifications`.
+- Geokodiranje & geo pretraga:
+  - Default koristi `FakeGeocoder` (determinističan lat/lng na osnovu adrese) — vidi `GEOCODER_DRIVER=fake`, `GEOCODER_CACHE_TTL`, `FAKE_GEOCODER_*` u `.env.example`.
+  - Opcioni Nominatim adapter iza `GEOCODER_DRIVER=nominatim` sa `GEOCODER_NOMINATIM_URL`, `GEOCODER_NOMINATIM_EMAIL`, `GEOCODER_NOMINATIM_RATE_LIMIT_MS`.
+  - Backfill komanda za postojeće zapise: `php artisan listings:geocode --missing` (koristi queue sync).
+  - API: `/api/v1/geocode?q=...` (GET) za frontend centriranje mape; pretraga oglasa prihvata `centerLat`, `centerLng`, `radiusKm` (km) uz ostale filtere i vraća `distanceKm` kada je geo filter aktivan.
 
 ## Frontend (Vue 3 + Vite)
 - Lokacija: `/frontend`

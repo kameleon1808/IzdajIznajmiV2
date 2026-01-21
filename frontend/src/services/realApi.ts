@@ -36,6 +36,8 @@ const mapListing = (data: any): Listing => {
     country: data.country,
     lat: data.lat != null ? Number(data.lat) : undefined,
     lng: data.lng != null ? Number(data.lng) : undefined,
+    distanceKm: data.distanceKm != null ? Number(data.distanceKm) : data.distance_km != null ? Number(data.distance_km) : undefined,
+    geocodedAt: data.geocodedAt ?? data.geocoded_at ?? null,
     pricePerNight: Number(data.pricePerNight ?? data.price_per_night ?? data.price ?? 0),
     rating: Number(data.rating ?? 0),
     reviewsCount: Number(data.reviewsCount ?? data.reviews_count ?? 0),
@@ -188,6 +190,11 @@ const applyListingFilters = (filters?: ListingFilters) => {
   if (filters.amenities?.length) params.amenities = filters.amenities
   if (filters.rating) params.rating = filters.rating
   if (filters.status && filters.status !== 'all') params.status = filters.status
+  if (filters.centerLat != null && filters.centerLng != null) {
+    params.centerLat = filters.centerLat
+    params.centerLng = filters.centerLng
+  }
+  if (filters.radiusKm) params.radiusKm = filters.radiusKm
   return params
 }
 
@@ -220,6 +227,11 @@ export const searchListings = async (query: string, filters?: ListingFilters, pa
   const params = { ...applyListingFilters(filters), location: query || filters?.location, page, perPage }
   const { data } = await apiClient.get('/listings', { params })
   return mapPaginated(data)
+}
+
+export const geocodeLocation = async (query: string): Promise<{ lat: number; lng: number }> => {
+  const { data } = await apiClient.get('/geocode', { params: { q: query } })
+  return { lat: Number(data.lat), lng: Number(data.lng) }
 }
 
 export const getListingById = async (id: string): Promise<Listing | null> => {

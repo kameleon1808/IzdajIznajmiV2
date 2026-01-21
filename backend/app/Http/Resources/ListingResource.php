@@ -23,6 +23,8 @@ class ListingResource extends JsonResource
             'country' => $this->country,
             'lat' => $this->lat,
             'lng' => $this->lng,
+            'geocodedAt' => optional($this->geocoded_at)->toISOString(),
+            'distanceKm' => $this->when(isset($this->distance_km), fn () => round((float) $this->distance_km, 2)),
             'pricePerNight' => $this->price_per_night,
             'rating' => (float) $this->rating,
             'reviewsCount' => $this->reviews_count,

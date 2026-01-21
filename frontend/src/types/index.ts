@@ -23,6 +23,8 @@ export interface Listing {
   isFavorite: boolean
   instantBook?: boolean
   facilities?: string[]
+  distanceKm?: number
+  geocodedAt?: string | null
   ownerId?: string | number
   landlord?: {
     id: string | number
@@ -229,4 +231,7 @@ export interface ListingFilters {
   areaRange?: [number, number] | null
   status?: Listing['status'] | 'all'
   amenities?: string[]
+  centerLat?: number | null
+  centerLng?: number | null
+  radiusKm?: number | null
 }

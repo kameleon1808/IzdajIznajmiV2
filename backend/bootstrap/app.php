@@ -12,6 +12,7 @@ use Illuminate\Http\Middleware\TrustProxies;
 use Illuminate\Http\Middleware\ValidatePathEncoding;
 use Illuminate\Console\Scheduling\Schedule;
 use App\Console\Commands\ExpireListingsCommand;
+use App\Console\Commands\GeocodeListingsCommand;
 use Spatie\Permission\Middleware\PermissionMiddleware;
 use Spatie\Permission\Middleware\RoleMiddleware;
 use Spatie\Permission\Middleware\RoleOrPermissionMiddleware;
@@ -26,6 +27,7 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withCommands([
         ExpireListingsCommand::class,
         \App\Console\Commands\SendNotificationDigestCommand::class,
+        GeocodeListingsCommand::class,
     ])
     ->withSchedule(function (Schedule $schedule) {
         $schedule->command('listings:expire')->dailyAt('02:00');

@@ -4,103 +4,43 @@ namespace App\Http\Controllers;
 
 use App\Http\Resources\ListingResource;
 use App\Models\Listing;
+use App\Services\ListingSearchService;
 use App\Services\ListingStatusService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class ListingController extends Controller
 {
+    public function __construct(private readonly ListingSearchService $searchService)
+    {
+    }
+
     public function index(Request $request): JsonResponse
     {
-        $query = Listing::query()
-            ->with([
-                'images' => function ($q) {
-                    $q->where('processing_status', 'done')->orderBy('sort_order');
-                },
-                'facilities',
-                'owner:id,full_name,name',
-            ]);
-
-        $statuses = array_filter((array) $request->input('status'));
-        $allowedStatuses = app(ListingStatusService::class)->allowedStatuses();
-        if (!empty($statuses) && !in_array('all', $statuses, true)) {
-            $query->whereIn('status', array_intersect($statuses, $allowedStatuses));
-        } else {
-            $query->where('status', ListingStatusService::STATUS_ACTIVE);
-        }
-
-        if (($category = $request->string('category')->toString()) && $category !== 'all') {
-            $query->where('category', $category);
-        }
-
-        if ($request->filled('priceMin')) {
-            $query->where('price_per_night', '>=', (int) $request->input('priceMin'));
-        }
-        if ($request->filled('priceMax')) {
-            $query->where('price_per_night', '<=', (int) $request->input('priceMax'));
-        }
-
-        if ($request->filled('rooms')) {
-            $query->where('rooms', '>=', (int) $request->input('rooms'));
-        }
-
-        if ($request->filled('areaMin')) {
-            $query->where('area', '>=', (int) $request->input('areaMin'));
-        }
-        if ($request->filled('areaMax')) {
-            $query->where('area', '<=', (int) $request->input('areaMax'));
-        }
-
-        if ($request->boolean('instantBook')) {
-            $query->where('instant_book', true);
-        }
-
-        if ($rating = $request->input('rating')) {
-            $query->where('rating', '>=', (float) $rating);
-        }
-
-        if ($location = $request->string('location')->toString()) {
-            $query->where(function ($builder) use ($location) {
-                $builder->where('city', 'like', "%{$location}%")
-                    ->orWhere('country', 'like', "%{$location}%");
-            });
-        }
-
-        if ($city = $request->string('city')->toString()) {
-            $tokens = collect(preg_split('/,/', $city))
-                ->filter()
-                ->map(fn ($token) => trim($token))
-                ->values();
-
-            $query->where(function ($builder) use ($city, $tokens) {
-                $builder->where('city', 'like', "%{$city}%")
-                    ->orWhere('country', 'like', "%{$city}%");
-
-                $tokens->each(function ($token) use ($builder) {
-                    $builder->orWhere('city', 'like', "%{$token}%")
-                        ->orWhere('country', 'like', "%{$token}%");
-                });
-            });
-        }
-
-        if ($guests = $request->input('guests')) {
-            $query->where('beds', '>=', (int) $guests);
-        }
-
-        $amenities = $request->input('amenities');
-        $facilities = $request->input('facilities');
-        $amenitiesToApply = $amenities ?? $facilities;
-        if ($amenitiesToApply) {
-            $facilityIds = (array) $amenitiesToApply;
-            // ANY match for facilities for now; ALL can be swapped later.
-            $query->whereHas('facilities', function ($builder) use ($facilityIds) {
-                $builder->whereIn('name', $facilityIds);
-            });
-        }
-
         $perPage = (int) $request->input('perPage', 10);
         $perPage = min(max($perPage, 1), 50);
-        $listings = $query->orderByDesc('created_at')->paginate($perPage);
+
+        $filters = [
+            'status' => $request->input('status'),
+            'category' => $request->input('category'),
+            'priceMin' => $request->input('priceMin'),
+            'priceMax' => $request->input('priceMax'),
+            'rooms' => $request->input('rooms'),
+            'areaMin' => $request->input('areaMin'),
+            'areaMax' => $request->input('areaMax'),
+            'instantBook' => $request->boolean('instantBook'),
+            'rating' => $request->input('rating'),
+            'location' => $request->string('location')->toString(),
+            'city' => $request->string('city')->toString(),
+            'guests' => $request->input('guests'),
+            'amenities' => $request->input('amenities'),
+            'facilities' => $request->input('facilities'),
+            'centerLat' => $request->input('centerLat'),
+            'centerLng' => $request->input('centerLng'),
+            'radiusKm' => $request->input('radiusKm'),
+        ];
+
+        $listings = $this->searchService->search($filters, $perPage);
 
         return ListingResource::collection($listings)->response();
     }

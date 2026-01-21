@@ -67,6 +67,7 @@ class LandlordListingController extends Controller
                 'country' => $data['country'],
                 'lat' => $data['lat'] ?? null,
                 'lng' => $data['lng'] ?? null,
+                'geocoded_at' => (isset($data['lat'], $data['lng']) && $data['lat'] !== null && $data['lng'] !== null) ? now() : null,
                 'price_per_night' => $data['pricePerNight'],
                 'rating' => $data['rating'] ?? 4.7,
                 'reviews_count' => $data['reviews_count'] ?? 0,
@@ -131,6 +132,14 @@ class LandlordListingController extends Controller
             if (array_key_exists($input, $data)) {
                 $payload[$column] = $data[$input];
             }
+        }
+
+        $addressKeyChanged = $listing->address_key !== $addressKey;
+        $latProvided = array_key_exists('lat', $payload) || array_key_exists('lng', $payload);
+        if ($latProvided) {
+            $payload['geocoded_at'] = (isset($payload['lat'], $payload['lng']) && $payload['lat'] !== null && $payload['lng'] !== null) ? now() : null;
+        } elseif ($addressKeyChanged) {
+            $payload['geocoded_at'] = null;
         }
 
         $payload['address_key'] = $addressKey;

@@ -14,6 +14,7 @@ use App\Http\Controllers\ListingReportController;
 use App\Http\Controllers\Admin\ModerationController;
 use App\Http\Controllers\Admin\KpiController;
 use App\Http\Controllers\Admin\ImpersonationController;
+use App\Http\Controllers\GeocodingController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\NotificationPreferenceController;
 use App\Http\Controllers\ViewingRequestController;
@@ -37,6 +38,7 @@ $apiRoutes = function () use ($authRoutes) {
     Route::get('/listings/{listing}', [ListingController::class, 'show']);
     Route::get('/users/{user}', [UserProfileController::class, 'show']);
     Route::get('/users/{user}/ratings', [RatingController::class, 'userRatings']);
+    Route::get('/geocode', [GeocodingController::class, 'lookup'])->middleware('throttle:listings_search');
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::get('/landlord/listings', [LandlordListingController::class, 'index']);

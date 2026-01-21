@@ -18,7 +18,7 @@ import {
 import { useAuthStore } from './auth'
 import type { Listing, ListingFilters } from '../types'
 
-const defaultFilters: ListingFilters = {
+export const defaultFilters: ListingFilters = {
   category: 'all',
   guests: 1,
   priceRange: [50, 400],
@@ -31,6 +31,9 @@ const defaultFilters: ListingFilters = {
   rooms: null,
   areaRange: [0, 100000],
   status: 'all',
+  centerLat: null,
+  centerLng: null,
+  radiusKm: 15,
 }
 
 const loadFavorites = (): string[] => {
@@ -98,9 +101,19 @@ export const useListingsStore = defineStore('listings', {
       if (typeof localStorage === 'undefined') return
       localStorage.setItem('ii-favorites', JSON.stringify(this.favorites))
     },
-    setFilters(partial: Partial<ListingFilters>) {
+    setFilters(partial: Partial<ListingFilters>, options: { fetch?: boolean } = {}) {
       this.filters = { ...this.filters, ...partial }
-      this.fetchRecommended()
+      if (options.fetch !== false) {
+        this.fetchRecommended()
+      }
+    },
+    updateGeoFilters(centerLat: number | null, centerLng: number | null, radiusKm?: number | null) {
+      this.filters = {
+        ...this.filters,
+        centerLat,
+        centerLng,
+        radiusKm: radiusKm ?? this.filters.radiusKm,
+      }
     },
     resetFilters() {
       this.filters = { ...defaultFilters }

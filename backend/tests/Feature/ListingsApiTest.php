@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\GeocodeListingJob;
 use App\Models\Facility;
 use App\Models\Listing;
 use App\Models\User;
@@ -529,5 +530,70 @@ class ListingsApiTest extends TestCase
         $statusResponse = $this->getJson('/api/v1/listings?status=paused');
         $statusIds = collect($statusResponse->json('data'))->pluck('id')->map(fn ($id) => (int) $id);
         $this->assertTrue($statusIds->contains($pausedListing->id));
+    }
+
+    public function test_geo_radius_filter_includes_only_nearby_listings(): void
+    {
+        $near = Listing::factory()->create([
+            'lat' => 45.05,
+            'lng' => 15.05,
+            'status' => 'active',
+        ]);
+        $far = Listing::factory()->create([
+            'lat' => 46.2,
+            'lng' => 15.0,
+            'status' => 'active',
+        ]);
+        $missing = Listing::factory()->create([
+            'lat' => null,
+            'lng' => null,
+            'status' => 'active',
+        ]);
+
+        $response = $this->getJson('/api/v1/listings?centerLat=45&centerLng=15&radiusKm=50');
+        $response->assertOk();
+
+        $ids = collect($response->json('data'))->pluck('id')->map(fn ($id) => (int) $id);
+        $this->assertTrue($ids->contains($near->id));
+        $this->assertFalse($ids->contains($far->id));
+        $this->assertFalse($ids->contains($missing->id));
+
+        $distance = collect($response->json('data'))->firstWhere('id', $near->id)['distanceKm'] ?? null;
+        $this->assertNotNull($distance);
+    }
+
+    public function test_geocode_job_populates_missing_coordinates(): void
+    {
+        config(['geocoding.driver' => 'fake']);
+        $listing = Listing::factory()->create([
+            'address' => '1 Geo St',
+            'city' => 'Zagreb',
+            'country' => 'Croatia',
+            'lat' => null,
+            'lng' => null,
+            'geocoded_at' => null,
+            'status' => 'draft',
+        ]);
+
+        GeocodeListingJob::dispatchSync($listing->id, true);
+
+        $fresh = $listing->fresh();
+        $this->assertNotNull($fresh->lat);
+        $this->assertNotNull($fresh->lng);
+        $this->assertNotNull($fresh->geocoded_at);
+    }
+
+    public function test_geocode_command_sets_timestamp_for_existing_coords(): void
+    {
+        config(['geocoding.driver' => 'fake']);
+        $listing = Listing::factory()->create([
+            'lat' => 45.1,
+            'lng' => 15.2,
+            'geocoded_at' => null,
+        ]);
+
+        $this->artisan('listings:geocode --missing')->assertSuccessful();
+
+        $this->assertNotNull($listing->fresh()->geocoded_at);
     }
 }

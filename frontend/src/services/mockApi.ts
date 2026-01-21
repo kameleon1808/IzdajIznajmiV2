@@ -475,9 +475,47 @@ async function simulate<T>(data: T): Promise<T> {
   return JSON.parse(JSON.stringify(data)) as T
 }
 
+const toRadians = (deg: number) => (deg * Math.PI) / 180
+const distanceBetween = (lat1: number, lng1: number, lat2: number, lng2: number) => {
+  const earthRadiusKm = 6371
+  const dLat = toRadians(lat2 - lat1)
+  const dLng = toRadians(lng2 - lng1)
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRadians(lat1)) * Math.cos(toRadians(lat2)) * Math.sin(dLng / 2) * Math.sin(dLng / 2)
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  return earthRadiusKm * c
+}
+
+const fakeGeocode = (address: string) => {
+  const normalized = address.trim().toLowerCase()
+  if (!normalized) return null
+  const baseLat = 45
+  const baseLng = 15
+  const spreadKm = 120
+  const hashOffset = (seed: string) => {
+    const sub = parseInt(hashString(seed).slice(0, 8), 16)
+    return (sub / 0xffffffff) * 2 - 1
+  }
+  const latOffset = hashOffset(normalized + 'lat')
+  const lngOffset = hashOffset(normalized + 'lng')
+  const kmPerDegreeLat = 111.045
+  const kmPerDegreeLng = kmPerDegreeLat * Math.max(Math.cos(toRadians(baseLat)), 0.1)
+  return {
+    lat: Number((baseLat + (latOffset * (spreadKm / kmPerDegreeLat))).toFixed(6)),
+    lng: Number((baseLng + (lngOffset * (spreadKm / kmPerDegreeLng))).toFixed(6)),
+  }
+}
+
+const hashString = (value: string) => {
+  const hex = Array.from(new TextEncoder().encode(value)).map((b) => b.toString(16).padStart(2, '0')).join('')
+  return hex.padEnd(32, '0')
+}
+
 const applyFilters = (items: Listing[], filters?: Partial<ListingFilters>) => {
-  if (!filters) return items
-  return items.filter((item) => {
+  if (!filters) return items.map((item) => ({ ...item }))
+  let filtered = items.map((item) => ({ ...item }))
+  filtered = filtered.filter((item) => {
     const matchCategory = filters.category && filters.category !== 'all' ? item.category === filters.category : true
     const matchGuests = filters.guests ? item.beds >= filters.guests : true
     const matchPrice = filters.priceRange ? item.pricePerNight >= filters.priceRange[0] && item.pricePerNight <= filters.priceRange[1] : true
@@ -497,6 +535,20 @@ const applyFilters = (items: Listing[], filters?: Partial<ListingFilters>) => {
 
     return matchCategory && matchGuests && matchPrice && matchInstant && matchLocation && matchCity && matchRooms && matchArea && matchRating && matchFacilities && matchStatus
   })
+
+  if (filters.centerLat != null && filters.centerLng != null) {
+    const radius = filters.radiusKm ?? 15
+    filtered = filtered
+      .map((item) => {
+        if (item.lat == null || item.lng == null) return { ...item, distanceKm: undefined }
+        const distanceKm = distanceBetween(filters.centerLat!, filters.centerLng!, item.lat, item.lng)
+        return { ...item, distanceKm }
+      })
+      .filter((item) => item.distanceKm != null && item.distanceKm <= radius)
+      .sort((a, b) => (a.distanceKm ?? 0) - (b.distanceKm ?? 0))
+  }
+
+  return filtered
 }
 
 export async function getPopularListings(): Promise<Listing[]> {
@@ -510,6 +562,12 @@ export async function getRecommendedListings(filters?: Partial<ListingFilters>):
 export async function searchListings(query: string, filters?: Partial<ListingFilters>): Promise<Listing[]> {
   const filtered = applyFilters(listings, filters)
   return simulate(filtered.filter((item) => item.title.toLowerCase().includes(query.toLowerCase())))
+}
+
+export async function geocodeLocation(query: string): Promise<{ lat: number; lng: number }> {
+  const result = fakeGeocode(query)
+  if (!result) throw new Error('Location not found')
+  return simulate(result)
 }
 
 export async function getListingById(id: string): Promise<Listing | null> {

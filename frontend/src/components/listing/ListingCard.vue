@@ -41,7 +41,12 @@ const toggle = (e: Event, id: string) => {
     <div class="space-y-1 px-4 py-3">
       <div class="flex items-center justify-between text-sm text-muted">
         <span>{{ listing.beds }} beds · {{ listing.baths }} baths</span>
-        <span class="font-semibold text-primary">${{ listing.pricePerNight }}/night</span>
+        <div class="flex items-center gap-2">
+          <span v-if="listing.distanceKm !== undefined" class="rounded-full bg-surface px-3 py-1 text-xs font-semibold text-slate-700">
+            {{ listing.distanceKm.toFixed(1) }} km
+          </span>
+          <span class="font-semibold text-primary">${{ listing.pricePerNight }}/night</span>
+        </div>
       </div>
     </div>
   </article>
