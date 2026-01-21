@@ -1,27 +1,30 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Heart, MapPin, Share2 } from 'lucide-vue-next'
+import { CalendarClock, Heart, MapPin, Share2 } from 'lucide-vue-next'
 import FacilityPill from '../components/listing/FacilityPill.vue'
 import Badge from '../components/ui/Badge.vue'
 import Button from '../components/ui/Button.vue'
 import EmptyState from '../components/ui/EmptyState.vue'
 import ErrorBanner from '../components/ui/ErrorBanner.vue'
+import ListSkeleton from '../components/ui/ListSkeleton.vue'
 import ModalSheet from '../components/ui/ModalSheet.vue'
 import RatingStars from '../components/ui/RatingStars.vue'
 import { useAuthStore } from '../stores/auth'
 import { useListingsStore } from '../stores/listings'
 import { useChatStore } from '../stores/chat'
 import { useRequestsStore } from '../stores/requests'
+import { useViewingsStore } from '../stores/viewings'
 import { useToastStore } from '../stores/toast'
 import { getListingById, getListingFacilities, getListingReviews } from '../services'
-import type { Listing, Review } from '../types'
+import type { Listing, Review, ViewingSlot } from '../types'
 
 const route = useRoute()
 const router = useRouter()
 const listingsStore = useListingsStore()
 const auth = useAuthStore()
 const requestsStore = useRequestsStore()
+const viewingsStore = useViewingsStore()
 const chatStore = useChatStore()
 const toast = useToastStore()
 
@@ -35,6 +38,9 @@ const loading = ref(true)
 const error = ref('')
 const submitting = ref(false)
 const chatLoading = ref(false)
+const viewingError = ref('')
+const slotSubmitting = ref(false)
+const viewingSubmitting = ref(false)
 
 const requestForm = reactive({
   startDate: '',
@@ -42,6 +48,18 @@ const requestForm = reactive({
   guests: 2,
   message: '',
 })
+
+const slotForm = reactive({
+  startsAt: '',
+  endsAt: '',
+  capacity: 1,
+  pattern: 'everyday' as ViewingSlot['pattern'],
+  daysOfWeek: [] as number[],
+  timeFrom: '17:00',
+  timeTo: '19:00',
+})
+
+const viewingNotes = reactive<Record<string, string>>({})
 
 const description = computed(
   () =>
@@ -54,6 +72,22 @@ const hasApplied = computed(
   () => !!listing.value && requestsStore.tenantRequests.some((app) => app.listing.id === listing.value?.id),
 )
 const landlordName = computed(() => listing.value?.landlord?.fullName || `User ${listing.value?.ownerId ?? ''}`)
+const viewingSlots = computed(() => {
+  const listingId = listing.value?.id
+  if (!listingId) return []
+  return viewingsStore.slotsByListing[listingId] ?? []
+})
+const sortedViewingSlots = computed(() =>
+  [...viewingSlots.value].sort(
+    (a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime(),
+  ),
+)
+const visibleViewingSlots = computed(() =>
+  isOwner.value ? sortedViewingSlots.value : sortedViewingSlots.value.filter((slot) => slot.isActive),
+)
+const isOwner = computed(
+  () => !!listing.value && (auth.hasRole('admin') || String(listing.value.ownerId) === String(auth.user.id)),
+)
 
 const loadData = async () => {
   loading.value = true
@@ -66,6 +100,7 @@ const loadData = async () => {
     if (auth.hasRole('seeker')) {
       requestsStore.fetchTenantRequests()
     }
+    await loadViewingSlots()
   } catch (err) {
     error.value = (err as Error).message || 'Failed to load listing.'
   } finally {
@@ -81,6 +116,26 @@ watch(
   () => route.params.id,
   () => loadData(),
 )
+
+const loadViewingSlots = async () => {
+  if (!listing.value) return
+  viewingError.value = ''
+  try {
+    await viewingsStore.fetchSlots(listing.value.id)
+    autoFillSingleSlotTimes()
+  } catch (err) {
+    viewingError.value = (err as Error).message || 'Failed to load viewing slots.'
+  }
+}
+
+const autoFillSingleSlotTimes = () => {
+  if (slotForm.startsAt || !viewingSlots.value.length) return
+  const first = viewingSlots.value[0]
+  if (first?.timeFrom && first?.timeTo) {
+    slotForm.timeFrom = first.timeFrom
+    slotForm.timeTo = first.timeTo
+  }
+}
 
 const toggleFavorite = () => {
   if (!listing.value) return
@@ -151,6 +206,120 @@ const viewProfile = () => {
   if (!listing.value?.ownerId) return
   router.push(`/users/${listing.value.ownerId}`)
 }
+
+const formatSlotWindow = (slot: ViewingSlot) => {
+  if (slot.timeFrom && slot.timeTo) {
+    const label =
+      slot.pattern === 'weekdays'
+        ? 'Radni dani'
+        : slot.pattern === 'weekends'
+          ? 'Vikend'
+          : slot.pattern === 'everyday'
+            ? 'Svaki dan'
+            : 'Dani u nedelji'
+    return `${label}: ${slot.timeFrom} - ${slot.timeTo}`
+  }
+  const start = new Date(slot.startsAt)
+  const end = new Date(slot.endsAt)
+  return `${start.toLocaleDateString()} · ${start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - ${end.toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+  })}`
+}
+
+const requestViewingSlot = async (slotId: string) => {
+  if (!auth.isAuthenticated && !auth.isMockMode) {
+    router.push({ path: '/login', query: { returnUrl: route.fullPath } })
+    return
+  }
+  if (!auth.hasRole('seeker')) {
+    toast.push({ title: 'Switch to seeker', message: 'Only seekers can request viewings.', type: 'error' })
+    return
+  }
+  viewingSubmitting.value = true
+  try {
+    const note = viewingNotes[slotId] ?? ''
+    const created = await viewingsStore.requestSlot(slotId, note)
+    viewingNotes[slotId] = ''
+    toast.push({ title: 'Viewing requested', message: 'Host will confirm your visit.', type: 'success' })
+    router.push({ path: '/bookings', query: { tab: 'viewings', viewingRequestId: created.id } })
+  } catch (err) {
+    toast.push({ title: 'Unable to request', message: (err as Error).message, type: 'error' })
+  } finally {
+    viewingSubmitting.value = false
+  }
+}
+
+const pickStartDate = () => {
+  const today = new Date()
+  return today.toISOString().split('T')[0]
+}
+
+const createViewingSlot = async () => {
+  if (!listing.value) return
+  if (!slotForm.timeFrom || !slotForm.timeTo) {
+    toast.push({ title: 'Izaberi vremenski opseg', type: 'error' })
+    return
+  }
+  const [fromH, fromM] = slotForm.timeFrom.split(':').map((v) => parseInt(v, 10))
+  const [toH, toM] = slotForm.timeTo.split(':').map((v) => parseInt(v, 10))
+  const baseDate = slotForm.startsAt || pickStartDate()
+  const start = new Date(`${baseDate}T00:00:00`)
+  start.setHours(fromH || 0, fromM || 0, 0, 0)
+  const end = new Date(`${baseDate}T00:00:00`)
+  end.setHours(toH || 0, toM || 0, 0, 0)
+  if (end <= start) {
+    toast.push({ title: 'Kraj mora biti posle početka', type: 'error' })
+    return
+  }
+  slotSubmitting.value = true
+  try {
+    await viewingsStore.createSlot(listing.value.id, {
+      startsAt: start.toISOString(),
+      endsAt: end.toISOString(),
+      capacity: slotForm.capacity || 1,
+      pattern: slotForm.pattern,
+      daysOfWeek: slotForm.daysOfWeek,
+      timeFrom: slotForm.timeFrom,
+      timeTo: slotForm.timeTo,
+    })
+    toast.push({ title: 'Termin dodat', type: 'success' })
+    slotForm.startsAt = ''
+    slotForm.endsAt = ''
+    slotForm.capacity = 1
+    slotForm.pattern = 'everyday'
+    slotForm.daysOfWeek = []
+  } catch (err) {
+    toast.push({ title: 'Failed to add slot', message: (err as Error).message, type: 'error' })
+  } finally {
+    slotSubmitting.value = false
+  }
+}
+
+const toggleSlotActive = async (slotId: string, isActive: boolean) => {
+  slotSubmitting.value = true
+  try {
+    await viewingsStore.updateSlot(slotId, { isActive })
+    toast.push({ title: isActive ? 'Slot activated' : 'Slot paused', type: 'info' })
+  } catch (err) {
+    toast.push({ title: 'Update failed', message: (err as Error).message, type: 'error' })
+  } finally {
+    slotSubmitting.value = false
+  }
+}
+
+const deleteViewingSlot = async (slotId: string) => {
+  slotSubmitting.value = true
+  try {
+    await viewingsStore.deleteSlot(slotId)
+    toast.push({ title: 'Viewing slot removed', type: 'info' })
+  } catch (err) {
+    toast.push({ title: 'Cannot remove slot', message: (err as Error).message, type: 'error' })
+  } finally {
+    slotSubmitting.value = false
+  }
+}
+
 </script>
 
 <template>
@@ -254,6 +423,158 @@ const viewProfile = () => {
             </div>
           </div>
           <p v-if="!reviews.length" class="text-sm text-muted">No reviews yet.</p>
+        </div>
+      </div>
+
+      <div class="space-y-3">
+        <div class="flex items-center justify-between">
+          <h3 class="section-title">Viewings</h3>
+          <Badge variant="info">Visit in person</Badge>
+        </div>
+        <ErrorBanner v-if="viewingError" :message="viewingError" />
+        <div class="space-y-3">
+          <div v-if="isOwner" class="rounded-2xl border border-line bg-white p-4 shadow-soft">
+            <div class="grid grid-cols-1 gap-3 md:grid-cols-3">
+              <label class="space-y-1 text-xs font-semibold text-slate-900">
+                Vremenski opseg od
+                <input
+                  v-model="slotForm.timeFrom"
+                  type="time"
+                  class="w-full rounded-xl border border-line px-3 py-2 text-sm focus:border-primary focus:outline-none"
+                />
+              </label>
+              <label class="space-y-1 text-xs font-semibold text-slate-900">
+                do
+                <input
+                  v-model="slotForm.timeTo"
+                  type="time"
+                  class="w-full rounded-xl border border-line px-3 py-2 text-sm focus:border-primary focus:outline-none"
+                />
+              </label>
+              <label class="space-y-1 text-xs font-semibold text-slate-900">
+                Kapacitet
+                <input
+                  v-model.number="slotForm.capacity"
+                  min="1"
+                  type="number"
+                  class="w-full rounded-xl border border-line px-3 py-2 text-sm focus:border-primary focus:outline-none"
+                />
+              </label>
+            </div>
+            <div class="mt-2 grid grid-cols-1 gap-3 md:grid-cols-2">
+              <label class="space-y-1 text-xs font-semibold text-slate-900">
+                Počinje od (datum)
+                <input
+                  v-model="slotForm.startsAt"
+                  type="date"
+                  class="w-full rounded-xl border border-line px-3 py-2 text-sm focus:border-primary focus:outline-none"
+                />
+              </label>
+              <div class="space-y-1 text-xs font-semibold text-slate-900">
+                Opseg dana
+                <div class="grid grid-cols-2 gap-2 text-[11px] font-semibold text-slate-800">
+                  <label class="flex items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2">
+                    <input type="radio" value="everyday" v-model="slotForm.pattern" /> Svaki dan
+                  </label>
+                  <label class="flex items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2">
+                    <input type="radio" value="weekdays" v-model="slotForm.pattern" /> Radni dani
+                  </label>
+                  <label class="flex items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2">
+                    <input type="radio" value="weekends" v-model="slotForm.pattern" /> Vikend
+                  </label>
+                  <label class="flex items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2">
+                    <input type="radio" value="custom" v-model="slotForm.pattern" /> Odabrani dani
+                  </label>
+                </div>
+                <div v-if="slotForm.pattern === 'custom'" class="mt-2 flex flex-wrap gap-2">
+                  <label
+                    v-for="(day, idx) in ['N','P','U','S','Č','P','S']"
+                    :key="day"
+                    class="flex items-center gap-1 rounded-xl border border-line bg-surface px-2 py-1 text-[11px] font-semibold text-slate-800"
+                  >
+                    <input
+                      type="checkbox"
+                      :value="idx"
+                      v-model="slotForm.daysOfWeek"
+                    />
+                    {{ day }}
+                  </label>
+                </div>
+              </div>
+            </div>
+            <div class="mt-3 flex justify-end">
+              <Button size="md" :loading="slotSubmitting" @click="createViewingSlot">Dodaj slot</Button>
+            </div>
+          </div>
+
+          <ListSkeleton v-if="viewingsStore.loadingSlots" :count="2" />
+
+          <EmptyState
+            v-else-if="!visibleViewingSlots.length"
+            :title="isOwner ? 'No slots yet' : 'No viewing slots'"
+            :subtitle="isOwner ? 'Add slots for seekers to book a visit' : 'Check back soon for available viewing times'"
+            :icon="CalendarClock"
+          />
+
+          <div v-else class="space-y-2">
+            <div
+              v-for="slot in visibleViewingSlots"
+              :key="slot.id"
+              class="rounded-2xl border border-line bg-white p-4 shadow-soft"
+            >
+              <div class="flex items-start justify-between gap-2">
+                <div>
+                  <p class="font-semibold text-slate-900">{{ formatSlotWindow(slot) }}</p>
+                  <p class="text-xs text-muted">
+                    Capacity {{ slot.capacity }} · {{ slot.isActive ? 'Active' : 'Paused' }}
+                  </p>
+                </div>
+                <Badge :variant="slot.isActive ? 'accepted' : 'info'">{{ slot.isActive ? 'Open' : 'Paused' }}</Badge>
+              </div>
+
+              <div class="mt-3 flex flex-col gap-2">
+                <template v-if="isOwner">
+                  <div class="flex gap-2">
+                    <Button
+                      variant="secondary"
+                      size="md"
+                      :loading="slotSubmitting"
+                      class="flex-1"
+                      @click="toggleSlotActive(slot.id, !slot.isActive)"
+                    >
+                      {{ slot.isActive ? 'Pause slot' : 'Activate slot' }}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="md"
+                      :loading="slotSubmitting"
+                      class="flex-1"
+                      @click="deleteViewingSlot(slot.id)"
+                    >
+                      Delete
+                    </Button>
+                  </div>
+                </template>
+                <template v-else>
+                  <textarea
+                    v-model="viewingNotes[slot.id]"
+                    rows="2"
+                    class="w-full rounded-xl border border-line px-3 py-2 text-sm text-slate-900 placeholder:text-muted focus:border-primary focus:outline-none"
+                    placeholder="Optional note for the host"
+                  ></textarea>
+                  <Button
+                    variant="primary"
+                    size="md"
+                    class="w-full"
+                    :loading="viewingSubmitting"
+                    @click="requestViewingSlot(slot.id)"
+                  >
+                    Request this slot
+                  </Button>
+                </template>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 

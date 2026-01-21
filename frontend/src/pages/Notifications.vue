@@ -88,6 +88,9 @@ const getNotificationIcon = (type: string) => {
     'report.update': '🚨',
     'digest.daily': '📧',
     'digest.weekly': '📧',
+    'viewing.requested': '📅',
+    'viewing.confirmed': '✅',
+    'viewing.cancelled': '⚠️',
   }
   return icons[type] || '🔔'
 }

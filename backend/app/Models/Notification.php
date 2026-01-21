@@ -16,6 +16,9 @@ class Notification extends Model
     public const TYPE_ADMIN_NOTICE = 'admin.notice';
     public const TYPE_DIGEST_DAILY = 'digest.daily';
     public const TYPE_DIGEST_WEEKLY = 'digest.weekly';
+    public const TYPE_VIEWING_REQUESTED = 'viewing.requested';
+    public const TYPE_VIEWING_CONFIRMED = 'viewing.confirmed';
+    public const TYPE_VIEWING_CANCELLED = 'viewing.cancelled';
 
     protected $fillable = [
         'user_id',
@@ -39,4 +42,3 @@ class Notification extends Model
         return $this->belongsTo(User::class);
     }
 }
-

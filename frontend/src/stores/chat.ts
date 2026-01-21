@@ -67,9 +67,9 @@ export const useChatStore = defineStore('chat', {
         this.loading = false
       }
     },
-    async fetchConversationForListing(listingId: string) {
+    async fetchConversationForListing(listingId: string, seekerId?: string) {
       this.error = ''
-      const convo = await getConversationForListing(listingId)
+      const convo = await getConversationForListing(listingId, seekerId)
       this.upsertConversation(convo)
       return convo
     },
@@ -85,11 +85,11 @@ export const useChatStore = defineStore('chat', {
       this.upsertConversation(convo)
       return convo
     },
-    async openByListingId(listingId: string) {
+    async openByListingId(listingId: string, seekerId?: string) {
       this.resolving = true
       this.error = ''
       try {
-        const conversation = await this.fetchConversationForListing(listingId)
+        const conversation = await this.fetchConversationForListing(listingId, seekerId)
         this.setActiveConversation(conversation.id)
         await this.fetchMessages(conversation.id)
         return conversation

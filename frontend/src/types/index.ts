@@ -57,6 +57,43 @@ export interface Booking {
   status: 'booked' | 'history'
 }
 
+export type ViewingRequestStatus = 'requested' | 'confirmed' | 'cancelled' | 'rejected'
+
+export interface ViewingSlot {
+  id: string
+  listingId: string
+  landlordId: string
+  startsAt: string
+  endsAt: string
+  capacity: number
+  isActive: boolean
+  pattern?: 'everyday' | 'weekdays' | 'weekends' | 'custom' | 'once' | string
+  daysOfWeek?: number[]
+  timeFrom?: string | null
+  timeTo?: string | null
+}
+
+export interface ViewingRequest {
+  id: string
+  status: ViewingRequestStatus
+  message?: string | null
+  cancelledBy?: 'seeker' | 'landlord' | 'system' | null
+  createdAt?: string
+  slot: ViewingSlot | null
+  listing: {
+    id: string
+    title?: string
+    city?: string
+    coverImage?: string
+    pricePerNight?: number
+    status?: Listing['status']
+  } | null
+  participants: {
+    seekerId: string
+    landlordId: string
+  }
+}
+
 export interface Application {
   id: string
   status: 'submitted' | 'accepted' | 'rejected' | 'withdrawn'

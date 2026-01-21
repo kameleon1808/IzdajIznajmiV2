@@ -11,6 +11,8 @@ import type {
   PublicProfile,
   Rating,
   Report,
+  ViewingRequest,
+  ViewingSlot,
 } from '../types'
 import { useAuthStore } from '../stores/auth'
 
@@ -127,6 +129,43 @@ const mapMessage = (data: any): Message => {
     time: rawTime ? new Date(rawTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : data.time ?? '',
   }
 }
+
+const mapViewingSlot = (data: any): ViewingSlot => ({
+  id: String(data.id),
+  listingId: String(data.listingId ?? data.listing_id ?? ''),
+  landlordId: String(data.landlordId ?? data.landlord_id ?? ''),
+  startsAt: data.startsAt ?? data.starts_at ?? '',
+  endsAt: data.endsAt ?? data.ends_at ?? '',
+  capacity: Number(data.capacity ?? 1),
+  isActive: Boolean(data.isActive ?? data.is_active ?? true),
+  pattern: data.pattern ?? undefined,
+  daysOfWeek: data.daysOfWeek ?? data.days_of_week ?? [],
+  timeFrom: data.timeFrom ?? data.time_from ?? null,
+  timeTo: data.timeTo ?? data.time_to ?? null,
+})
+
+const mapViewingRequest = (data: any): ViewingRequest => ({
+  id: String(data.id),
+  status: data.status,
+  message: data.message ?? null,
+  cancelledBy: data.cancelledBy ?? data.cancelled_by ?? null,
+  createdAt: data.createdAt ?? data.created_at ?? null,
+  slot: data.slot ? mapViewingSlot(data.slot) : null,
+  listing: data.listing
+    ? {
+        id: String(data.listing.id ?? data.listingId ?? data.listing_id ?? ''),
+        title: data.listing.title ?? data.listingTitle,
+        city: data.listing.city,
+        coverImage: data.listing.coverImage ?? data.listing.cover_image,
+        pricePerNight: data.listing.pricePerNight ?? data.listing.price_per_night,
+        status: data.listing.status,
+      }
+    : null,
+  participants: {
+    seekerId: String(data.participants?.seekerId ?? data.seekerId ?? data.seeker_id ?? ''),
+    landlordId: String(data.participants?.landlordId ?? data.landlordId ?? data.landlord_id ?? ''),
+  },
+})
 
 const applyListingFilters = (filters?: ListingFilters) => {
   if (!filters) return {}
@@ -320,8 +359,10 @@ export const getConversations = async (): Promise<Conversation[]> => {
   return list.map(mapConversation)
 }
 
-export const getConversationForListing = async (listingId: string): Promise<Conversation> => {
-  const { data } = await apiClient.get(`/listings/${listingId}/conversation`)
+export const getConversationForListing = async (listingId: string, seekerId?: string): Promise<Conversation> => {
+  const { data } = await apiClient.get(`/listings/${listingId}/conversation`, {
+    params: seekerId ? { seeker_id: seekerId } : undefined,
+  })
   return mapConversation(data.data ?? data)
 }
 
@@ -535,4 +576,89 @@ export const stopImpersonation = async () => {
 
 export const getBookings = async () => {
   return []
+}
+
+const mapSlotPayload = (payload: {
+  startsAt?: string
+  endsAt?: string
+  capacity?: number
+  isActive?: boolean
+  pattern?: ViewingSlot['pattern']
+  daysOfWeek?: number[]
+  timeFrom?: string
+  timeTo?: string
+}) => {
+  const body: Record<string, any> = {}
+  if (payload.startsAt !== undefined) body.starts_at = payload.startsAt
+  if (payload.endsAt !== undefined) body.ends_at = payload.endsAt
+  if (payload.capacity !== undefined) body.capacity = payload.capacity
+  if (payload.isActive !== undefined) body.is_active = payload.isActive
+  if (payload.pattern) body.pattern = payload.pattern
+  if (payload.daysOfWeek) body.days_of_week = payload.daysOfWeek
+  if (payload.timeFrom) body.time_from = payload.timeFrom
+  if (payload.timeTo) body.time_to = payload.timeTo
+  return body
+}
+
+export const getViewingSlots = async (listingId: string): Promise<ViewingSlot[]> => {
+  const { data } = await apiClient.get(`/listings/${listingId}/viewing-slots`)
+  const items = (data.data ?? data) as any[]
+  return items.map(mapViewingSlot)
+}
+
+export const createViewingSlot = async (
+  listingId: string,
+  payload: { startsAt: string; endsAt: string; capacity?: number; isActive?: boolean },
+): Promise<ViewingSlot> => {
+  const { data } = await apiClient.post(`/listings/${listingId}/viewing-slots`, mapSlotPayload(payload))
+  return mapViewingSlot(data.data ?? data)
+}
+
+export const updateViewingSlot = async (
+  slotId: string,
+  payload: Partial<{ startsAt: string; endsAt: string; capacity?: number; isActive?: boolean }>,
+): Promise<ViewingSlot> => {
+  const { data } = await apiClient.patch(`/viewing-slots/${slotId}`, mapSlotPayload(payload as any))
+  return mapViewingSlot(data.data ?? data)
+}
+
+export const deleteViewingSlot = async (slotId: string): Promise<void> => {
+  await apiClient.delete(`/viewing-slots/${slotId}`)
+}
+
+export const requestViewingSlot = async (slotId: string, message?: string): Promise<ViewingRequest> => {
+  const { data } = await apiClient.post(`/viewing-slots/${slotId}/request`, { message })
+  return mapViewingRequest(data.data ?? data)
+}
+
+export const getViewingRequestsForSeeker = async (): Promise<ViewingRequest[]> => {
+  const { data } = await apiClient.get('/seeker/viewing-requests')
+  const list = (data.data ?? data) as any[]
+  return list.map(mapViewingRequest)
+}
+
+export const getViewingRequestsForLandlord = async (listingId?: string): Promise<ViewingRequest[]> => {
+  const { data } = await apiClient.get('/landlord/viewing-requests', { params: listingId ? { listing_id: listingId } : {} })
+  const list = (data.data ?? data) as any[]
+  return list.map(mapViewingRequest)
+}
+
+export const confirmViewingRequest = async (id: string): Promise<ViewingRequest> => {
+  const { data } = await apiClient.patch(`/viewing-requests/${id}/confirm`)
+  return mapViewingRequest(data.data ?? data)
+}
+
+export const rejectViewingRequest = async (id: string): Promise<ViewingRequest> => {
+  const { data } = await apiClient.patch(`/viewing-requests/${id}/reject`)
+  return mapViewingRequest(data.data ?? data)
+}
+
+export const cancelViewingRequest = async (id: string): Promise<ViewingRequest> => {
+  const { data } = await apiClient.patch(`/viewing-requests/${id}/cancel`)
+  return mapViewingRequest(data.data ?? data)
+}
+
+export const downloadViewingRequestIcs = async (id: string): Promise<Blob> => {
+  const { data } = await apiClient.get(`/viewing-requests/${id}/ics`, { responseType: 'blob' })
+  return data as Blob
 }

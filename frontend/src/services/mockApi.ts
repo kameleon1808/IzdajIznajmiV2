@@ -12,6 +12,8 @@ import type {
   Rating,
   Report,
   Review,
+  ViewingRequest,
+  ViewingSlot,
 } from '../types'
 
 const makeId = () =>
@@ -237,6 +239,70 @@ const bookings: Booking[] = [
     rating: 4.8,
     coverImage: listings[0]?.coverImage ?? '',
     status: 'history',
+  },
+]
+
+const viewingSlots: ViewingSlot[] = [
+  {
+    id: 'vs1',
+    listingId: '1',
+    landlordId: 'landlord-1',
+    startsAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+    endsAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000 + 45 * 60 * 1000).toISOString(),
+    capacity: 1,
+    isActive: true,
+    pattern: 'once',
+    timeFrom: '17:00',
+    timeTo: '17:45',
+  },
+  {
+    id: 'vs2',
+    listingId: '2',
+    landlordId: 'landlord-2',
+    startsAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString(),
+    endsAt: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000 + 60 * 60 * 1000).toISOString(),
+    capacity: 2,
+    isActive: true,
+    pattern: 'weekdays',
+    timeFrom: '18:00',
+    timeTo: '19:00',
+  },
+]
+
+const viewingRequests: ViewingRequest[] = [
+  {
+    id: 'vr1',
+    status: 'confirmed',
+    message: 'Can we see the basement?',
+    cancelledBy: null,
+    createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+    slot: viewingSlots[0] ?? null,
+    listing: {
+      id: '1',
+      title: listings[0]?.title ?? 'Listing',
+      city: listings[0]?.city,
+      coverImage: listings[0]?.coverImage,
+      pricePerNight: listings[0]?.pricePerNight,
+      status: (listings[0] as any)?.status,
+    },
+    participants: { seekerId: 'tenant-1', landlordId: 'landlord-1' },
+  },
+  {
+    id: 'vr2',
+    status: 'requested',
+    message: 'Evening slot preferred',
+    cancelledBy: null,
+    createdAt: new Date().toISOString(),
+    slot: viewingSlots[1] ?? null,
+    listing: {
+      id: '2',
+      title: listings[1]?.title ?? 'Listing',
+      city: listings[1]?.city,
+      coverImage: listings[1]?.coverImage,
+      pricePerNight: listings[1]?.pricePerNight,
+      status: (listings[1] as any)?.status,
+    },
+    participants: { seekerId: 'tenant-2', landlordId: 'landlord-2' },
   },
 ]
 
@@ -468,6 +534,181 @@ export async function getBookings(status: Booking['status']): Promise<Booking[]>
   return simulate(bookings.filter((b) => b.status === status))
 }
 
+export async function getViewingSlots(listingId: string): Promise<ViewingSlot[]> {
+  return simulate(viewingSlots.filter((slot) => slot.listingId === listingId))
+}
+
+export async function createViewingSlot(
+  listingId: string,
+  payload: {
+    startsAt: string
+    endsAt: string
+    capacity?: number
+    isActive?: boolean
+    pattern?: ViewingSlot['pattern']
+    daysOfWeek?: number[]
+    timeFrom?: string
+    timeTo?: string
+  },
+): Promise<ViewingSlot> {
+  const slot: ViewingSlot = {
+    id: makeId(),
+    listingId,
+    landlordId: String(listings.find((l) => l.id === listingId)?.ownerId ?? 'landlord-1'),
+    startsAt: payload.startsAt,
+    endsAt: payload.endsAt,
+    capacity: payload.capacity ?? 1,
+    isActive: payload.isActive ?? true,
+    pattern: payload.pattern ?? 'once',
+    daysOfWeek: payload.daysOfWeek ?? [],
+    timeFrom: payload.timeFrom ?? null,
+    timeTo: payload.timeTo ?? null,
+  }
+  viewingSlots.unshift(slot)
+  return simulate(slot)
+}
+
+export async function updateViewingSlot(
+  slotId: string,
+  payload: Partial<Pick<ViewingSlot, 'startsAt' | 'endsAt' | 'capacity' | 'isActive'>>,
+): Promise<ViewingSlot> {
+  const idx = viewingSlots.findIndex((s) => s.id === slotId)
+  if (idx === -1) throw new Error('Slot not found')
+  const previous = viewingSlots[idx]!
+  const updated: ViewingSlot = {
+    ...previous,
+    id: previous.id,
+    listingId: previous.listingId,
+    landlordId: previous.landlordId,
+    startsAt: payload.startsAt ?? previous.startsAt,
+    endsAt: payload.endsAt ?? previous.endsAt,
+    capacity: payload.capacity ?? previous.capacity,
+    isActive: payload.isActive ?? previous.isActive,
+  }
+  viewingSlots[idx] = updated
+  viewingRequests.forEach((req) => {
+    if (req.slot?.id === slotId) {
+      req.slot = { ...req.slot, ...updated }
+    }
+  })
+  return simulate(updated)
+}
+
+export async function deleteViewingSlot(slotId: string): Promise<void> {
+  const hasActive = viewingRequests.some(
+    (req) => req.slot?.id === slotId && ['requested', 'confirmed'].includes(req.status),
+  )
+  if (hasActive) {
+    throw new Error('Cannot delete slot with active requests')
+  }
+  const idx = viewingSlots.findIndex((s) => s.id === slotId)
+  if (idx >= 0) {
+    viewingSlots.splice(idx, 1)
+  }
+  return simulate(undefined)
+}
+
+const cloneSlot = (slot: ViewingSlot | null): ViewingSlot | null => (slot ? { ...slot } : null)
+const makeListingSummary = (listingId: string) => {
+  const listing = listings.find((l) => l.id === listingId)
+  return {
+    id: listingId,
+    title: listing?.title ?? 'Listing',
+    city: listing?.city,
+    coverImage: listing?.coverImage ?? listing?.images?.[0],
+    pricePerNight: listing?.pricePerNight,
+    status: (listing as any)?.status,
+  }
+}
+
+export async function requestViewingSlot(slotId: string, message?: string, seekerId?: string): Promise<ViewingRequest> {
+  const slot = viewingSlots.find((s) => s.id === slotId)
+  if (!slot || !slot.isActive) {
+    throw new Error('Viewing slot unavailable')
+  }
+  const activeCount = viewingRequests.filter(
+    (req) => req.slot?.id === slotId && ['requested', 'confirmed'].includes(req.status),
+  ).length
+  if (activeCount >= (slot.capacity ?? 1)) {
+    throw new Error('Slot already booked')
+  }
+  const request: ViewingRequest = {
+    id: makeId(),
+    status: 'requested',
+    message: message ?? '',
+    cancelledBy: null,
+    createdAt: new Date().toISOString(),
+    slot: cloneSlot(slot) as ViewingSlot,
+    listing: makeListingSummary(slot.listingId),
+    participants: {
+      seekerId: seekerId ?? 'tenant-1',
+      landlordId: slot.landlordId,
+    },
+  }
+  viewingRequests.unshift(request)
+  return simulate(request)
+}
+
+export async function getViewingRequestsForSeeker(seekerId?: string): Promise<ViewingRequest[]> {
+  const id = seekerId ?? 'tenant-1'
+  return simulate(viewingRequests.filter((req) => req.participants.seekerId === id))
+}
+
+export async function getViewingRequestsForLandlord(listingId?: string, landlordId?: string): Promise<ViewingRequest[]> {
+  const id = landlordId ?? 'landlord-1'
+  const filtered = viewingRequests.filter((req) => req.participants.landlordId === id)
+  const narrowed = listingId ? filtered.filter((req) => req.listing?.id === listingId) : filtered
+  return simulate(narrowed)
+}
+
+const updateViewingRequestStatus = async (
+  id: string,
+  status: ViewingRequest['status'],
+  cancelledBy?: ViewingRequest['cancelledBy'],
+): Promise<ViewingRequest> => {
+  const idx = viewingRequests.findIndex((req) => req.id === id)
+  if (idx === -1) throw new Error('Viewing not found')
+  const previous = viewingRequests[idx]
+  if (!previous) throw new Error('Viewing not found')
+  const updated: ViewingRequest = {
+    ...previous,
+    status,
+    cancelledBy: cancelledBy ?? previous.cancelledBy ?? null,
+    id: previous.id,
+    slot: previous.slot ?? null,
+    listing: previous.listing ?? null,
+    participants: previous.participants,
+  }
+  viewingRequests[idx] = updated
+  return simulate(updated)
+}
+
+export async function confirmViewingRequest(id: string): Promise<ViewingRequest> {
+  return updateViewingRequestStatus(id, 'confirmed')
+}
+
+export async function rejectViewingRequest(id: string): Promise<ViewingRequest> {
+  return updateViewingRequestStatus(id, 'rejected')
+}
+
+export async function cancelViewingRequest(id: string, cancelledBy?: ViewingRequest['cancelledBy']): Promise<ViewingRequest> {
+  return updateViewingRequestStatus(id, 'cancelled', cancelledBy ?? 'seeker')
+}
+
+export async function downloadViewingRequestIcs(id: string): Promise<Blob> {
+  const req = viewingRequests.find((r) => r.id === id)
+  const text = `BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//IzdajIznajmi//Mock//EN
+BEGIN:VEVENT
+SUMMARY:Viewing ${req?.listing?.title ?? ''}
+DTSTART:${req?.slot?.startsAt ?? ''}
+DTEND:${req?.slot?.endsAt ?? ''}
+END:VEVENT
+END:VCALENDAR`
+  return simulate(new Blob([text], { type: 'text/calendar' }))
+}
+
 export async function getConversations(): Promise<Conversation[]> {
   return simulate(conversations)
 }
@@ -482,7 +723,7 @@ export async function getMessages(conversationId: string): Promise<Message[]> {
   return simulate(messages[conversationId] ?? [])
 }
 
-export async function getConversationForListing(listingId: string): Promise<Conversation> {
+export async function getConversationForListing(listingId: string, _seekerId?: string): Promise<Conversation> {
   let conversation = conversations.find((c) => c.listingId === listingId)
   if (!conversation) {
     const listing = listings.find((l) => l.id === listingId)

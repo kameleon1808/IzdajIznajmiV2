@@ -44,8 +44,11 @@ class ConversationController extends Controller
 
     public function conversationForListing(Request $request, Listing $listing): JsonResponse
     {
-        $user = $this->requireSeeker($request, $listing);
-        $conversation = $this->findOrCreateListingConversation($listing, $user);
+        $user = $request->user();
+        abort_unless($user, 401, 'Unauthenticated');
+
+        $participants = $this->resolveListingConversationParticipants($request, $listing, $user);
+        $conversation = $this->findOrCreateListingConversation($listing, $participants['seeker'], $participants['landlord']);
         $conversation->loadMissing(['tenant:id,name', 'landlord:id,name', 'listing.images', 'messages' => fn ($query) => $query->latest()->limit(1)]);
         $conversation->unread_count = $conversation->unreadCountFor($user);
 
@@ -167,12 +170,13 @@ class ConversationController extends Controller
         return $user;
     }
 
-    private function findOrCreateListingConversation(Listing $listing, User $seeker, bool $createIfMissing = true): ?Conversation
+    private function findOrCreateListingConversation(Listing $listing, User $seeker, ?User $landlord = null, bool $createIfMissing = true): ?Conversation
     {
+        $landlord = $landlord ?: $listing->owner;
         $conversation = Conversation::where([
             'listing_id' => $listing->id,
             'tenant_id' => $seeker->id,
-            'landlord_id' => $listing->owner_id,
+            'landlord_id' => $landlord?->id ?? $listing->owner_id,
         ])->first();
 
         if ($conversation) {
@@ -188,8 +192,29 @@ class ConversationController extends Controller
         return Conversation::create([
             'listing_id' => $listing->id,
             'tenant_id' => $seeker->id,
-            'landlord_id' => $listing->owner_id,
+            'landlord_id' => $landlord?->id ?? $listing->owner_id,
         ]);
+    }
+
+    private function resolveListingConversationParticipants(Request $request, Listing $listing, User $user): array
+    {
+        $isAdmin = $this->userHasRole($user, 'admin');
+        $isListingOwner = (int) $listing->owner_id === (int) $user->id;
+
+        if ($this->userHasRole($user, ['seeker', 'admin']) && ! $isListingOwner) {
+            return ['seeker' => $user, 'landlord' => $listing->owner ?? null];
+        }
+
+        if ($this->userHasRole($user, ['landlord', 'admin']) && ($isListingOwner || $isAdmin)) {
+            $seekerId = $request->input('seeker_id');
+            abort_unless($seekerId, 422, 'seeker_id is required');
+            $seeker = User::find($seekerId);
+            abort_if(! $seeker, 404, 'Seeker not found');
+
+            return ['seeker' => $seeker, 'landlord' => $listing->owner ?? $user];
+        }
+
+        abort(403, 'Forbidden');
     }
 
     private function assertListingActive(?Listing $listing): void

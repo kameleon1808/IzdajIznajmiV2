@@ -8,6 +8,8 @@ use App\Models\Application;
 use App\Models\Conversation;
 use App\Models\Listing;
 use App\Models\Rating;
+use App\Models\ViewingRequest;
+use App\Models\ViewingSlot;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -109,5 +111,20 @@ class User extends Authenticatable
     public function ratingsReceived()
     {
         return $this->hasMany(Rating::class, 'ratee_id');
+    }
+
+    public function viewingSlots()
+    {
+        return $this->hasMany(ViewingSlot::class, 'landlord_id');
+    }
+
+    public function viewingRequestsAsSeeker()
+    {
+        return $this->hasMany(ViewingRequest::class, 'seeker_id');
+    }
+
+    public function viewingRequestsAsLandlord()
+    {
+        return $this->hasMany(ViewingRequest::class, 'landlord_id');
     }
 }

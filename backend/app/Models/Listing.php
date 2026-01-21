@@ -7,6 +7,8 @@ use App\Models\ListingImage;
 use App\Models\User;
 use App\Models\Application;
 use App\Models\Rating;
+use App\Models\ViewingRequest;
+use App\Models\ViewingSlot;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -76,5 +78,15 @@ class Listing extends Model
     public function ratings(): HasMany
     {
         return $this->hasMany(Rating::class);
+    }
+
+    public function viewingSlots(): HasMany
+    {
+        return $this->hasMany(ViewingSlot::class);
+    }
+
+    public function viewingRequests(): HasMany
+    {
+        return $this->hasMany(ViewingRequest::class);
     }
 }

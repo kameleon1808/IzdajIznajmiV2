@@ -64,6 +64,24 @@ Base URL: `/api/v1` (auth also available under `/api/auth/*` during the transiti
   - Body: `{ status: 'pending'|'accepted'|'rejected'|'cancelled' }`
   - Response: updated `BookingRequest`.
 
+## Viewings (appointments — separate from bookings/reservations)
+- Slots (landlord/admin; listing must be `active`):
+  - `GET /api/v1/listings/:listingId/viewing-slots` (landlord sees all; seekers get active/upcoming)
+  - `POST /api/v1/listings/:listingId/viewing-slots` (`starts_at`, `ends_at`, `capacity?`, `is_active?`)
+  - `PATCH /api/v1/viewing-slots/:id` (owner/admin) to edit times/capacity/activation
+  - `DELETE /api/v1/viewing-slots/:id` (fails if active requests exist)
+- Requests (seekers request; landlord/admin responds):
+  - `POST /api/v1/viewing-slots/:slotId/request` (`message?`) — blocks when slot already has requested/confirmed count >= capacity.
+  - `GET /api/v1/seeker/viewing-requests`
+  - `GET /api/v1/landlord/viewing-requests?listing_id=`
+  - `PATCH /api/v1/viewing-requests/:id/confirm`
+  - `PATCH /api/v1/viewing-requests/:id/reject`
+  - `PATCH /api/v1/viewing-requests/:id/cancel` (seeker or landlord)
+- ICS:
+  - `GET /api/v1/viewing-requests/:id/ics` (participants + confirmed only) returns `text/calendar` with filename.
+- Statuses: `requested | confirmed | rejected | cancelled`, `cancelledBy` (`seeker|landlord|system`).
+- Notifications (new types, distinct from bookings): `viewing.requested` → landlord, `viewing.confirmed` → seeker, `viewing.cancelled` → counterparty. Deep link: `/bookings?tab=viewings&viewingRequestId=:id`.
+
 ## Messaging
 - `GET /api/v1/conversations` -> `Conversation[]`
 - `GET /api/v1/conversations/:id/messages` -> `Message[]`

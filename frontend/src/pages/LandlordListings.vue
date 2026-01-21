@@ -26,6 +26,7 @@ const listings = computed(() =>
 )
 const loading = computed(() => listingsStore.landlordLoading)
 const error = computed(() => listingsStore.landlordError)
+const goToPublicListing = (id: string) => router.push(`/listing/${id}`)
 
 const statusBadge = (status?: string): { label: string; variant: 'pending' | 'accepted' | 'rejected' | 'cancelled' | 'info' } => {
   if (status === 'active') return { label: 'Active', variant: 'accepted' }
@@ -97,13 +98,15 @@ const handleAction = async (
         :key="item.id"
         class="flex gap-3 rounded-2xl bg-white p-3 shadow-soft border border-white/60"
       >
-        <div class="h-24 w-24 overflow-hidden rounded-2xl">
+        <button class="h-24 w-24 overflow-hidden rounded-2xl" @click="goToPublicListing(item.id)">
           <img :src="item.coverImage" :alt="item.title" class="h-full w-full object-cover" />
-        </div>
+        </button>
         <div class="flex flex-1 flex-col gap-1">
           <div class="flex items-start justify-between">
             <div class="space-y-1">
-              <p class="text-base font-semibold text-slate-900">{{ item.title }}</p>
+              <button class="text-left text-base font-semibold text-slate-900 hover:text-primary" @click="goToPublicListing(item.id)">
+                {{ item.title }}
+              </button>
               <p class="text-xs text-muted">${{ item.pricePerNight }}/night · {{ item.city }}</p>
             </div>
             <Badge :variant="statusBadge(item.status).variant">{{ statusBadge(item.status).label }}</Badge>

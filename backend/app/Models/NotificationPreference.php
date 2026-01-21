@@ -37,6 +37,9 @@ class NotificationPreference extends Model
             Notification::TYPE_RATING_RECEIVED => true,
             Notification::TYPE_REPORT_UPDATE => true,
             Notification::TYPE_ADMIN_NOTICE => true,
+            Notification::TYPE_VIEWING_REQUESTED => true,
+            Notification::TYPE_VIEWING_CONFIRMED => true,
+            Notification::TYPE_VIEWING_CANCELLED => true,
         ];
     }
 
@@ -45,4 +48,3 @@ class NotificationPreference extends Model
         return $this->belongsTo(User::class);
     }
 }
-

@@ -64,6 +64,12 @@ const router = createRouter({
       meta: { topBar: { type: 'title', title: 'My Booking' }, showTabs: true, roles: ['seeker', 'landlord'] },
     },
     {
+      path: '/viewings',
+      name: 'viewings',
+      redirect: { path: '/bookings', query: { tab: 'viewings' } },
+      meta: { topBar: { type: 'title', title: 'Viewings' }, showTabs: true, roles: ['seeker', 'landlord'] },
+    },
+    {
       path: '/applications',
       name: 'applications',
       component: Bookings,

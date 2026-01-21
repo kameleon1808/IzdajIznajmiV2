@@ -16,6 +16,8 @@ use App\Http\Controllers\Admin\KpiController;
 use App\Http\Controllers\Admin\ImpersonationController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\NotificationPreferenceController;
+use App\Http\Controllers\ViewingRequestController;
+use App\Http\Controllers\ViewingSlotController;
 use Illuminate\Support\Facades\Route;
 
 $authRoutes = function () {
@@ -68,6 +70,19 @@ $apiRoutes = function () use ($authRoutes) {
         Route::post('/ratings/{rating}/report', [RatingReportController::class, 'store']);
         Route::post('/messages/{message}/report', [MessageReportController::class, 'store']);
         Route::post('/listings/{listing}/report', [ListingReportController::class, 'store']);
+
+        Route::get('/listings/{listing}/viewing-slots', [ViewingSlotController::class, 'index']);
+        Route::post('/listings/{listing}/viewing-slots', [ViewingSlotController::class, 'store'])->middleware('throttle:landlord_write');
+        Route::patch('/viewing-slots/{viewingSlot}', [ViewingSlotController::class, 'update'])->middleware('throttle:landlord_write');
+        Route::delete('/viewing-slots/{viewingSlot}', [ViewingSlotController::class, 'destroy'])->middleware('throttle:landlord_write');
+
+        Route::post('/viewing-slots/{viewingSlot}/request', [ViewingRequestController::class, 'store'])->middleware('throttle:viewing_requests');
+        Route::get('/seeker/viewing-requests', [ViewingRequestController::class, 'seekerIndex']);
+        Route::get('/landlord/viewing-requests', [ViewingRequestController::class, 'landlordIndex']);
+        Route::patch('/viewing-requests/{viewingRequest}/confirm', [ViewingRequestController::class, 'confirm']);
+        Route::patch('/viewing-requests/{viewingRequest}/reject', [ViewingRequestController::class, 'reject']);
+        Route::patch('/viewing-requests/{viewingRequest}/cancel', [ViewingRequestController::class, 'cancel']);
+        Route::get('/viewing-requests/{viewingRequest}/ics', [ViewingRequestController::class, 'ics']);
 
         Route::get('/notifications', [NotificationController::class, 'index']);
         Route::patch('/notifications/{notification}/read', [NotificationController::class, 'markRead']);

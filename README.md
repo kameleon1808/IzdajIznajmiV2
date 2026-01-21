@@ -13,6 +13,7 @@ The goal is to demonstrate a UX-forward SPA backed by a clean, well-documented A
 - Discovery: browsing, search/filters (city/location, price range, rooms/guests, area, instant book, amenities/status/rating), pagination, and listing detail. Map view is a visual placeholder hero (no live map yet).
 - Favorites: client-side (frontend local) favorites with quick toggle.
 - Booking Requests (inquiry flow): tenant creates; landlord accepts/rejects; tenant can cancel while pending. Statuses surface in UI and API.
+- Viewings: separate appointment scheduling for in-person visits (slots per listing, seeker requests, landlord confirms/rejects/cancels, ICS download, deep-linked notifications) surfaced in a new "Viewings" tab under `/bookings`.
 - Messaging skeleton: conversations and messages list; unread/online indicators are placeholders; newest messages limited to latest 50.
 - Listing images: multipart upload, ordering, cover selection, and async processing queue (WebP resize/convert). Processing status per image: pending/done/failed; cover auto-updates when processed.
 - Rate limiting: 429 protection on auth (10/min/IP), listings search (60/min/IP), booking requests (20/min/user or IP), landlord writes (30/min/user or IP).
@@ -51,7 +52,7 @@ The goal is to demonstrate a UX-forward SPA backed by a clean, well-documented A
 - `"/search"` Filter sheet for category/price/guests/instant book/facilities/rating; paginated results.
 - `"/map"` Visual map hero placeholder (stylized background, no live map data yet).
 - `"/listing/:id"` Detail with gallery, facilities, reviews, inquiry CTA; `"/facilities"` and `"/reviews"` sub-routes.
-- `"/favorites"` Favorites grid (local-only); `"/bookings"` booking tabs; `"/messages"` conversations and `"/messages/:id"` chat (unread/online placeholders).
+- `"/favorites"` Favorites grid (local-only); `"/bookings"` now split into Reservations vs Viewings tabs; `"/messages"` conversations and `"/messages/:id"` chat (unread/online placeholders).
 - `"/profile"` with mock role switch when in mock mode; settings pages for personal info/legal/language.
 - Landlord: `"/landlord/listings"` index, `"/landlord/listings/new"` create, `"/landlord/listings/:id/edit"` edit; publish/unpublish/archive actions surface from API states.
 - Auth: `"/login"` and `"/register"`; protected routes redirect to login when real API is enabled.
