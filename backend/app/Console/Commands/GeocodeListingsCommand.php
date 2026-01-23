@@ -15,19 +15,27 @@ class GeocodeListingsCommand extends Command
     public function handle(): int
     {
         $onlyMissing = $this->option('missing');
-        $query = Listing::query();
+        $query = Listing::query()->where('location_source', '!=', 'manual');
 
         if ($onlyMissing) {
             $query->where(function ($builder) {
                 $builder->whereNull('lat')
                     ->orWhereNull('lng')
-                    ->orWhereNull('geocoded_at');
+                    ->orWhereNull('geocoded_at')
+                    ->orWhere('lat', '<', -90)
+                    ->orWhere('lat', '>', 90)
+                    ->orWhere('lng', '<', -180)
+                    ->orWhere('lng', '>', 180);
             });
         }
 
         $count = 0;
         $query->orderBy('id')->chunkById(200, function ($listings) use (&$count, $onlyMissing) {
             foreach ($listings as $listing) {
+                if ($listing->location_source === 'manual') {
+                    continue;
+                }
+
                 $force = $onlyMissing ? false : true;
                 GeocodeListingJob::dispatchSync($listing->id, $force);
                 $count++;

@@ -23,6 +23,8 @@
   - Opcioni Nominatim adapter iza `GEOCODER_DRIVER=nominatim` sa `GEOCODER_NOMINATIM_URL`, `GEOCODER_NOMINATIM_EMAIL`, `GEOCODER_NOMINATIM_RATE_LIMIT_MS`.
   - Backfill komanda za postojeće zapise: `php artisan listings:geocode --missing` (koristi queue sync).
   - API: `/api/v1/geocode?q=...` (GET) za frontend centriranje mape; pretraga oglasa prihvata `centerLat`, `centerLng`, `radiusKm` (km) uz ostale filtere i vraća `distanceKm` kada je geo filter aktivan.
+  - Verifikacija lokacije: detalj oglasa ima "View on map" link + Leaflet preview sa pinom. Vlasnik/admin mogu da ukljuce "Adjust pin" (draggable marker) i sacuvaju rucne koordinate preko `PATCH /api/v1/listings/{id}/location`; reset na automatsko geokodiranje ide kroz `POST /api/v1/listings/{id}/location/reset`.
+  - Manual override pravilo: kada je `location_source=manual` geokoder preskace osvjezavanje dok se ne promeni adresa (sto automatski vraca `location_source` na `geocoded`) ili dok se ne pozove reset endpoint. U DEV modu ispod mape se ispisuju lat/lng radi debug-a.
 
 ## Frontend (Vue 3 + Vite)
 - Lokacija: `/frontend`

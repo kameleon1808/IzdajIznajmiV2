@@ -29,4 +29,11 @@ class ListingPolicy
         }
         return $isAdmin || $listing->owner_id === $user->id;
     }
+
+    public function updateLocation(User $user, Listing $listing): bool
+    {
+        $isAdmin = (method_exists($user, 'hasRole') && $user->hasRole('admin')) || $user->role === 'admin';
+
+        return $isAdmin || $listing->owner_id === $user->id;
+    }
 }

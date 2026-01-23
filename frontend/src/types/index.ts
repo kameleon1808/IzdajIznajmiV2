@@ -8,6 +8,9 @@ export interface Listing {
   country: string
   lat?: number
   lng?: number
+  locationSource?: 'geocoded' | 'manual'
+  locationAccuracyM?: number | null
+  locationOverriddenAt?: string | null
   pricePerNight: number
   rating: number
   reviewsCount: number

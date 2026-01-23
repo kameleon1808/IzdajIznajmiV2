@@ -45,6 +45,9 @@ class ListingFactory extends Factory
             'published_at' => now(),
             'archived_at' => null,
             'expired_at' => null,
+            'location_source' => 'geocoded',
+            'location_accuracy_m' => null,
+            'location_overridden_at' => null,
         ];
     }
 }

@@ -36,6 +36,9 @@ const mapListing = (data: any): Listing => {
     country: data.country,
     lat: data.lat != null ? Number(data.lat) : undefined,
     lng: data.lng != null ? Number(data.lng) : undefined,
+    locationSource: data.locationSource ?? data.location_source ?? 'geocoded',
+    locationAccuracyM: data.locationAccuracyM ?? data.location_accuracy_m ?? null,
+    locationOverriddenAt: data.locationOverriddenAt ?? data.location_overridden_at ?? null,
     distanceKm: data.distanceKm != null ? Number(data.distanceKm) : data.distance_km != null ? Number(data.distance_km) : undefined,
     geocodedAt: data.geocodedAt ?? data.geocoded_at ?? null,
     pricePerNight: Number(data.pricePerNight ?? data.price_per_night ?? data.price ?? 0),
@@ -308,6 +311,19 @@ export const updateListing = async (id: string, payload: any): Promise<Listing> 
   payload.imagesFiles?.forEach((file: File) => form.append('images[]', file))
 
   const { data } = await apiClient.post(`/landlord/listings/${id}?_method=PUT`, form)
+  return mapListing(data.data ?? data)
+}
+
+export const updateListingLocation = async (
+  listingId: string,
+  payload: { latitude: number; longitude: number },
+): Promise<Listing> => {
+  const { data } = await apiClient.patch(`/listings/${listingId}/location`, payload)
+  return mapListing(data.data ?? data)
+}
+
+export const resetListingLocation = async (listingId: string): Promise<Listing> => {
+  const { data } = await apiClient.post(`/listings/${listingId}/location/reset`)
   return mapListing(data.data ?? data)
 }
 

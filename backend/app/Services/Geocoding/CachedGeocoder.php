@@ -23,10 +23,34 @@ class CachedGeocoder implements Geocoder
 
         $cacheKey = 'geocode:'.sha1($normalized);
 
-        return $this->cache->remember(
-            $cacheKey,
-            now()->addMinutes($this->ttlMinutes),
-            fn () => $this->inner->geocode($normalized)
-        );
+        $cached = $this->cache->get($cacheKey);
+        if ($this->isValid($cached)) {
+            return $cached;
+        }
+
+        $fresh = $this->inner->geocode($normalized);
+        if ($this->isValid($fresh)) {
+            $this->cache->put($cacheKey, $fresh, now()->addMinutes($this->ttlMinutes));
+            return $fresh;
+        }
+
+        $this->cache->forget($cacheKey);
+
+        return $fresh;
+    }
+
+    private function isValid(mixed $result): bool
+    {
+        if (!is_array($result)) {
+            return false;
+        }
+        if (!isset($result['lat'], $result['lng'])) {
+            return false;
+        }
+
+        $lat = (float) $result['lat'];
+        $lng = (float) $result['lng'];
+
+        return $lat >= -90 && $lat <= 90 && $lng >= -180 && $lng <= 180;
     }
 }

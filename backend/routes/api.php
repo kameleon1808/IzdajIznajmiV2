@@ -17,6 +17,7 @@ use App\Http\Controllers\Admin\ImpersonationController;
 use App\Http\Controllers\GeocodingController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\NotificationPreferenceController;
+use App\Http\Controllers\ListingLocationController;
 use App\Http\Controllers\ViewingRequestController;
 use App\Http\Controllers\ViewingSlotController;
 use Illuminate\Support\Facades\Route;
@@ -72,6 +73,8 @@ $apiRoutes = function () use ($authRoutes) {
         Route::post('/ratings/{rating}/report', [RatingReportController::class, 'store']);
         Route::post('/messages/{message}/report', [MessageReportController::class, 'store']);
         Route::post('/listings/{listing}/report', [ListingReportController::class, 'store']);
+        Route::patch('/listings/{listing}/location', [ListingLocationController::class, 'update'])->middleware('throttle:landlord_write');
+        Route::post('/listings/{listing}/location/reset', [ListingLocationController::class, 'reset'])->middleware('throttle:landlord_write');
 
         Route::get('/listings/{listing}/viewing-slots', [ViewingSlotController::class, 'index']);
         Route::post('/listings/{listing}/viewing-slots', [ViewingSlotController::class, 'store'])->middleware('throttle:landlord_write');

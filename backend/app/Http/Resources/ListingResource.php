@@ -15,15 +15,27 @@ class ListingResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $lat = $this->lat;
+        $lng = $this->lng;
+        $latInvalid = $lat !== null && ($lat < -90 || $lat > 90);
+        $lngInvalid = $lng !== null && ($lng < -180 || $lng > 180);
+        if ($latInvalid || $lngInvalid) {
+            $lat = null;
+            $lng = null;
+        }
+
         return [
             'id' => $this->id,
             'title' => $this->title,
             'address' => $this->address,
             'city' => $this->city,
             'country' => $this->country,
-            'lat' => $this->lat,
-            'lng' => $this->lng,
+            'lat' => $lat,
+            'lng' => $lng,
             'geocodedAt' => optional($this->geocoded_at)->toISOString(),
+            'locationSource' => $this->location_source ?? 'geocoded',
+            'locationAccuracyM' => $this->location_accuracy_m,
+            'locationOverriddenAt' => optional($this->location_overridden_at)->toISOString(),
             'distanceKm' => $this->when(isset($this->distance_km), fn () => round((float) $this->distance_km, 2)),
             'pricePerNight' => $this->price_per_night,
             'rating' => (float) $this->rating,

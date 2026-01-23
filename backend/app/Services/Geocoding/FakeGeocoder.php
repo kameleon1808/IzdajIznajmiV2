@@ -37,7 +37,7 @@ class FakeGeocoder implements Geocoder
     private function offsetValue(string $seed): float
     {
         $hash = hexdec(substr(hash('sha256', $seed), 0, 12));
-        // Map hash to range [-1, 1]
-        return ($hash / 0xFFFFFFFFFF) * 2 - 1;
+        // Map 48-bit hash to range [-1, 1]
+        return ($hash / 0xFFFFFFFFFFFF) * 2 - 1;
     }
 }

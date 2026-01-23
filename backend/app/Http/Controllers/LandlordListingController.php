@@ -79,6 +79,9 @@ class LandlordListingController extends Controller
                 'category' => $data['category'],
                 'instant_book' => $data['instantBook'] ?? false,
                 'status' => ListingStatusService::STATUS_DRAFT,
+                'location_source' => 'geocoded',
+                'location_accuracy_m' => null,
+                'location_overridden_at' => null,
             ]);
 
             $keepImages = [];
@@ -136,10 +139,22 @@ class LandlordListingController extends Controller
 
         $addressKeyChanged = $listing->address_key !== $addressKey;
         $latProvided = array_key_exists('lat', $payload) || array_key_exists('lng', $payload);
+        $resetManualLocation = $addressKeyChanged && $listing->location_source === 'manual';
         if ($latProvided) {
             $payload['geocoded_at'] = (isset($payload['lat'], $payload['lng']) && $payload['lat'] !== null && $payload['lng'] !== null) ? now() : null;
+            $payload['location_source'] = 'geocoded';
+            $payload['location_overridden_at'] = null;
         } elseif ($addressKeyChanged) {
             $payload['geocoded_at'] = null;
+        }
+
+        if ($resetManualLocation) {
+            $payload['location_source'] = 'geocoded';
+            $payload['location_overridden_at'] = null;
+            if (!$latProvided) {
+                $payload['lat'] = null;
+                $payload['lng'] = null;
+            }
         }
 
         $payload['address_key'] = $addressKey;

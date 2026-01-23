@@ -44,6 +44,9 @@ class Listing extends Model
         'published_at',
         'archived_at',
         'expired_at',
+        'location_source',
+        'location_accuracy_m',
+        'location_overridden_at',
     ];
 
     protected $casts = [
@@ -55,6 +58,7 @@ class Listing extends Model
         'published_at' => 'datetime',
         'archived_at' => 'datetime',
         'expired_at' => 'datetime',
+        'location_overridden_at' => 'datetime',
     ];
 
     public function owner(): BelongsTo

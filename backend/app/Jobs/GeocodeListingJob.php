@@ -28,7 +28,17 @@ class GeocodeListingJob implements ShouldQueue
             return;
         }
 
+        if ($listing->location_source === 'manual') {
+            return;
+        }
+
         $latPresent = $listing->lat !== null && $listing->lng !== null;
+        $latInvalid = $latPresent && ($listing->lat < -90 || $listing->lat > 90 || $listing->lng < -180 || $listing->lng > 180);
+        if ($latInvalid) {
+            $listing->forceFill(['lat' => null, 'lng' => null, 'geocoded_at' => null])->saveQuietly();
+            $latPresent = false;
+        }
+
         if (!$this->forceRefresh && $latPresent && $listing->geocoded_at) {
             return;
         }
@@ -62,6 +72,8 @@ class GeocodeListingJob implements ShouldQueue
             'lat' => $result['lat'],
             'lng' => $result['lng'],
             'geocoded_at' => now(),
+            'location_source' => 'geocoded',
+            'location_overridden_at' => null,
         ])->saveQuietly();
     }
 }

@@ -30,6 +30,9 @@ const listings: Listing[] = [
     country: 'Croatia',
     lat: 43.5081,
     lng: 16.4402,
+    locationSource: 'geocoded',
+    geocodedAt: '2025-01-01T00:00:00Z',
+    locationOverriddenAt: null,
     pricePerNight: 240,
     rating: 4.8,
     reviewsCount: 182,
@@ -57,6 +60,9 @@ const listings: Listing[] = [
     country: 'Denmark',
     lat: 55.6761,
     lng: 12.5683,
+    locationSource: 'geocoded',
+    geocodedAt: '2025-01-01T00:00:00Z',
+    locationOverriddenAt: null,
     pricePerNight: 180,
     rating: 4.6,
     reviewsCount: 140,
@@ -84,6 +90,9 @@ const listings: Listing[] = [
     country: 'Portugal',
     lat: 38.7223,
     lng: -9.1393,
+    locationSource: 'geocoded',
+    geocodedAt: '2025-01-01T00:00:00Z',
+    locationOverriddenAt: null,
     pricePerNight: 130,
     rating: 4.7,
     reviewsCount: 96,
@@ -111,6 +120,9 @@ const listings: Listing[] = [
     country: 'Mexico',
     lat: 20.2115,
     lng: -87.4654,
+    locationSource: 'geocoded',
+    geocodedAt: '2025-01-01T00:00:00Z',
+    locationOverriddenAt: null,
     pricePerNight: 210,
     rating: 4.9,
     reviewsCount: 201,
@@ -138,6 +150,9 @@ const listings: Listing[] = [
     country: 'New Zealand',
     lat: -45.0312,
     lng: 168.6626,
+    locationSource: 'geocoded',
+    geocodedAt: '2025-01-01T00:00:00Z',
+    locationOverriddenAt: null,
     pricePerNight: 320,
     rating: 4.9,
     reviewsCount: 112,
@@ -165,6 +180,9 @@ const listings: Listing[] = [
     country: 'Netherlands',
     lat: 52.3676,
     lng: 4.9041,
+    locationSource: 'geocoded',
+    geocodedAt: '2025-01-01T00:00:00Z',
+    locationOverriddenAt: null,
     pricePerNight: 115,
     rating: 4.5,
     reviewsCount: 88,
@@ -568,6 +586,51 @@ export async function geocodeLocation(query: string): Promise<{ lat: number; lng
   const result = fakeGeocode(query)
   if (!result) throw new Error('Location not found')
   return simulate(result)
+}
+
+export async function updateListingLocation(
+  listingId: string,
+  payload: { latitude: number; longitude: number },
+): Promise<Listing> {
+  const index = listings.findIndex((item) => item.id === listingId)
+  if (index === -1) throw new Error('Listing not found')
+
+  const base = listings[index]!
+
+  listings[index] = {
+    ...base,
+    lat: payload.latitude,
+    lng: payload.longitude,
+    locationSource: 'manual',
+    locationOverriddenAt: new Date().toISOString(),
+    geocodedAt: null,
+  }
+
+  return simulate(listings[index]!)
+}
+
+export async function resetListingLocation(listingId: string): Promise<Listing> {
+  const index = listings.findIndex((item) => item.id === listingId)
+  if (index === -1) throw new Error('Listing not found')
+
+  const listing = listings[index]!
+  const geocoded = fakeGeocode(`${listing.address ?? ''} ${listing.city ?? ''} ${listing.country ?? ''}`) ?? {
+    lat: listing.lat ?? 45,
+    lng: listing.lng ?? 15,
+  }
+
+  const base = listings[index]!
+
+  listings[index] = {
+    ...base,
+    lat: geocoded.lat,
+    lng: geocoded.lng,
+    locationSource: 'geocoded',
+    locationOverriddenAt: null,
+    geocodedAt: new Date().toISOString(),
+  }
+
+  return simulate(listings[index]!)
 }
 
 export async function getListingById(id: string): Promise<Listing | null> {

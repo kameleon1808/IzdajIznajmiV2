@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { CalendarClock, Heart, MapPin, Share2 } from 'lucide-vue-next'
 import FacilityPill from '../components/listing/FacilityPill.vue'
@@ -16,7 +16,14 @@ import { useChatStore } from '../stores/chat'
 import { useRequestsStore } from '../stores/requests'
 import { useViewingsStore } from '../stores/viewings'
 import { useToastStore } from '../stores/toast'
-import { getListingById, getListingFacilities, getListingReviews } from '../services'
+import {
+  geocodeLocation,
+  getListingById,
+  getListingFacilities,
+  getListingReviews,
+  resetListingLocation,
+  updateListingLocation,
+} from '../services'
 import type { Listing, Review, ViewingSlot } from '../types'
 
 const route = useRoute()
@@ -27,6 +34,8 @@ const requestsStore = useRequestsStore()
 const viewingsStore = useViewingsStore()
 const chatStore = useChatStore()
 const toast = useToastStore()
+
+const ListingMap = defineAsyncComponent(() => import('../components/listing/ListingMap.vue'))
 
 const listing = ref<Listing | null>(null)
 const facilities = ref<{ title: string; items: string[] }[]>([])
@@ -41,6 +50,14 @@ const chatLoading = ref(false)
 const viewingError = ref('')
 const slotSubmitting = ref(false)
 const viewingSubmitting = ref(false)
+const mapVisible = ref(false)
+const adjustingLocation = ref(false)
+const savingLocation = ref(false)
+const resettingLocation = ref(false)
+const draftLocation = ref<{ lat: number; lng: number } | null>(null)
+const fallbackLocation = ref<{ lat: number; lng: number } | null>(null)
+const geocodingFallback = ref(false)
+const fallbackError = ref('')
 
 const requestForm = reactive({
   startDate: '',
@@ -88,6 +105,23 @@ const visibleViewingSlots = computed(() =>
 const isOwner = computed(
   () => !!listing.value && (auth.hasRole('admin') || String(listing.value.ownerId) === String(auth.user.id)),
 )
+const isValidCoord = (lat?: number | null, lng?: number | null) =>
+  lat != null && lng != null && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180
+const listingCoords = computed(() =>
+  listing.value && isValidCoord(listing.value.lat, listing.value.lng)
+    ? { lat: listing.value.lat as number, lng: listing.value.lng as number }
+    : null,
+)
+const mapCoords = computed(() => draftLocation.value ?? listingCoords.value ?? fallbackLocation.value)
+const hasCoords = computed(() => !!mapCoords.value)
+const locationSource = computed(() => listing.value?.locationSource ?? 'geocoded')
+const mapUrl = computed(() => {
+  if (!hasCoords.value || !listing.value) return ''
+  const coords = mapCoords.value!
+  return `https://www.openstreetmap.org/?mlat=${coords.lat}&mlon=${coords.lng}#map=18/${coords.lat}/${coords.lng}`
+})
+const canAdjustLocation = computed(() => isOwner.value && hasCoords.value)
+const showDevCoords = computed(() => import.meta.env.DEV)
 
 const loadData = async () => {
   loading.value = true
@@ -95,6 +129,13 @@ const loadData = async () => {
   try {
     const id = route.params.id as string
     listing.value = (await getListingById(id)) || null
+    mapVisible.value = !!listingCoords.value
+    adjustingLocation.value = false
+    draftLocation.value = null
+    fallbackLocation.value = null
+    if (!listingCoords.value && listing.value) {
+      await geocodeFallback()
+    }
     facilities.value = await getListingFacilities(id)
     reviews.value = await getListingReviews(id)
     if (auth.hasRole('seeker')) {
@@ -115,6 +156,15 @@ onMounted(() => {
 watch(
   () => route.params.id,
   () => loadData(),
+)
+
+watch(
+  hasCoords,
+  (val) => {
+    if (val) {
+      mapVisible.value = true
+    }
+  },
 )
 
 const loadViewingSlots = async () => {
@@ -141,6 +191,100 @@ const toggleFavorite = () => {
   if (!listing.value) return
   listingsStore.toggleFavorite(listing.value.id)
   listing.value = { ...listing.value, isFavorite: !listing.value.isFavorite }
+}
+
+const openExternalMap = () => {
+  if (!mapUrl.value) {
+    toast.push({ title: 'No coordinates', message: 'Location is not available yet.', type: 'error' })
+    return
+  }
+  window.open(mapUrl.value, '_blank')
+}
+
+const geocodeFallback = async () => {
+  if (!listing.value || geocodingFallback.value) return
+  const addressString = [listing.value.address, listing.value.city, listing.value.country]
+    .filter(Boolean)
+    .join(', ')
+  if (!addressString.trim()) return
+  geocodingFallback.value = true
+  fallbackError.value = ''
+  try {
+    const coords = await geocodeLocation(addressString)
+    if (isValidCoord(coords.lat, coords.lng)) {
+      fallbackLocation.value = coords
+      mapVisible.value = true
+    } else {
+      fallbackError.value = 'Geocoding returned invalid coordinates. Please adjust manually.'
+    }
+  } catch (err) {
+    fallbackError.value = (err as Error).message || 'Geocode failed'
+  } finally {
+    geocodingFallback.value = false
+  }
+}
+
+const startAdjustLocation = () => {
+  if (!listing.value) {
+    toast.push({ title: 'No coordinates', message: 'Add an address first to place the pin.', type: 'error' })
+    return
+  }
+  if (!mapCoords.value) {
+    toast.push({ title: 'No coordinates', message: 'Location missing—trying to re-geocode from address.', type: 'error' })
+    geocodeFallback()
+    return
+  }
+  draftLocation.value = { lat: mapCoords.value.lat, lng: mapCoords.value.lng }
+  adjustingLocation.value = true
+  mapVisible.value = true
+}
+
+const onMarkerMove = (coords: { lat: number; lng: number }) => {
+  draftLocation.value = coords
+}
+
+const cancelAdjustLocation = () => {
+  adjustingLocation.value = false
+  draftLocation.value = null
+}
+
+const saveAdjustedLocation = async () => {
+  if (!listing.value || !draftLocation.value) return
+  if (!isValidCoord(draftLocation.value.lat, draftLocation.value.lng)) {
+    toast.push({ title: 'Invalid coordinates', message: 'Lat must be between -90..90 and lng between -180..180.', type: 'error' })
+    return
+  }
+  savingLocation.value = true
+  try {
+    const updated = await updateListingLocation(listing.value.id, {
+      latitude: draftLocation.value.lat,
+      longitude: draftLocation.value.lng,
+    })
+    listing.value = updated
+    adjustingLocation.value = false
+    toast.push({ title: 'Location updated', message: 'Map pin saved for this listing.', type: 'success' })
+  } catch (err) {
+    toast.push({ title: 'Unable to save', message: (err as Error).message, type: 'error' })
+  } finally {
+    savingLocation.value = false
+  }
+}
+
+const resetLocationToGeocoded = async () => {
+  if (!listing.value) return
+  resettingLocation.value = true
+  try {
+    const updated = await resetListingLocation(listing.value.id)
+    listing.value = updated
+    draftLocation.value = null
+    adjustingLocation.value = false
+    mapVisible.value = !!(updated.lat != null && updated.lng != null)
+    toast.push({ title: 'Location reset', message: 'Pin refreshed from the address.', type: 'info' })
+  } catch (err) {
+    toast.push({ title: 'Reset failed', message: (err as Error).message, type: 'error' })
+  } finally {
+    resettingLocation.value = false
+  }
 }
 
 const openInquiry = () => {
@@ -388,12 +532,53 @@ const deleteViewingSlot = async (slotId: string) => {
       </div>
 
       <div class="space-y-3">
-        <div class="flex items-center justify-between">
-          <h3 class="section-title">Location</h3>
-          <button class="text-sm font-semibold text-primary">Open Map</button>
+        <div class="flex items-center justify-between gap-2">
+          <div class="flex items-center gap-2">
+            <h3 class="section-title">Location</h3>
+            <Badge v-if="locationSource === 'manual'" variant="info">Manual pin</Badge>
+          </div>
+          <Button variant="ghost" size="sm" class="text-sm font-semibold text-primary" :disabled="!hasCoords" @click="openExternalMap">
+            View on map
+          </Button>
         </div>
-        <div class="overflow-hidden rounded-2xl border border-white/60">
-          <div class="h-32 w-full bg-[url('https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=800&q=60')] bg-cover bg-center" />
+        <p class="text-xs text-muted">Preview uses stored coordinates—adjust if the pin looks off.</p>
+        <div class="space-y-3 rounded-2xl border border-line bg-white p-3 shadow-soft">
+          <component
+            :is="ListingMap"
+            v-if="mapVisible && hasCoords"
+            :lat="mapCoords?.lat!"
+            :lng="mapCoords?.lng!"
+            :draggable="adjustingLocation"
+            @update="onMarkerMove"
+          />
+          <div v-else class="flex h-64 items-center justify-center rounded-2xl bg-surface text-sm text-muted">
+            Location not available yet.
+          </div>
+          <div v-if="showDevCoords && hasCoords" class="flex items-center justify-between text-[11px] font-mono text-muted">
+            <span>lat: {{ mapCoords?.lat?.toFixed(6) }}</span>
+            <span>lng: {{ mapCoords?.lng?.toFixed(6) }}</span>
+          </div>
+          <p v-if="fallbackError" class="text-xs font-semibold text-red-500">{{ fallbackError }}</p>
+          <div v-if="canAdjustLocation" class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <p class="text-xs text-muted">
+              {{ adjustingLocation ? 'Drag the pin to the correct spot, then save.' : 'Owners can fine-tune the map pin.' }}
+            </p>
+            <div class="flex flex-wrap gap-2">
+              <Button
+                v-if="adjustingLocation"
+                size="sm"
+                :loading="savingLocation"
+                @click="saveAdjustedLocation"
+              >
+                Save pin
+              </Button>
+              <Button v-if="adjustingLocation" variant="ghost" size="sm" @click="cancelAdjustLocation">Cancel</Button>
+              <Button v-else variant="secondary" size="sm" @click="startAdjustLocation">Adjust pin</Button>
+              <Button variant="ghost" size="sm" :loading="resettingLocation" @click="resetLocationToGeocoded">
+                Reset to address
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
 
