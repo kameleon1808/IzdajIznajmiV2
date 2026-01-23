@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed, type Component } from 'vue'
+import { computed, type Component, type PropType } from 'vue'
 
 const props = defineProps({
   modelValue: { type: [String, Number], default: '' },
   placeholder: { type: String, default: '' },
-  leftIcon: { type: Object as () => Component, default: undefined },
-  rightIcon: { type: Object as () => Component, default: undefined },
+  // allow both component objects and functional components to avoid prop warnings
+  leftIcon: { type: [Object, Function] as PropType<Component>, default: undefined },
+  rightIcon: { type: [Object, Function] as PropType<Component>, default: undefined },
   disabled: { type: Boolean, default: false },
   readonly: { type: Boolean, default: false },
   type: { type: String, default: 'text' },

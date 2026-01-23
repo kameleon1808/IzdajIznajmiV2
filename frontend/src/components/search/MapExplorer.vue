@@ -2,6 +2,9 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import 'leaflet/dist/leaflet.css'
 import type { Listing } from '../../types'
+import markerIconUrl from 'leaflet/dist/images/marker-icon.png'
+import markerIconRetinaUrl from 'leaflet/dist/images/marker-icon-2x.png'
+import markerShadowUrl from 'leaflet/dist/images/marker-shadow.png'
 
 const props = defineProps<{
   listings: Listing[]
@@ -15,6 +18,7 @@ const emit = defineEmits<{
   (e: 'search-area', payload: { lat: number; lng: number }): void
   (e: 'radius-change', value: number): void
   (e: 'select-listing', id: string | number): void
+  (e: 'center-change', payload: { lat: number; lng: number }): void
 }>()
 
 const mapContainer = ref<HTMLElement | null>(null)
@@ -23,22 +27,26 @@ const markersLayer = ref<any>(null)
 const radiusCircle = ref<any>(null)
 const leafletRef = ref<any>(null)
 const showSearchHere = ref(false)
-const pendingCenter = ref<{ lat: number; lng: number } | null>(null)
-const localRadius = ref(props.radiusKm ?? 10)
+const mapCenter = ref<{ lat: number; lng: number } | null>(props.center)
 const ready = ref(false)
+const pinIcon = ref<any>(null)
 
-const effectiveCenter = computed(() => props.center ?? { lat: 45.815, lng: 15.9819 })
-const missingGeoMessage = computed(() => {
-  if (!props.missingGeoCount) return ''
-  const suffix = props.missingGeoCount === 1 ? 'listing' : 'listings'
-  return `${props.missingGeoCount} ${suffix} are missing map coordinates`
-})
-
+const defaultCenter = { lat: 44.8125, lng: 20.4612 } // Belgrade
+const effectiveCenter = computed(() => mapCenter.value ?? props.center ?? defaultCenter)
 const initMap = async () => {
   if (ready.value || !mapContainer.value) return
   const leafletImport = await import('leaflet')
   const leaflet = leafletImport.default ?? leafletImport
   leafletRef.value = leaflet
+  pinIcon.value = leaflet.icon({
+    iconUrl: markerIconUrl,
+    iconRetinaUrl: markerIconRetinaUrl,
+    shadowUrl: markerShadowUrl,
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41],
+  })
 
   mapInstance.value = leaflet.map(mapContainer.value, {
     zoomControl: false,
@@ -67,9 +75,14 @@ const initMap = async () => {
     })
     .addTo(mapInstance.value)
 
-  mapInstance.value.on('moveend', () => {
+  mapInstance.value.on('move', () => {
     const center = mapInstance.value.getCenter()
-    pendingCenter.value = { lat: center.lat, lng: center.lng }
+    mapCenter.value = { lat: center.lat, lng: center.lng }
+    radiusCircle.value?.setLatLng(center)
+    emit('center-change', { lat: center.lat, lng: center.lng })
+  })
+
+  mapInstance.value.on('moveend', () => {
     showSearchHere.value = true
   })
 
@@ -94,7 +107,7 @@ const renderMarkers = () => {
   props.listings.forEach((listing) => {
     if (listing.lat == null || listing.lng == null) return
     const marker = leaflet
-      .marker([listing.lat, listing.lng], { icon })
+      .marker([listing.lat, listing.lng], { icon: pinIcon.value ?? icon })
       .bindTooltip(
         `<div class="font-semibold text-slate-800">${listing.title}</div><div class="text-xs text-slate-500">${listing.city}</div>`,
         { direction: 'top', opacity: 0.9, offset: [0, -8] },
@@ -105,27 +118,15 @@ const renderMarkers = () => {
 }
 
 const updateCircle = () => {
-  if (!radiusCircle.value || !props.radiusKm) return
+  if (!ready.value || !radiusCircle.value || !radiusCircle.value._map) return
   radiusCircle.value.setLatLng([effectiveCenter.value.lat, effectiveCenter.value.lng])
   radiusCircle.value.setRadius((props.radiusKm ?? 10) * 1000)
 }
 
 const recenter = () => {
-  if (!mapInstance.value) return
+  if (!ready.value || !mapInstance.value) return
   mapInstance.value.setView([effectiveCenter.value.lat, effectiveCenter.value.lng])
   updateCircle()
-  showSearchHere.value = false
-  pendingCenter.value = null
-}
-
-const emitSearchHere = () => {
-  const center = pendingCenter.value ?? effectiveCenter.value
-  emit('search-area', center)
-  showSearchHere.value = false
-}
-
-const onRadiusInput = () => {
-  emit('radius-change', localRadius.value)
 }
 
 watch(
@@ -137,7 +138,7 @@ watch(
 watch(
   () => props.center,
   () => {
-    localRadius.value = props.radiusKm ?? localRadius.value
+    mapCenter.value = props.center
     recenter()
   },
 )
@@ -146,7 +147,6 @@ watch(
   () => props.radiusKm,
   (val) => {
     if (val) {
-      localRadius.value = val
       updateCircle()
     }
   },
@@ -171,45 +171,7 @@ onBeforeUnmount(() => {
         <div class="mt-1 h-8 w-8 rounded-full border border-primary/30" />
       </div>
 
-      <div class="pointer-events-auto absolute left-4 right-4 top-4 flex flex-col gap-3 md:left-6 md:right-6">
-        <div class="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white/90 p-3 shadow-soft backdrop-blur">
-          <div>
-            <p class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Radius</p>
-            <p class="text-lg font-semibold text-slate-900">{{ localRadius }} km</p>
-          </div>
-          <input
-            v-model.number="localRadius"
-            type="range"
-            min="1"
-            max="50"
-            step="1"
-            class="h-2 w-full flex-1 appearance-none rounded-full bg-surface accent-primary md:w-64"
-            @input="onRadiusInput"
-          />
-        </div>
-        <div
-          v-if="missingGeoMessage"
-          class="flex items-center gap-2 rounded-2xl bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 shadow-soft"
-        >
-          <span class="h-2 w-2 rounded-full bg-amber-500" />
-          {{ missingGeoMessage }}
-        </div>
-      </div>
-
-      <div class="pointer-events-auto absolute bottom-5 left-0 right-0 flex flex-col items-center gap-3">
-        <button
-          v-if="showSearchHere"
-          class="rounded-full bg-primary px-4 py-2 text-sm font-semibold text-white shadow-soft transition hover:-translate-y-0.5"
-          @click="emitSearchHere"
-        >
-          Search this area
-        </button>
-        <div class="flex items-center gap-2 rounded-full bg-white/90 px-4 py-2 text-xs font-semibold text-slate-700 shadow-soft">
-          <span class="h-2.5 w-2.5 rounded-full bg-emerald-500 animate-pulse" />
-          {{ listings.length }} {{ listings.length === 1 ? 'home' : 'homes' }} in view
-          <span v-if="loading" class="text-muted">(refreshing...)</span>
-        </div>
-      </div>
+      <div class="pointer-events-none absolute inset-0"></div>
     </div>
   </div>
 </template>

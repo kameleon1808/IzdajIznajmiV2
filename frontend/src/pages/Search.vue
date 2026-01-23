@@ -27,6 +27,7 @@ const searchQuery = ref<string>((route.query.q as string) ?? '')
 const filterOpen = ref(false)
 const geocoding = ref(false)
 const geocodeError = ref('')
+const defaultCenter = { lat: 44.8125, lng: 20.4612 } // Belgrade
 const localFilters = ref<ListingFilters & { areaRange: [number, number] }>({
   ...listingsStore.filters,
   priceRange: [...listingsStore.filters.priceRange] as [number, number],
@@ -52,7 +53,12 @@ const mapCenter = computed(() =>
     : null,
 )
 const radiusValue = computed<number>(() => listingsStore.filters.radiusKm ?? defaultFilters.radiusKm ?? 0)
+const inlineRadius = ref(radiusValue.value)
 const missingGeoCount = computed(() => results.value.filter((item) => item.lat == null || item.lng == null).length)
+
+watch(radiusValue, (val) => {
+  inlineRadius.value = val
+})
 
 const hydrateFromRoute = () => {
   const query = route.query
@@ -83,6 +89,11 @@ const hydrateFromRoute = () => {
   if (query.radiusKm) parsed.radiusKm = Number(query.radiusKm)
 
   listingsStore.setFilters({ ...listingsStore.filters, ...parsed }, { fetch: false })
+
+  if (!parsed.centerLat && !parsed.centerLng && (listingsStore.filters.centerLat == null || listingsStore.filters.centerLng == null)) {
+    listingsStore.updateGeoFilters(defaultCenter.lat, defaultCenter.lng, listingsStore.filters.radiusKm ?? defaultFilters.radiusKm)
+  }
+
   localFilters.value = {
     ...listingsStore.filters,
     priceRange: [...listingsStore.filters.priceRange] as [number, number],
@@ -131,7 +142,11 @@ const syncQueryParams = () => {
 const ensureMapCenter = async () => {
   if (listingsStore.filters.centerLat != null && listingsStore.filters.centerLng != null) return
   const queryText = listingsStore.filters.city || listingsStore.filters.location || searchQuery.value
-  if (!queryText) return
+  if (!queryText) {
+    listingsStore.updateGeoFilters(defaultCenter.lat, defaultCenter.lng, listingsStore.filters.radiusKm ?? defaultFilters.radiusKm)
+    syncQueryParams()
+    return
+  }
   geocodeError.value = ''
   geocoding.value = true
   try {
@@ -143,6 +158,15 @@ const ensureMapCenter = async () => {
   } finally {
     geocoding.value = false
   }
+}
+
+const snapCurrentLocation = async () => {
+  await ensureMapCenter()
+  const lat = listingsStore.filters.centerLat ?? defaultCenter.lat
+  const lng = listingsStore.filters.centerLng ?? defaultCenter.lng
+  listingsStore.updateGeoFilters(lat, lng, listingsStore.filters.radiusKm ?? defaultFilters.radiusKm)
+  syncQueryParams()
+  await runSearch()
 }
 
 const runSearch = async () => {
@@ -177,12 +201,16 @@ const resetFilters = async () => {
 
 const handleSearchArea = async (coords: { lat: number; lng: number }) => {
   listingsStore.updateGeoFilters(coords.lat, coords.lng, listingsStore.filters.radiusKm ?? defaultFilters.radiusKm)
+  syncQueryParams()
   await runSearch()
+}
+
+const handleCenterChange = (coords: { lat: number; lng: number }) => {
+  listingsStore.updateGeoFilters(coords.lat, coords.lng, listingsStore.filters.radiusKm ?? defaultFilters.radiusKm)
 }
 
 const handleRadiusChange = async (radius: number) => {
   listingsStore.updateGeoFilters(listingsStore.filters.centerLat ?? null, listingsStore.filters.centerLng ?? null, radius)
-  await runSearch()
 }
 
 const setViewMode = async (mode: 'list' | 'map') => {
@@ -204,6 +232,10 @@ onMounted(async () => {
   await listingsStore.fetchRecommended()
   await listingsStore.fetchPopular()
   await runSearch()
+  if (viewMode.value === 'map' && (!listingsStore.filters.centerLat || !listingsStore.filters.centerLng)) {
+    listingsStore.updateGeoFilters(defaultCenter.lat, defaultCenter.lng, listingsStore.filters.radiusKm ?? defaultFilters.radiusKm)
+    syncQueryParams()
+  }
 })
 
 watch(filterOpen, (open) => {
@@ -347,14 +379,30 @@ watch(
     </div>
 
     <div v-else class="space-y-4">
-      <div class="flex flex-wrap items-center justify-between gap-2 px-1 text-sm text-muted">
+      <div class="flex flex-wrap items-center gap-3 px-1 text-sm text-muted">
         <div class="flex items-center gap-2 font-semibold text-slate-700">
           <MapPin class="h-4 w-4 text-primary" />
           <span>Within {{ radiusValue }} km radius</span>
         </div>
-        <Button size="sm" variant="secondary" :loading="geocoding" @click="ensureMapCenter">
-          Snap to location
+        <Button size="sm" variant="secondary" :loading="geocoding" @click="snapCurrentLocation">
+          Snap this location
         </Button>
+      </div>
+
+      <div class="rounded-3xl bg-white px-4 py-3 shadow-soft border border-line/60">
+        <p class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Radius</p>
+        <div class="mt-1 flex items-center gap-3">
+          <span class="text-sm font-semibold text-slate-900 w-12">{{ inlineRadius }} km</span>
+          <input
+            v-model.number="inlineRadius"
+            type="range"
+            min="1"
+            max="50"
+            step="1"
+            class="flex-1 accent-primary"
+            @input="handleRadiusChange(Number(inlineRadius))"
+          />
+        </div>
       </div>
 
       <MapExplorer
@@ -364,6 +412,7 @@ watch(
         :loading="loading"
         :missing-geo-count="missingGeoCount"
         @search-area="handleSearchArea"
+        @center-change="handleCenterChange"
         @radius-change="handleRadiusChange"
         @select-listing="(id) => router.push(`/listing/${id}`)"
       />
