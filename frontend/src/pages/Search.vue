@@ -12,7 +12,7 @@ import Button from '../components/ui/Button.vue'
 import EmptyState from '../components/ui/EmptyState.vue'
 import ErrorBanner from '../components/ui/ErrorBanner.vue'
 import ListSkeleton from '../components/ui/ListSkeleton.vue'
-import { geocodeLocation } from '../services'
+import { geocodeLocation, suggestLocations } from '../services'
 import { defaultFilters, useListingsStore } from '../stores/listings'
 import type { ListingFilters } from '../types'
 
@@ -27,6 +27,9 @@ const searchQuery = ref<string>((route.query.q as string) ?? '')
 const filterOpen = ref(false)
 const geocoding = ref(false)
 const geocodeError = ref('')
+const suggestLoading = ref(false)
+const suggestions = ref<{ label: string; lat: number; lng: number; type: string }[]>([])
+const showSuggestions = ref(false)
 const defaultCenter = { lat: 44.8125, lng: 20.4612 } // Belgrade
 const localFilters = ref<ListingFilters & { areaRange: [number, number] }>({
   ...listingsStore.filters,
@@ -37,7 +40,9 @@ const localFilters = ref<ListingFilters & { areaRange: [number, number] }>({
   radiusKm: listingsStore.filters.radiusKm ?? defaultFilters.radiusKm,
 })
 const currentQuery = ref('')
-const debouncedSearch = useDebounceFn(() => runSearch(), 300)
+const debouncedSuggest = useDebounceFn(async () => {
+  await fetchSuggestions()
+}, 250)
 const currentQueryValue = computed(() => currentQuery.value)
 
 const results = computed(() =>
@@ -104,6 +109,8 @@ const hydrateFromRoute = () => {
   }
 }
 
+const skipQuerySync = ref(false)
+
 const buildQueryFromState = () => {
   const f = listingsStore.filters
   const nextQuery: Record<string, any> = {}
@@ -132,11 +139,18 @@ const buildQueryFromState = () => {
   return nextQuery
 }
 
-const syncQueryParams = () => {
+const syncQueryParams = async () => {
+  if (skipQuerySync.value) return
   const desired = buildQueryFromState()
   const current = { ...route.query }
   if (JSON.stringify(desired) === JSON.stringify(current)) return
-  router.replace({ query: desired })
+  skipQuerySync.value = true
+  try {
+    await router.replace({ query: desired })
+  } finally {
+    // small delay to let watcher skip this navigation tick
+    setTimeout(() => (skipQuerySync.value = false), 0)
+  }
 }
 
 const ensureMapCenter = async () => {
@@ -165,14 +179,42 @@ const snapCurrentLocation = async () => {
   const lat = listingsStore.filters.centerLat ?? defaultCenter.lat
   const lng = listingsStore.filters.centerLng ?? defaultCenter.lng
   listingsStore.updateGeoFilters(lat, lng, listingsStore.filters.radiusKm ?? defaultFilters.radiusKm)
-  syncQueryParams()
+  await syncQueryParams()
   await runSearch()
+}
+
+const fetchSuggestions = async () => {
+  const q = searchQuery.value.trim()
+  if (!q) {
+    suggestions.value = []
+    return
+  }
+  suggestLoading.value = true
+  try {
+    suggestions.value = await suggestLocations(q, 5)
+  } catch (err) {
+    // swallow
+  } finally {
+    suggestLoading.value = false
+  }
+}
+
+// const selectSuggestion = (item: { label: string; lat: number; lng: number; type: string }) => {
+//   searchQuery.value = item.label
+//   listingsStore.updateGeoFilters(item.lat, item.lng, listingsStore.filters.radiusKm ?? defaultFilters.radiusKm)
+//   syncQueryParams()
+//   showSuggestions.value = false
+//   // do not auto-run search; user will click Snap / Search area
+// }
+
+const hideSuggestions = () => {
+  setTimeout(() => (showSuggestions.value = false), 150)
 }
 
 const runSearch = async () => {
   currentQuery.value = searchQuery.value || ''
-  await listingsStore.search(currentQuery.value)
-  syncQueryParams()
+  await listingsStore.search(currentQuery.value, { mapMode: viewMode.value === 'map' })
+  await syncQueryParams()
 }
 
 const applyFilters = async () => {
@@ -201,11 +243,12 @@ const resetFilters = async () => {
 
 const handleSearchArea = async (coords: { lat: number; lng: number }) => {
   listingsStore.updateGeoFilters(coords.lat, coords.lng, listingsStore.filters.radiusKm ?? defaultFilters.radiusKm)
-  syncQueryParams()
+  await syncQueryParams()
   await runSearch()
 }
 
 const handleCenterChange = (coords: { lat: number; lng: number }) => {
+  // Update store but defer URL + search until user taps "Search this area"/Snap.
   listingsStore.updateGeoFilters(coords.lat, coords.lng, listingsStore.filters.radiusKm ?? defaultFilters.radiusKm)
 }
 
@@ -224,7 +267,7 @@ const setViewMode = async (mode: 'list' | 'map') => {
       await runSearch()
     }
   }
-  syncQueryParams()
+  await syncQueryParams()
 }
 
 onMounted(async () => {
@@ -251,12 +294,13 @@ watch(filterOpen, (open) => {
 })
 
 watch(searchQuery, () => {
-  debouncedSearch()
+  debouncedSuggest()
 })
 
 watch(
   () => route.query,
   (newQuery) => {
+    if (skipQuerySync.value) return
     if (JSON.stringify(buildQueryFromState()) === JSON.stringify(newQuery)) return
     hydrateFromRoute()
     runSearch()
@@ -264,29 +308,46 @@ watch(
   { deep: true },
 )
 
-watch(
-  () => listingsStore.filters.radiusKm,
-  () => {
-    if (viewMode.value === 'map' && listingsStore.filters.centerLat != null && listingsStore.filters.centerLng != null) {
-      syncQueryParams()
-    }
-  },
-)
+// Radius changes should not auto-trigger search; user confirms via Snap/Search buttons.
 </script>
 
 <template>
   <div class="space-y-5">
     <ErrorBanner v-if="error" :message="error" />
     <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-      <Input
-        v-model="searchQuery"
-        class="w-full"
-        placeholder="Search location or stay"
-        :left-icon="SearchIcon"
-        :right-icon="SlidersHorizontal"
-        @rightIconClick="filterOpen = true"
-        @focus="runSearch"
-      />
+      <div class="w-full md:max-w-xl relative">
+        <Input
+          v-model="searchQuery"
+          class="w-full"
+          placeholder="Search location or stay"
+          :left-icon="SearchIcon"
+          :right-icon="SlidersHorizontal"
+          @leftIconClick="runSearch"
+          @rightIconClick="filterOpen = true"
+          @focus="showSuggestions = true; fetchSuggestions()"
+          @blur="hideSuggestions"
+          @input="showSuggestions = true"
+        />
+        <!-- Suggestion dropdown temporarily disabled; keep markup for future re-enable
+        <div
+          v-if="showSuggestions && suggestions.length"
+          class="absolute z-20 mt-1 w-full rounded-2xl border border-line bg-white shadow-soft"
+        >
+          <button
+            v-for="item in suggestions"
+            :key="item.label"
+            class="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-surface"
+            @mousedown.prevent="selectSuggestion(item)"
+          >
+            <MapPin class="h-4 w-4 text-primary" />
+            <div>
+              <p class="text-sm font-semibold text-slate-900">{{ item.label }}</p>
+              <p class="text-[11px] uppercase tracking-[0.08em] text-muted">{{ item.type }}</p>
+            </div>
+          </button>
+        </div>
+        -->
+      </div>
       <div class="inline-flex overflow-hidden rounded-full border border-line bg-surface text-sm font-semibold shadow-soft">
         <button
           :class="[

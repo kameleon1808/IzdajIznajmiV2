@@ -12,7 +12,7 @@ const props = defineProps({
   type: { type: String, default: 'text' },
 })
 
-const emit = defineEmits(['update:modelValue', 'rightIconClick', 'focus'])
+const emit = defineEmits(['update:modelValue', 'rightIconClick', 'leftIconClick', 'focus'])
 
 const classes = computed(() =>
   [
@@ -25,7 +25,14 @@ const onInput = (e: Event) => emit('update:modelValue', (e.target as HTMLInputEl
 
 <template>
   <label :class="classes">
-    <component v-if="leftIcon" :is="leftIcon" class="h-5 w-5 text-muted" />
+    <button
+      v-if="leftIcon"
+      type="button"
+      class="flex items-center justify-center"
+      @click="emit('leftIconClick')"
+    >
+      <component :is="leftIcon" class="h-5 w-5 text-muted" />
+    </button>
     <input
       :value="modelValue"
       :placeholder="placeholder"

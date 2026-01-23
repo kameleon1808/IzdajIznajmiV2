@@ -21,6 +21,8 @@
 - Geokodiranje & geo pretraga:
   - Default koristi `FakeGeocoder` (determinističan lat/lng na osnovu adrese) — vidi `GEOCODER_DRIVER=fake`, `GEOCODER_CACHE_TTL`, `FAKE_GEOCODER_*` u `.env.example`.
   - Opcioni Nominatim adapter iza `GEOCODER_DRIVER=nominatim` sa `GEOCODER_NOMINATIM_URL`, `GEOCODER_NOMINATIM_EMAIL`, `GEOCODER_NOMINATIM_RATE_LIMIT_MS`.
+  - Autocomplete suggeri: `GET /api/v1/geocode/suggest?q=...&limit=...` koristi `GEOCODER_SUGGEST_DRIVER` (`fake` ili `nominatim`) i keš `GEOCODER_SUGGEST_CACHE_TTL` (minuti); rate limit key `geocode_suggest` (40/min IP).
+  - Geo parametri u pretrazi i deep linkovima: `centerLat`, `centerLng`, `radiusKm` (km, max `SEARCH_MAX_RADIUS_KM`, default 50). Map pin payload u map modu ograničen na `SEARCH_MAX_MAP_RESULTS` (default 300) uz `mapMode=true` query param.
   - Backfill komanda za postojeće zapise: `php artisan listings:geocode --missing` (koristi queue sync).
   - API: `/api/v1/geocode?q=...` (GET) za frontend centriranje mape; pretraga oglasa prihvata `centerLat`, `centerLng`, `radiusKm` (km) uz ostale filtere i vraća `distanceKm` kada je geo filter aktivan.
   - Verifikacija lokacije: detalj oglasa ima "View on map" link + Leaflet preview sa pinom. Vlasnik/admin mogu da ukljuce "Adjust pin" (draggable marker) i sacuvaju rucne koordinate preko `PATCH /api/v1/listings/{id}/location`; reset na automatsko geokodiranje ide kroz `POST /api/v1/listings/{id}/location/reset`.

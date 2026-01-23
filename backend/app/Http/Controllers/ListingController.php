@@ -19,6 +19,10 @@ class ListingController extends Controller
     {
         $perPage = (int) $request->input('perPage', 10);
         $perPage = min(max($perPage, 1), 50);
+        $mapMode = $request->boolean('mapMode', false);
+        if ($mapMode) {
+            $perPage = min($perPage, 300);
+        }
 
         $filters = [
             'status' => $request->input('status'),
@@ -38,9 +42,20 @@ class ListingController extends Controller
             'centerLat' => $request->input('centerLat'),
             'centerLng' => $request->input('centerLng'),
             'radiusKm' => $request->input('radiusKm'),
+            'mapMode' => $mapMode,
         ];
 
         $listings = $this->searchService->search($filters, $perPage);
+
+        if ($mapMode) {
+            return response()->json([
+                'data' => $listings->items(),
+                'meta' => [
+                    'total' => $listings->total(),
+                    'count' => $listings->count(),
+                ],
+            ]);
+        }
 
         return ListingResource::collection($listings)->response();
     }

@@ -15,7 +15,20 @@ class ListingSearchService
     public function search(array $filters, int $perPage = 10): LengthAwarePaginator
     {
         $query = $this->baseQuery();
-        $geoApplied = $this->applyFilters($query, $filters);
+        $mapMode = (bool) ($filters['mapMode'] ?? false);
+        $geoApplied = $this->applyFilters($query, $filters, $mapMode);
+
+        if ($mapMode) {
+            $query->select([
+                'id',
+                'title',
+                'lat',
+                'lng',
+                'price_per_night as pricePerNight',
+                'cover_image as coverImage',
+                'city',
+            ]);
+        }
 
         if ($geoApplied) {
             $query->orderBy('distance_km');
@@ -40,7 +53,7 @@ class ListingSearchService
     /**
      * @return bool whether geo filtering was applied
      */
-    public function applyFilters(Builder $query, array $filters): bool
+    public function applyFilters(Builder $query, array $filters, bool $mapMode = false): bool
     {
         $statuses = array_filter((array) ($filters['status'] ?? []));
         $allowedStatuses = $this->statusService->allowedStatuses();
@@ -84,7 +97,9 @@ class ListingSearchService
             $location = (string) $filters['location'];
             $query->where(function ($builder) use ($location) {
                 $builder->where('city', 'like', "%{$location}%")
-                    ->orWhere('country', 'like', "%{$location}%");
+                    ->orWhere('country', 'like', "%{$location}%")
+                    ->orWhere('title', 'like', "%{$location}%")
+                    ->orWhere('address', 'like', "%{$location}%");
             });
         }
 
@@ -97,11 +112,15 @@ class ListingSearchService
 
             $query->where(function ($builder) use ($cityInput, $tokens) {
                 $builder->where('city', 'like', "%{$cityInput}%")
-                    ->orWhere('country', 'like', "%{$cityInput}%");
+                    ->orWhere('country', 'like', "%{$cityInput}%")
+                    ->orWhere('title', 'like', "%{$cityInput}%")
+                    ->orWhere('address', 'like', "%{$cityInput}%");
 
                 $tokens->each(function ($token) use ($builder) {
                     $builder->orWhere('city', 'like', "%{$token}%")
-                        ->orWhere('country', 'like', "%{$token}%");
+                        ->orWhere('country', 'like', "%{$token}%")
+                        ->orWhere('title', 'like', "%{$token}%")
+                        ->orWhere('address', 'like', "%{$token}%");
                 });
             });
         }
@@ -118,14 +137,18 @@ class ListingSearchService
             });
         }
 
-        return $this->applyGeoFilter($query, $filters);
+        return $this->applyGeoFilter($query, $filters, $mapMode);
     }
 
-    private function applyGeoFilter(Builder $query, array $filters): bool
+    private function applyGeoFilter(Builder $query, array $filters, bool $mapMode = false): bool
     {
         $centerLat = $this->toFloat($filters['centerLat'] ?? null, -90, 90);
         $centerLng = $this->toFloat($filters['centerLng'] ?? null, -180, 180);
         $radius = $this->toFloat($filters['radiusKm'] ?? null, 1.0, 50.0);
+        $maxRadius = (float) config('search.max_radius_km', 50.0);
+        if ($radius !== null) {
+            $radius = min($radius, $maxRadius);
+        }
 
         if ($centerLat === null || $centerLng === null) {
             return false;
@@ -143,6 +166,11 @@ class ListingSearchService
         $deltaLng = $radiusKm / (111.045 * max(cos(deg2rad($centerLat)), 0.1));
         $query->whereBetween('lat', [$centerLat - $deltaLat, $centerLat + $deltaLat])
             ->whereBetween('lng', [$centerLng - $deltaLng, $centerLng + $deltaLng]);
+
+        if ($mapMode) {
+            $maxPins = (int) config('search.max_map_results', 300);
+            $query->limit($maxPins);
+        }
 
         return true;
     }

@@ -1,0 +1,107 @@
+listings.ts:111 [Vue warn]: Unhandled error during execution of app errorHandler
+warn$1 @ chunk-2MKFL3BX.js?v=cbb0b985:2195
+logError @ chunk-2MKFL3BX.js?v=cbb0b985:2406
+handleError @ chunk-2MKFL3BX.js?v=cbb0b985:2398
+checkRecursiveUpdates @ chunk-2MKFL3BX.js?v=cbb0b985:2581
+check @ chunk-2MKFL3BX.js?v=cbb0b985:2539
+flushJobs @ chunk-2MKFL3BX.js?v=cbb0b985:2544
+Promise.then
+queueFlush @ chunk-2MKFL3BX.js?v=cbb0b985:2464
+queueJob @ chunk-2MKFL3BX.js?v=cbb0b985:2459
+baseWatchOptions.scheduler @ chunk-2MKFL3BX.js?v=cbb0b985:3039
+effect2.scheduler @ chunk-2MKFL3BX.js?v=cbb0b985:2088
+trigger @ chunk-2MKFL3BX.js?v=cbb0b985:533
+endBatch @ chunk-2MKFL3BX.js?v=cbb0b985:591
+trigger @ chunk-2MKFL3BX.js?v=cbb0b985:980
+set @ chunk-2MKFL3BX.js?v=cbb0b985:1296
+set value @ chunk-2MKFL3BX.js?v=cbb0b985:1843
+set @ chunk-2MKFL3BX.js?v=cbb0b985:1280
+set @ pinia.js?v=cbb0b985:5200
+updateGeoFilters @ listings.ts:111
+wrappedAction @ pinia.js?v=cbb0b985:5507
+store.<computed> @ pinia.js?v=cbb0b985:5204
+snapCurrentLocation @ Search.vue:177
+await in snapCurrentLocation
+callWithErrorHandling @ chunk-2MKFL3BX.js?v=cbb0b985:2342
+callWithAsyncErrorHandling @ chunk-2MKFL3BX.js?v=cbb0b985:2349
+invoker @ chunk-2MKFL3BX.js?v=cbb0b985:11425
+Search.vue:147 [Vue Router warn]: uncaught error during route navigation:
+warn$1 @ vue-router.js?v=cbb0b985:207
+triggerError @ vue-router.js?v=cbb0b985:2262
+(anonymous) @ vue-router.js?v=cbb0b985:2286
+Promise.catch
+handleScroll @ vue-router.js?v=cbb0b985:2286
+pushWithRedirect @ vue-router.js?v=cbb0b985:2136
+push @ vue-router.js?v=cbb0b985:2089
+replace @ vue-router.js?v=cbb0b985:2092
+syncQueryParams @ Search.vue:147
+snapCurrentLocation @ Search.vue:178
+await in snapCurrentLocation
+callWithErrorHandling @ chunk-2MKFL3BX.js?v=cbb0b985:2342
+callWithAsyncErrorHandling @ chunk-2MKFL3BX.js?v=cbb0b985:2349
+invoker @ chunk-2MKFL3BX.js?v=cbb0b985:11425
+Search.vue:147 Maximum recursive updates exceeded in component <Search>. This means you have a reactive effect that is mutating its own dependencies and thus recursively triggering itself. Possible sources include component template, render function, updated hook or watcher source function.
+triggerError @ vue-router.js?v=cbb0b985:2263
+(anonymous) @ vue-router.js?v=cbb0b985:2286
+Promise.catch
+handleScroll @ vue-router.js?v=cbb0b985:2286
+pushWithRedirect @ vue-router.js?v=cbb0b985:2136
+push @ vue-router.js?v=cbb0b985:2089
+replace @ vue-router.js?v=cbb0b985:2092
+syncQueryParams @ Search.vue:147
+snapCurrentLocation @ Search.vue:178
+await in snapCurrentLocation
+callWithErrorHandling @ chunk-2MKFL3BX.js?v=cbb0b985:2342
+callWithAsyncErrorHandling @ chunk-2MKFL3BX.js?v=cbb0b985:2349
+invoker @ chunk-2MKFL3BX.js?v=cbb0b985:11425
+:5173/search?view=ma…538453&radiusKm=3:1 Uncaught (in promise) Maximum recursive updates exceeded in component <Search>. This means you have a reactive effect that is mutating its own dependencies and thus recursively triggering itself. Possible sources include component template, render function, updated hook or watcher source function.
+listings.ts:178 [Vue warn]: Unhandled error during execution of app errorHandler
+warn$1 @ chunk-2MKFL3BX.js?v=cbb0b985:2195
+logError @ chunk-2MKFL3BX.js?v=cbb0b985:2406
+handleError @ chunk-2MKFL3BX.js?v=cbb0b985:2398
+checkRecursiveUpdates @ chunk-2MKFL3BX.js?v=cbb0b985:2581
+check @ chunk-2MKFL3BX.js?v=cbb0b985:2539
+flushJobs @ chunk-2MKFL3BX.js?v=cbb0b985:2544
+Promise.then
+queueFlush @ chunk-2MKFL3BX.js?v=cbb0b985:2464
+queueJob @ chunk-2MKFL3BX.js?v=cbb0b985:2459
+effect2.scheduler @ chunk-2MKFL3BX.js?v=cbb0b985:8334
+trigger @ chunk-2MKFL3BX.js?v=cbb0b985:533
+endBatch @ chunk-2MKFL3BX.js?v=cbb0b985:591
+trigger @ chunk-2MKFL3BX.js?v=cbb0b985:980
+set @ chunk-2MKFL3BX.js?v=cbb0b985:1296
+set value @ chunk-2MKFL3BX.js?v=cbb0b985:1843
+set @ chunk-2MKFL3BX.js?v=cbb0b985:1280
+set @ pinia.js?v=cbb0b985:5200
+search @ listings.ts:178
+await in search
+wrappedAction @ pinia.js?v=cbb0b985:5507
+store.<computed> @ pinia.js?v=cbb0b985:5204
+runSearch @ Search.vue:212
+snapCurrentLocation @ Search.vue:179
+await in snapCurrentLocation
+callWithErrorHandling @ chunk-2MKFL3BX.js?v=cbb0b985:2342
+callWithAsyncErrorHandling @ chunk-2MKFL3BX.js?v=cbb0b985:2349
+invoker @ chunk-2MKFL3BX.js?v=cbb0b985:11425
+:5173/search?view=ma…538453&radiusKm=3:1 Uncaught (in promise) Maximum recursive updates exceeded in component <Search>. This means you have a reactive effect that is mutating its own dependencies and thus recursively triggering itself. Possible sources include component template, render function, updated hook or watcher source function.
+Promise.then
+queueFlush @ chunk-2MKFL3BX.js?v=cbb0b985:2464
+queueJob @ chunk-2MKFL3BX.js?v=cbb0b985:2459
+effect2.scheduler @ chunk-2MKFL3BX.js?v=cbb0b985:8334
+trigger @ chunk-2MKFL3BX.js?v=cbb0b985:533
+endBatch @ chunk-2MKFL3BX.js?v=cbb0b985:591
+trigger @ chunk-2MKFL3BX.js?v=cbb0b985:980
+set @ chunk-2MKFL3BX.js?v=cbb0b985:1296
+set value @ chunk-2MKFL3BX.js?v=cbb0b985:1843
+set @ chunk-2MKFL3BX.js?v=cbb0b985:1280
+set @ pinia.js?v=cbb0b985:5200
+search @ listings.ts:178
+await in search
+wrappedAction @ pinia.js?v=cbb0b985:5507
+store.<computed> @ pinia.js?v=cbb0b985:5204
+runSearch @ Search.vue:212
+snapCurrentLocation @ Search.vue:179
+await in snapCurrentLocation
+callWithErrorHandling @ chunk-2MKFL3BX.js?v=cbb0b985:2342
+callWithAsyncErrorHandling @ chunk-2MKFL3BX.js?v=cbb0b985:2349
+invoker @ chunk-2MKFL3BX.js?v=cbb0b985:11425

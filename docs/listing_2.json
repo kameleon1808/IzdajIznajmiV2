@@ -1,0 +1,71 @@
+{
+    "id": 2,
+    "title": "Knez Mihailova City View",
+    "address": "Kneza Mihaila 42",
+    "city": "Beograd",
+    "country": "Srbija",
+    "lat": 44.816546,
+    "lng": 20.46013,
+    "geocodedAt": "2026-01-22T12:51:08.000000Z",
+    "locationSource": "geocoded",
+    "locationAccuracyM": null,
+    "locationOverriddenAt": null,
+    "pricePerNight": 110,
+    "rating": 4.4,
+    "reviewsCount": 38,
+    "coverImage": "https:\/\/images.unsplash.com\/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=1400&q=80",
+    "images": [
+        "https:\/\/images.unsplash.com\/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=1400&q=80",
+        "https:\/\/images.unsplash.com\/photo-1540541338287-41700207dee6?auto=format&fit=crop&w=1400&q=80",
+        "https:\/\/images.unsplash.com\/photo-1501117716987-c8e1ecb210af?auto=format&fit=crop&w=1400&q=80"
+    ],
+    "imagesDetailed": [
+        {
+            "url": "https:\/\/images.unsplash.com\/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=1400&q=80",
+            "sortOrder": 0,
+            "isCover": true,
+            "processingStatus": "done",
+            "processingError": null
+        },
+        {
+            "url": "https:\/\/images.unsplash.com\/photo-1540541338287-41700207dee6?auto=format&fit=crop&w=1400&q=80",
+            "sortOrder": 1,
+            "isCover": false,
+            "processingStatus": "done",
+            "processingError": null
+        },
+        {
+            "url": "https:\/\/images.unsplash.com\/photo-1501117716987-c8e1ecb210af?auto=format&fit=crop&w=1400&q=80",
+            "sortOrder": 2,
+            "isCover": false,
+            "processingStatus": "done",
+            "processingError": null
+        }
+    ],
+    "description": "Necessitatibus voluptatibus sed voluptatem nostrum nisi recusandae. Vero odio enim est qui et distinctio. Necessitatibus dolorum omnis et exercitationem aut.",
+    "beds": 2,
+    "baths": 1,
+    "rooms": 1,
+    "area": 55,
+    "category": "apartment",
+    "isFavorite": false,
+    "instantBook": true,
+    "facilities": [
+        "Pool",
+        "Wi-Fi",
+        "Parking",
+        "Gym",
+        "Kitchen",
+        "Mountain View"
+    ],
+    "ownerId": 3,
+    "landlord": {
+        "id": 3,
+        "fullName": "Landlord 2"
+    },
+    "createdAt": "2026-01-22T12:51:08.000000Z",
+    "status": "active",
+    "publishedAt": "2026-01-14T12:51:08.000000Z",
+    "archivedAt": null,
+    "expiredAt": null
+}

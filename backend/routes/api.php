@@ -8,6 +8,7 @@ use App\Http\Controllers\ListingController;
 use App\Http\Controllers\RatingController;
 use App\Http\Controllers\RatingReportController;
 use App\Http\Controllers\UserProfileController;
+use App\Http\Controllers\GeocodeSuggestController;
 use App\Http\Controllers\Admin\RatingAdminController;
 use App\Http\Controllers\MessageReportController;
 use App\Http\Controllers\ListingReportController;
@@ -40,6 +41,7 @@ $apiRoutes = function () use ($authRoutes) {
     Route::get('/users/{user}', [UserProfileController::class, 'show']);
     Route::get('/users/{user}/ratings', [RatingController::class, 'userRatings']);
     Route::get('/geocode', [GeocodingController::class, 'lookup'])->middleware('throttle:listings_search');
+    Route::get('/geocode/suggest', [GeocodeSuggestController::class, 'suggest'])->middleware('throttle:geocode_suggest');
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::get('/landlord/listings', [LandlordListingController::class, 'index']);

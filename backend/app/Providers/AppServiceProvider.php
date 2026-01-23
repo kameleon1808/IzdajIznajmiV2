@@ -15,9 +15,13 @@ use App\Policies\ListingPolicy;
 use App\Policies\ViewingRequestPolicy;
 use App\Policies\ViewingSlotPolicy;
 use App\Services\Geocoding\CachedGeocoder;
+use App\Services\Geocoding\CachedSuggestGeocoder;
 use App\Services\Geocoding\FakeGeocoder;
+use App\Services\Geocoding\FakeSuggestGeocoder;
 use App\Services\Geocoding\Geocoder;
 use App\Services\Geocoding\NominatimGeocoder;
+use App\Services\Geocoding\NominatimSuggestGeocoder;
+use App\Services\Geocoding\SuggestGeocoder;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\RateLimiter;
@@ -54,6 +58,26 @@ class AppServiceProvider extends ServiceProvider
 
             return new CachedGeocoder($baseGeocoder, $cache, $ttl);
         });
+
+        $this->app->bind(SuggestGeocoder::class, function ($app) {
+            $config = $app['config']->get('geocoding', []);
+            $driver = $config['suggest_driver'] ?? 'fake';
+            $ttl = (int) ($config['suggest_cache_ttl_minutes'] ?? 15);
+            $cache = $app['cache']->store(config('cache.default'));
+
+            $baseGeocoder = match ($driver) {
+                'nominatim' => new NominatimSuggestGeocoder(
+                    $config['nominatim']['endpoint'] ?? 'https://nominatim.openstreetmap.org/search',
+                    $config['nominatim']['email'] ?? null,
+                    $config['nominatim']['countrycodes'] ?? null,
+                    (int) ($config['nominatim']['rate_limit_ms'] ?? 1200),
+                    (int) ($config['nominatim']['timeout'] ?? 8),
+                ),
+                default => new FakeSuggestGeocoder(),
+            };
+
+            return new CachedSuggestGeocoder($baseGeocoder, $cache, $ttl);
+        });
     }
 
     /**
@@ -78,6 +102,10 @@ class AppServiceProvider extends ServiceProvider
 
         RateLimiter::for('listings_search', function (Request $request) {
             return Limit::perMinute(60)->by($request->ip());
+        });
+
+        RateLimiter::for('geocode_suggest', function (Request $request) {
+            return Limit::perMinute(40)->by($request->ip());
         });
 
         RateLimiter::for('booking_requests', function (Request $request) {

@@ -582,6 +582,21 @@ export async function searchListings(query: string, filters?: Partial<ListingFil
   return simulate(filtered.filter((item) => item.title.toLowerCase().includes(query.toLowerCase())))
 }
 
+export async function suggestLocations(query: string, limit = 5): Promise<{ label: string; lat: number; lng: number; type: string }[]> {
+  const base = [
+    { label: 'Belgrade, Serbia', lat: 44.8125, lng: 20.4612, type: 'city' },
+    { label: 'Novi Sad, Serbia', lat: 45.2671, lng: 19.8335, type: 'city' },
+    { label: 'Niš, Serbia', lat: 43.3209, lng: 21.8958, type: 'city' },
+    { label: 'Zagreb, Croatia', lat: 45.815, lng: 15.9819, type: 'city' },
+    { label: 'Split, Croatia', lat: 43.5081, lng: 16.4402, type: 'city' },
+  ]
+
+  const normalized = query.trim().toLowerCase()
+  if (!normalized) return simulate([])
+  const matched = base.filter((item) => item.label.toLowerCase().includes(normalized)).slice(0, limit)
+  return simulate(matched)
+}
+
 export async function geocodeLocation(query: string): Promise<{ lat: number; lng: number }> {
   const result = fakeGeocode(query)
   if (!result) throw new Error('Location not found')

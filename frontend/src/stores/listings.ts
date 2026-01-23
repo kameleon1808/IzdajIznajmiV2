@@ -108,11 +108,19 @@ export const useListingsStore = defineStore('listings', {
       }
     },
     updateGeoFilters(centerLat: number | null, centerLng: number | null, radiusKm?: number | null) {
+      const nextRadius = radiusKm ?? this.filters.radiusKm
+      if (
+        this.filters.centerLat === centerLat &&
+        this.filters.centerLng === centerLng &&
+        this.filters.radiusKm === nextRadius
+      ) {
+        return
+      }
       this.filters = {
         ...this.filters,
         centerLat,
         centerLng,
-        radiusKm: radiusKm ?? this.filters.radiusKm,
+        radiusKm: nextRadius,
       }
     },
     resetFilters() {
@@ -167,12 +175,12 @@ export const useListingsStore = defineStore('listings', {
         this.favoritesLoading = false
       }
     },
-    async search(query: string) {
+    async search(query: string, options: { mapMode?: boolean } = {}) {
       this.loading = true
       this.error = ''
       this.searchPage = 1
       try {
-        const resp = await searchListings(query, this.filters, this.searchPage, 10)
+        const resp = await searchListings(query, this.filters, this.searchPage, 10, options)
         const list = Array.isArray(resp) ? resp : resp.items
         this.searchMeta = Array.isArray(resp) ? null : resp.meta
         this.searchResults = this.syncFavorites(list)
@@ -186,14 +194,14 @@ export const useListingsStore = defineStore('listings', {
         this.loading = false
       }
     },
-    async loadMoreSearch(query: string | { value: string }) {
+    async loadMoreSearch(query: string | { value: string }, options: { mapMode?: boolean } = {}) {
       const q = typeof query === 'string' ? query : query.value
       if (this.loadingMore) return
       if (this.searchMeta && this.searchMeta.current_page >= this.searchMeta.last_page) return
       this.loadingMore = true
       try {
         const nextPage = (this.searchMeta?.current_page ?? this.searchPage) + 1
-        const resp = await searchListings(q, this.filters, nextPage, 10)
+        const resp = await searchListings(q, this.filters, nextPage, 10, options)
         const list = Array.isArray(resp) ? resp : resp.items
         this.searchMeta = Array.isArray(resp) ? null : resp.meta
         this.searchPage = nextPage

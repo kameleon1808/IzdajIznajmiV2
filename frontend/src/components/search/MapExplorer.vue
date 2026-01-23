@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import 'leaflet/dist/leaflet.css'
+import 'leaflet.markercluster/dist/MarkerCluster.css'
+import 'leaflet.markercluster/dist/MarkerCluster.Default.css'
 import type { Listing } from '../../types'
 import markerIconUrl from 'leaflet/dist/images/marker-icon.png'
 import markerIconRetinaUrl from 'leaflet/dist/images/marker-icon-2x.png'
@@ -24,18 +26,21 @@ const emit = defineEmits<{
 const mapContainer = ref<HTMLElement | null>(null)
 const mapInstance = ref<any>(null)
 const markersLayer = ref<any>(null)
+const clustersLayer = ref<any>(null)
 const radiusCircle = ref<any>(null)
 const leafletRef = ref<any>(null)
 const showSearchHere = ref(false)
 const mapCenter = ref<{ lat: number; lng: number } | null>(props.center)
 const ready = ref(false)
 const pinIcon = ref<any>(null)
+const searchDisabled = computed(() => props.loading)
 
 const defaultCenter = { lat: 44.8125, lng: 20.4612 } // Belgrade
 const effectiveCenter = computed(() => mapCenter.value ?? props.center ?? defaultCenter)
 const initMap = async () => {
   if (ready.value || !mapContainer.value) return
   const leafletImport = await import('leaflet')
+  await import('leaflet.markercluster')
   const leaflet = leafletImport.default ?? leafletImport
   leafletRef.value = leaflet
   pinIcon.value = leaflet.icon({
@@ -64,7 +69,9 @@ const initMap = async () => {
     })
     .addTo(mapInstance.value)
 
-  markersLayer.value = leaflet.layerGroup().addTo(mapInstance.value)
+  clustersLayer.value = leaflet.markerClusterGroup({ showCoverageOnHover: false, spiderfyOnMaxZoom: true })
+  markersLayer.value = leaflet.layerGroup()
+  clustersLayer.value.addTo(mapInstance.value)
   radiusCircle.value = leaflet
     .circle([effectiveCenter.value.lat, effectiveCenter.value.lng], {
       radius: (props.radiusKm ?? 10) * 1000,
@@ -79,11 +86,14 @@ const initMap = async () => {
     const center = mapInstance.value.getCenter()
     mapCenter.value = { lat: center.lat, lng: center.lng }
     radiusCircle.value?.setLatLng(center)
-    emit('center-change', { lat: center.lat, lng: center.lng })
+    // no emit here; parent only updates when user confirms "Search this area"
   })
 
   mapInstance.value.on('moveend', () => {
     showSearchHere.value = true
+    const center = mapInstance.value.getCenter()
+    mapCenter.value = { lat: center.lat, lng: center.lng }
+    emit('center-change', { lat: center.lat, lng: center.lng })
   })
 
   ready.value = true
@@ -94,8 +104,9 @@ const initMap = async () => {
 }
 
 const renderMarkers = () => {
-  if (!ready.value || !leafletRef.value || !markersLayer.value) return
-  markersLayer.value.clearLayers()
+  if (!ready.value || !leafletRef.value || !clustersLayer.value) return
+  clustersLayer.value.clearLayers()
+  markersLayer.value?.clearLayers?.()
   const leaflet = leafletRef.value
   const icon = leaflet.divIcon({
     className: 'map-pin',
@@ -113,7 +124,7 @@ const renderMarkers = () => {
         { direction: 'top', opacity: 0.9, offset: [0, -8] },
       )
     marker.on('click', () => emit('select-listing', listing.id))
-    markersLayer.value.addLayer(marker)
+    clustersLayer.value.addLayer(marker)
   })
 }
 
@@ -157,6 +168,7 @@ onMounted(() => {
 })
 
 onBeforeUnmount(() => {
+  mapInstance.value?.off()
   mapInstance.value?.remove?.()
 })
 </script>
@@ -164,6 +176,18 @@ onBeforeUnmount(() => {
 <template>
   <div class="relative overflow-hidden rounded-3xl border border-line bg-gradient-to-br from-white via-surface to-primary/5 shadow-card">
     <div ref="mapContainer" class="h-[420px] w-full" />
+
+    <div v-if="showSearchHere" class="pointer-events-auto absolute left-1/2 top-3 z-20 -translate-x-1/2">
+      <button
+        class="flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-800 shadow-card border border-line/70"
+        :disabled="searchDisabled"
+        :class="searchDisabled ? 'opacity-60 cursor-not-allowed' : 'hover:bg-surface'
+"
+        @click="emit('search-area', mapCenter ?? effectiveCenter)"
+      >
+        <span>{{ searchDisabled ? 'Loading…' : 'Search this area' }}</span>
+      </button>
+    </div>
 
     <div class="pointer-events-none absolute inset-0">
       <div class="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">

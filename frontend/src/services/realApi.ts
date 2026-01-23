@@ -226,8 +226,15 @@ export const getPopularListings = async (filters?: ListingFilters, page = 1, per
 export const getRecommendedListings = async (filters?: ListingFilters, page = 1, perPage = 10) =>
   getPopularListings(filters, page, perPage)
 
-export const searchListings = async (query: string, filters?: ListingFilters, page = 1, perPage = 10) => {
-  const params = { ...applyListingFilters(filters), location: query || filters?.location, page, perPage }
+export const searchListings = async (
+  query: string,
+  filters?: ListingFilters,
+  page = 1,
+  perPage = 10,
+  options: { mapMode?: boolean } = {},
+) => {
+  const params: Record<string, any> = { ...applyListingFilters(filters), location: query || filters?.location, page, perPage }
+  if (options.mapMode) params.mapMode = true
   const { data } = await apiClient.get('/listings', { params })
   return mapPaginated(data)
 }
@@ -235,6 +242,13 @@ export const searchListings = async (query: string, filters?: ListingFilters, pa
 export const geocodeLocation = async (query: string): Promise<{ lat: number; lng: number }> => {
   const { data } = await apiClient.get('/geocode', { params: { q: query } })
   return { lat: Number(data.lat), lng: Number(data.lng) }
+}
+
+export type GeocodeSuggestion = { label: string; lat: number; lng: number; type: string }
+
+export const suggestLocations = async (query: string, limit = 5): Promise<GeocodeSuggestion[]> => {
+  const { data } = await apiClient.get('/geocode/suggest', { params: { q: query, limit } })
+  return data as GeocodeSuggestion[]
 }
 
 export const getListingById = async (id: string): Promise<Listing | null> => {
