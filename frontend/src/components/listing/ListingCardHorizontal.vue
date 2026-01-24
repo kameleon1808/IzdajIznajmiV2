@@ -13,6 +13,7 @@ const toggle = (e: Event, id: string) => {
 
 <template>
   <div
+    data-testid="listing-card-horizontal"
     class="flex gap-3 rounded-2xl bg-white p-3 shadow-soft border border-white/60"
     @click="emit('click', listing)"
   >

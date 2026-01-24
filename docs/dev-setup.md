@@ -1,5 +1,10 @@
 # Dev setup (frontend + backend)
 
+## Prerequisites
+- Node.js 20+ (Vite 7 needs >=20.19; `.nvmrc` set to 20)
+- PHP 8.2+ (CI runs on 8.3)
+- Composer, npm
+
 ## Backend (Laravel API)
 - Lokacija: `/backend`
 - Port: `http://localhost:8000`
@@ -44,7 +49,9 @@
   - `VITE_API_BASE_URL=` (prazno koristi dev proxy ka backend-u)
   - `VITE_USE_MOCK_API=true` (default za bezbedan start)
 - Pokretanje: `npm install && cp .env.example .env && npm run dev`
-- Build: `npm run build` (zahteva Node 20.19+ ili 22.12+; dev server radi na Node 18 ali produkcioni build ne).
+- Build: `npm run build` (zahteva Node 20.19+ ili 22.12+; dev server radi, ali CI i build treba pokretati na Node 20+)
+- Unit testovi: `npm run test`
+- E2E smoke (mock API): `npm run test:e2e` (prvo pokretanje: `npx playwright install --with-deps chromium`)
 - Admin UI: `/admin` (KPI), `/admin/moderation` (prijave), `/admin/ratings` (ocene). Impersonacija prikazuje žuti baner sa tasterom „Stop“.
 
 ## API modovi

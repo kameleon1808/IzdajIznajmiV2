@@ -1,4 +1,5 @@
 # IzdajIznajmiV2
+[![Backend CI](https://github.com/kameleon1808/IzdajIznajmiV2/actions/workflows/backend.yml/badge.svg)](https://github.com/kameleon1808/IzdajIznajmiV2/actions/workflows/backend.yml)
 
 ## Project Overview
 IzdajIznajmiV2 is a UI-first marketplace for short- and mid-term stays, built as a modern SPA with a contract-driven Laravel API. It covers the full listing lifecycle from draft to publish/archive, focuses on quick discovery with polished mobile UX, and keeps the backend explicit about roles, policies, and rate limits.
@@ -60,8 +61,8 @@ The goal is to demonstrate a UX-forward SPA backed by a clean, well-documented A
 ## Getting Started (Local Development)
 
 ### Prerequisites
-- Node.js 18+, npm
-- PHP 8.2+, Composer
+- Node.js 20+ (CI uses 20.x; Vite 7 requires 20.19+)
+- PHP 8.2+ (CI uses 8.3), Composer
 - SQLite (default) or another DB; database queue driver enabled
 - Image processing requires GD (via Intervention Image)
 
@@ -117,7 +118,10 @@ npm run dev -- --host --port=5173
 - Storage & media: uploads via multipart, stored to `public`; queue processes WebP conversions and updates cover/ordering with `processing_status` (`pending/done/failed`).
 
 ## Testing
-- Backend: `cd backend && php artisan test`
+- Backend: `cd backend && composer install && php artisan test`
+- Frontend (unit): `cd frontend && npm ci && npm run test`
+- Frontend (build/type-check): `cd frontend && npm ci && npm run build`
+- E2E smoke (mock API): `cd frontend && npm ci && npm run test:e2e` (first run: `npx playwright install --with-deps chromium`)
 - UAT reference: `docs/uat-test-plan-sr.md`; test plan: `docs/test-plan-sr.md`
 
 ## Roadmap

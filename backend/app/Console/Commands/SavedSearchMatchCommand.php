@@ -15,7 +15,8 @@ class SavedSearchMatchCommand extends Command
 
     public function handle(StructuredLogger $log): int
     {
-        $storeName = 'file'; // force cross-process lock
+        // Use configured lock store (falls back to default cache store) so tests and prod stay consistent.
+        $storeName = Config::get('cache.locks.store') ?? Config::get('cache.default', 'file');
         $cache = Cache::store($storeName);
         $owner = uniqid('ssm-', true);
 

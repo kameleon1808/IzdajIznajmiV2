@@ -2,6 +2,8 @@
 
 Vue 3 + Vite SPA (mobile-first) sa Tailwind-om, Pinia store-ovima i dualnim API slojem (mock ili realni Laravel backend).
 
+> Zahteva Node.js 20+ (Vite 7 traži >=20.19)
+
 ## Quick start
 ```bash
 cd frontend
@@ -12,6 +14,11 @@ npm run dev
 
 - Backend default: `http://localhost:8000` (Laravel API u /backend).
 - Frontend dev: `http://localhost:5173` (Vite proxy preusmerava `/api` i `/sanctum` na backend radi cookie auth-a)
+
+## Checks / scripts
+- `npm run test` – Vitest (unit)
+- `npm run build` – type-check + production build
+- `npm run test:e2e` – Playwright smoke (mock API; koristi preview server)
 
 ## Environment
 - `VITE_API_BASE_URL` – baza za API (ostavite prazno za dev proxy; postavite na backend URL u produkciji)

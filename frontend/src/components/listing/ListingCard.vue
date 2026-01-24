@@ -13,6 +13,7 @@ const toggle = (e: Event, id: string) => {
 
 <template>
   <article
+    data-testid="listing-card"
     class="card-base overflow-hidden transition hover:-translate-y-1 hover:shadow-card"
     @click="emit('click', listing)"
   >
