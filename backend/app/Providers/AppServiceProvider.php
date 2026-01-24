@@ -116,7 +116,11 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('applications', function (Request $request) {
             $key = $request->user()?->id ?? $request->ip();
 
-            return Limit::perMinute(20)->by($key);
+            return Limit::perHour(10)
+                ->by($key)
+                ->response(function () {
+                    return response()->json(['message' => 'Too many applications. Please try again later.'], 429);
+                });
         });
 
         RateLimiter::for('viewing_requests', function (Request $request) {
@@ -127,6 +131,16 @@ class AppServiceProvider extends ServiceProvider
         RateLimiter::for('landlord_write', function (Request $request) {
             $key = $request->user()?->id ?? $request->ip();
             return Limit::perMinute(30)->by($key);
+        });
+
+        RateLimiter::for('chat_messages', function (Request $request) {
+            $key = $request->user()?->id ?? $request->ip();
+
+            return Limit::perMinute(60)
+                ->by($key)
+                ->response(function () {
+                    return response()->json(['message' => 'Chat limit reached. Please slow down.'], 429);
+                });
         });
     }
 }

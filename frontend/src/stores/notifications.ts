@@ -24,6 +24,7 @@ export const useNotificationStore = defineStore('notifications', {
     notifications: [] as Notification[],
     unreadCount: 0,
     loading: false,
+    error: '',
     preferences: null as NotificationPreferences | null,
     preferencesLoading: false,
   }),
@@ -41,6 +42,7 @@ export const useNotificationStore = defineStore('notifications', {
     },
     async fetchNotifications(status: 'unread' | 'all' = 'all', page: number = 1) {
       this.loading = true
+      this.error = ''
       try {
         const { data } = await apiClient.get('/notifications', {
           params: { status, page },
@@ -53,7 +55,7 @@ export const useNotificationStore = defineStore('notifications', {
         this.unreadCount = data.data?.filter((n: Notification) => !n.isRead).length ?? this.unreadCount
         return data
       } catch (error) {
-        console.error('Failed to fetch notifications:', error)
+        this.error = (error as Error).message || 'Failed to load notifications.'
         throw error
       } finally {
         this.loading = false

@@ -45,6 +45,10 @@ class ListingController extends Controller
             'mapMode' => $mapMode,
         ];
 
+        if ($mapMode && (!is_numeric($filters['centerLat']) || !is_numeric($filters['centerLng']))) {
+            return response()->json(['message' => 'Map view requires centerLat and centerLng'], 422);
+        }
+
         $listings = $this->searchService->search($filters, $perPage);
 
         if ($mapMode) {

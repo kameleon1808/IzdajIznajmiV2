@@ -63,11 +63,11 @@ $apiRoutes = function () use ($authRoutes) {
         Route::get('/listings/{listing}/conversation', [ConversationController::class, 'conversationForListing']);
         Route::post('/listings/{listing}/conversation', [ConversationController::class, 'conversationForListing']);
         Route::get('/listings/{listing}/messages', [ConversationController::class, 'messagesForListing']);
-        Route::post('/listings/{listing}/messages', [ConversationController::class, 'sendMessageForListing']);
+        Route::post('/listings/{listing}/messages', [ConversationController::class, 'sendMessageForListing'])->middleware('throttle:chat_messages');
         Route::post('/applications/{application}/conversation', [ConversationController::class, 'conversationForApplication']);
         Route::get('/conversations/{conversation}/messages', [ConversationController::class, 'messages']);
         Route::get('/conversations/{conversation}', [ConversationController::class, 'show']);
-        Route::post('/conversations/{conversation}/messages', [ConversationController::class, 'send']);
+        Route::post('/conversations/{conversation}/messages', [ConversationController::class, 'send'])->middleware('throttle:chat_messages');
         Route::post('/conversations/{conversation}/read', [ConversationController::class, 'markRead']);
 
         Route::post('/listings/{listing}/ratings', [RatingController::class, 'store']);

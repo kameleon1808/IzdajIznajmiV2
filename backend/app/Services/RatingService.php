@@ -49,6 +49,13 @@ class RatingService
 
         event(new \App\Events\RatingCreated($rating));
 
+        app(\App\Services\StructuredLogger::class)->info('rating_created', [
+            'listing_id' => $listing->id,
+            'user_id' => $rater->id,
+            'ratee_id' => $rateeId,
+            'rating_id' => $rating->id,
+        ]);
+
         return $rating;
     }
 

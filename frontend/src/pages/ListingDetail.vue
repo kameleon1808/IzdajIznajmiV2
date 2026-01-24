@@ -10,6 +10,7 @@ import ErrorBanner from '../components/ui/ErrorBanner.vue'
 import ListSkeleton from '../components/ui/ListSkeleton.vue'
 import ModalSheet from '../components/ui/ModalSheet.vue'
 import RatingStars from '../components/ui/RatingStars.vue'
+import ErrorState from '../components/ui/ErrorState.vue'
 import { useAuthStore } from '../stores/auth'
 import { useListingsStore } from '../stores/listings'
 import { useChatStore } from '../stores/chat'
@@ -148,6 +149,8 @@ const loadData = async () => {
     loading.value = false
   }
 }
+
+const retryLoad = () => loadData()
 
 onMounted(() => {
   loadData()
@@ -477,11 +480,11 @@ const deleteViewingSlot = async (slotId: string) => {
     </div>
 
     <div v-if="error && !listing" class="px-4 pt-4">
-      <ErrorBanner :message="error" />
+      <ErrorState :message="error" retry-label="Retry" @retry="retryLoad" />
     </div>
 
     <div v-if="listing" class="-mt-6 space-y-6 rounded-t-[28px] bg-surface px-4 pb-28 pt-6">
-      <ErrorBanner v-if="error" :message="error" />
+      <ErrorState v-if="error" :message="error" retry-label="Reload" @retry="retryLoad" />
       <div class="flex items-start justify-between gap-3">
         <div class="space-y-1">
           <h1 class="text-xl font-semibold text-slate-900">{{ listing.title }}</h1>

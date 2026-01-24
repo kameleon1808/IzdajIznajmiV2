@@ -50,6 +50,12 @@ class RatingReportController extends Controller
             ]
         );
 
+        app(\App\Services\StructuredLogger::class)->info('rating_reported', [
+            'rating_id' => $rating->id,
+            'listing_id' => $rating->listing_id,
+            'user_id' => $user->id,
+        ]);
+
         return response()->json(new RatingResource($rating->loadCount('reports')), 201);
     }
 }

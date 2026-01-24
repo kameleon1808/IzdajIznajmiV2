@@ -10,8 +10,8 @@ import Chip from '../components/ui/Chip.vue'
 import Input from '../components/ui/Input.vue'
 import Button from '../components/ui/Button.vue'
 import EmptyState from '../components/ui/EmptyState.vue'
-import ErrorBanner from '../components/ui/ErrorBanner.vue'
 import ListSkeleton from '../components/ui/ListSkeleton.vue'
+import ErrorState from '../components/ui/ErrorState.vue'
 import { geocodeLocation, suggestLocations } from '../services'
 import { defaultFilters, useListingsStore } from '../stores/listings'
 import type { ListingFilters } from '../types'
@@ -217,6 +217,20 @@ const runSearch = async () => {
   await syncQueryParams()
 }
 
+const retrySearch = async () => {
+  listingsStore.error = ''
+  await runSearch()
+}
+
+const widenRadius = async () => {
+  await ensureMapCenter()
+  const current = listingsStore.filters.radiusKm ?? defaultFilters.radiusKm ?? 10
+  const next = Math.min(current + 5, 50)
+  listingsStore.updateGeoFilters(listingsStore.filters.centerLat ?? defaultCenter.lat, listingsStore.filters.centerLng ?? defaultCenter.lng, next)
+  await syncQueryParams()
+  await runSearch()
+}
+
 const applyFilters = async () => {
   localFilters.value.amenities = [...(localFilters.value.amenities ?? localFilters.value.facilities ?? [])]
   localFilters.value.facilities = [...(localFilters.value.amenities ?? [])]
@@ -313,7 +327,7 @@ watch(
 
 <template>
   <div class="space-y-5">
-    <ErrorBanner v-if="error" :message="error" />
+    <ErrorState v-if="error" :message="error" retry-label="Retry search" @retry="retrySearch" />
     <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
       <div class="w-full md:max-w-xl relative">
         <Input
@@ -425,7 +439,9 @@ watch(
           title="No results yet"
           subtitle="Try adjusting filters or search text"
           :icon="SearchIcon"
-        />
+        >
+          <Button size="sm" variant="secondary" @click="resetFilters">Reset filters</Button>
+        </EmptyState>
         <div class="flex justify-center">
           <Button
             v-if="listingsStore.searchMeta && listingsStore.searchMeta.current_page < listingsStore.searchMeta.last_page"
@@ -496,7 +512,12 @@ watch(
         title="Nothing nearby yet"
         subtitle="Move the map or widen the radius to explore more places."
         :icon="MapPin"
-      />
+      >
+        <div class="flex justify-center gap-2">
+          <Button size="sm" variant="secondary" @click="widenRadius">Widen radius</Button>
+          <Button size="sm" variant="ghost" @click="resetFilters">Reset filters</Button>
+        </div>
+      </EmptyState>
 
       <div class="flex justify-center">
         <Button

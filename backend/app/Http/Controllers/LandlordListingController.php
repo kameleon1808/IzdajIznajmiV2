@@ -11,6 +11,7 @@ use App\Models\Listing;
 use App\Models\ListingImage;
 use App\Services\ListingAddressGuardService;
 use App\Services\ListingStatusService;
+use App\Services\StructuredLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -21,7 +22,8 @@ class LandlordListingController extends Controller
 {
     public function __construct(
         private readonly ListingStatusService $statusService,
-        private readonly ListingAddressGuardService $addressGuard
+        private readonly ListingAddressGuardService $addressGuard,
+        private readonly StructuredLogger $log
     ) {
     }
 
@@ -95,6 +97,12 @@ class LandlordListingController extends Controller
         });
 
         $listing->setAttribute('warnings', []);
+
+        $this->log->info('listing_created', [
+            'listing_id' => $listing->id,
+            'user_id' => $user->id,
+            'status' => $listing->status,
+        ]);
 
         return response()->json(new ListingResource($listing), 201);
     }
@@ -197,6 +205,12 @@ class LandlordListingController extends Controller
         $listing->refresh()->load(['images', 'facilities']);
         $listing->setAttribute('warnings', $warnings);
 
+        $this->log->info('listing_updated', [
+            'listing_id' => $listing->id,
+            'user_id' => $request->user()?->id,
+            'changed_fields' => array_keys($payload),
+        ]);
+
         return response()->json(new ListingResource($listing));
     }
 
@@ -217,6 +231,12 @@ class LandlordListingController extends Controller
         $listing = $listing->fresh(['images', 'facilities']);
         $listing->setAttribute('warnings', $warnings);
 
+        $this->log->info('listing_published', [
+            'listing_id' => $listing->id,
+            'user_id' => $request->user()?->id,
+            'status' => $listing->status,
+        ]);
+
         return response()->json(new ListingResource($listing));
     }
 
@@ -231,6 +251,13 @@ class LandlordListingController extends Controller
         }
 
         $listing->refresh()->load(['images', 'facilities']);
+
+        $this->log->info('listing_unpublished', [
+            'listing_id' => $listing->id,
+            'user_id' => $request->user()?->id,
+            'status' => $listing->status,
+        ]);
+
         return response()->json(new ListingResource($listing));
     }
 
@@ -247,6 +274,11 @@ class LandlordListingController extends Controller
             return response()->json(['message' => 'Cannot archive from current status'], 422);
         }
 
+        $this->log->info('listing_archived', [
+            'listing_id' => $listing->id,
+            'user_id' => $request->user()?->id,
+        ]);
+
         return response()->json(new ListingResource($listing->fresh(['images', 'facilities'])));
     }
 
@@ -260,6 +292,11 @@ class LandlordListingController extends Controller
             return response()->json(['message' => 'Only archived or expired listings can be restored'], 422);
         }
 
+        $this->log->info('listing_restored', [
+            'listing_id' => $listing->id,
+            'user_id' => $request->user()?->id,
+        ]);
+
         return response()->json(new ListingResource($listing->fresh(['images', 'facilities'])));
     }
 
@@ -272,6 +309,11 @@ class LandlordListingController extends Controller
         } catch (\RuntimeException) {
             return response()->json(['message' => 'Cannot mark rented from current status'], 422);
         }
+
+        $this->log->info('listing_marked_rented', [
+            'listing_id' => $listing->id,
+            'user_id' => $request->user()?->id,
+        ]);
 
         return response()->json(new ListingResource($listing->fresh(['images', 'facilities'])));
     }
@@ -292,6 +334,12 @@ class LandlordListingController extends Controller
         $listing->update(['address_key' => $addressKey]);
         $listing = $listing->fresh(['images', 'facilities']);
         $listing->setAttribute('warnings', $warnings);
+
+        $this->log->info('listing_marked_available', [
+            'listing_id' => $listing->id,
+            'user_id' => $request->user()?->id,
+            'warnings' => $warnings,
+        ]);
 
         return response()->json(new ListingResource($listing));
     }

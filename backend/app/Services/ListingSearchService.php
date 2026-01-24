@@ -41,6 +41,7 @@ class ListingSearchService
 
     public function baseQuery(): Builder
     {
+        // eager-load relations used on listing cards to avoid N+1 fetches
         return Listing::query()->with([
             'images' => function ($q) {
                 $q->where('processing_status', 'done')->orderBy('sort_order');

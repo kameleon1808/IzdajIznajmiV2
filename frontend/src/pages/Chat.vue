@@ -4,13 +4,13 @@ import { useRoute, useRouter } from 'vue-router'
 import ChatBubble from '../components/chat/ChatBubble.vue'
 import ChatInput from '../components/chat/ChatInput.vue'
 import EmptyState from '../components/ui/EmptyState.vue'
-import ErrorBanner from '../components/ui/ErrorBanner.vue'
 import ListSkeleton from '../components/ui/ListSkeleton.vue'
 import { useChatStore } from '../stores/chat'
 import { useAuthStore } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
 import Button from '../components/ui/Button.vue'
 import { leaveRating } from '../services'
+import ErrorState from '../components/ui/ErrorState.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -59,6 +59,17 @@ const resolveConversation = async (id?: string) => {
     await chatStore.openByConversationId(id)
   } catch (err) {
     toast.push({ title: 'Chat unavailable', message: (err as Error).message, type: 'error' })
+  }
+}
+
+const retryChat = async () => {
+  try {
+    await chatStore.fetchConversations()
+    if (conversation.value?.id) {
+      await chatStore.fetchMessages(conversation.value.id)
+    }
+  } catch (err) {
+    toast.push({ title: 'Retry failed', message: (err as Error).message, type: 'error' })
   }
 }
 
@@ -111,7 +122,9 @@ const submitRating = async () => {
 
 <template>
   <div class="flex min-h-screen flex-col bg-surface">
-    <ErrorBanner v-if="error" :message="error" class="mx-4 mt-4" />
+    <div class="mx-4 mt-4" v-if="error">
+      <ErrorState :message="error" retry-label="Retry" @retry="retryChat" />
+    </div>
     <div class="flex-1 space-y-3 px-4 pt-4 pb-28">
       <ListSkeleton v-if="loading" :count="3" />
       <template v-else>

@@ -17,6 +17,15 @@
   - `listings:expire` - dnevno prebacuje stare aktivne oglase u `expired` (02:00)
   - `notifications:digest --frequency=daily` - dnevno digest notifikacije (09:00)
   - `notifications:digest --frequency=weekly` - nedeljni digest notifikacije (ponedeljak 09:00)
+- Rate limit pregledi: ključni limiters u `AppServiceProvider`:
+  - `chat_messages` 60/min po user/IP (slanje poruka)
+  - `applications` 10/h po user/IP (slanje prijava)
+  - `listings_search` 60/min IP, `geocode_suggest` 40/min IP; landlord/viewing write limiti ostaju kao ranije
+- Observability: struktuisani JSON logovi u `storage/logs/structured-YYYY-MM-DD.log` preko `App\Services\StructuredLogger`.
+  - Bitne akcije (listing create/update/publish, prijave, poruke, ocene, prijave ocena) loguju `action`, `user_id`, `listing_id`, `ip`, `user_agent`, bez sadržaja poruka.
+  - Neobrađeni 5xx izuzetci se loguju kao `unhandled_exception`; opciono Sentry iza `SENTRY_ENABLED` + `SENTRY_LARAVEL_DSN` (ako je SDK prisutan).
+- Saved-search matcher: stub komanda `php artisan saved-searches:run` koristi cache mutex i odbija paralelno pokretanje (za buduće spajanje sa matcher servisom).
+  - Koristi cache store `CACHE_LOCK_STORE` (default `CACHE_DRIVER`). Za rad zaključavanja mora biti `file`/`redis`/`database` — ne `array`.
 - Notifikacije: sistem za in-app notifikacije sa preferencama i digest podrškom. Tipovi: `application.created`, `application.status_changed`, `message.received`, `rating.received`, `report.update`, `admin.notice`, `digest.daily`, `digest.weekly`. Korisnici mogu da konfigurišu tipove i digest frekvenciju (none/daily/weekly) kroz `/settings/notifications`.
 - Geokodiranje & geo pretraga:
   - Default koristi `FakeGeocoder` (determinističan lat/lng na osnovu adrese) — vidi `GEOCODER_DRIVER=fake`, `GEOCODER_CACHE_TTL`, `FAKE_GEOCODER_*` u `.env.example`.

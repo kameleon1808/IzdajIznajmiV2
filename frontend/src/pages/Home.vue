@@ -7,7 +7,7 @@ import ListingCardHorizontal from '../components/listing/ListingCardHorizontal.v
 import CardSkeleton from '../components/ui/CardSkeleton.vue'
 import Chip from '../components/ui/Chip.vue'
 import EmptyState from '../components/ui/EmptyState.vue'
-import ErrorBanner from '../components/ui/ErrorBanner.vue'
+import ErrorState from '../components/ui/ErrorState.vue'
 import ListSkeleton from '../components/ui/ListSkeleton.vue'
 import { useListingsStore } from '../stores/listings'
 
@@ -33,11 +33,20 @@ const loading = computed(() => listingsStore.loading)
 const error = computed(() => listingsStore.error)
 
 const openListing = (listingId: string) => router.push(`/listing/${listingId}`)
+
+const retryHome = async () => {
+  listingsStore.error = ''
+  await Promise.all([
+    listingsStore.fetchFavorites(),
+    listingsStore.fetchPopular(),
+    listingsStore.fetchRecommended(),
+  ])
+}
 </script>
 
 <template>
   <section class="space-y-6">
-    <ErrorBanner v-if="error" :message="error" />
+    <ErrorState v-if="error" :message="error" retry-label="Retry" @retry="retryHome" />
 
     <div class="card-base flex items-center gap-3 px-4 py-3">
       <div class="rounded-2xl bg-primary/10 p-3 text-primary">

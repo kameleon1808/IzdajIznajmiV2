@@ -6,6 +6,7 @@ import { useNotificationStore } from '../stores/notifications'
 import { useAuthStore } from '../stores/auth'
 import EmptyState from '../components/ui/EmptyState.vue'
 import ListSkeleton from '../components/ui/ListSkeleton.vue'
+import ErrorState from '../components/ui/ErrorState.vue'
 
 const router = useRouter()
 const notificationStore = useNotificationStore()
@@ -16,6 +17,7 @@ const currentPage = ref(1)
 const hasMore = ref(true)
 
 const notifications = computed(() => notificationStore.notifications)
+const error = computed(() => notificationStore.error)
 const filteredNotifications = computed(() => {
   if (activeTab.value === 'unread') {
     return notifications.value.filter((n) => !n.isRead)
@@ -34,7 +36,7 @@ const loadNotifications = async () => {
     const data = await notificationStore.fetchNotifications(activeTab.value, currentPage.value)
     hasMore.value = data.current_page < data.last_page
   } catch (error) {
-    console.error('Failed to load notifications:', error)
+    hasMore.value = false
   }
 }
 
@@ -147,11 +149,12 @@ const getNotificationIcon = (type: string) => {
     </div>
 
     <div class="px-4 pt-4">
+      <ErrorState v-if="error" :message="error" retry-label="Retry" @retry="loadNotifications" class="mb-3" />
       <ListSkeleton v-if="notificationStore.loading && notifications.length === 0" />
       <EmptyState
         v-else-if="filteredNotifications.length === 0"
         :title="activeTab === 'unread' ? 'No unread notifications' : 'No notifications'"
-        message="You're all caught up!"
+        subtitle="You're all caught up!"
       />
       <div v-else class="space-y-2">
         <button

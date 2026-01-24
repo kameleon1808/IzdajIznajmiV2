@@ -6,6 +6,7 @@ import { useNotificationStore } from '../stores/notifications'
 import { useAuthStore } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
 import Button from '../components/ui/Button.vue'
+import ErrorState from '../components/ui/ErrorState.vue'
 
 const router = useRouter()
 const notificationStore = useNotificationStore()
@@ -14,6 +15,7 @@ const toastStore = useToastStore()
 
 const loading = ref(false)
 const saving = ref(false)
+const loadError = ref('')
 
 const typeSettings = ref<Record<string, boolean>>({})
 const digestFrequency = ref<'none' | 'daily' | 'weekly'>('none')
@@ -41,6 +43,7 @@ const isDirty = computed(() => {
 onMounted(async () => {
   if (authStore.isAuthenticated && !authStore.isMockMode) {
     loading.value = true
+    loadError.value = ''
     try {
       const prefs = await notificationStore.fetchPreferences()
       if (prefs) {
@@ -49,7 +52,7 @@ onMounted(async () => {
         digestEnabled.value = prefs.digestEnabled
       }
     } catch (error) {
-      toastStore.push({ title: 'Error', message: 'Failed to load preferences', type: 'error' })
+      loadError.value = (error as Error).message || 'Failed to load preferences'
     } finally {
       loading.value = false
     }
@@ -75,6 +78,23 @@ const save = async () => {
     saving.value = false
   }
 }
+
+const retryLoad = async () => {
+  loadError.value = ''
+  loading.value = true
+  try {
+    const prefs = await notificationStore.fetchPreferences()
+    if (prefs) {
+      typeSettings.value = { ...prefs.typeSettings }
+      digestFrequency.value = prefs.digestFrequency
+      digestEnabled.value = prefs.digestEnabled
+    }
+  } catch (error) {
+    loadError.value = (error as Error).message || 'Failed to load preferences'
+  } finally {
+    loading.value = false
+  }
+}
 </script>
 
 <template>
@@ -86,7 +106,10 @@ const save = async () => {
       <h1 class="flex-1 text-lg font-semibold text-slate-900">Notification Preferences</h1>
     </header>
 
-    <div v-if="loading" class="p-4 text-center text-muted">Loading...</div>
+    <div v-if="loadError" class="p-4">
+      <ErrorState :message="loadError" retry-label="Retry" @retry="retryLoad" />
+    </div>
+    <div v-else-if="loading" class="p-4 text-center text-muted">Loading...</div>
     <div v-else class="space-y-4 p-4">
       <div class="space-y-3 rounded-2xl bg-white p-4 shadow-soft border border-white/60">
         <h2 class="text-base font-semibold text-slate-900">Notification Types</h2>

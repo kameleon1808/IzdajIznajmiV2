@@ -5,8 +5,8 @@ import { CalendarClock, CalendarRange, CheckCircle2, Clock3, Download, Inbox, Ma
 import Badge from '../components/ui/Badge.vue'
 import Button from '../components/ui/Button.vue'
 import EmptyState from '../components/ui/EmptyState.vue'
-import ErrorBanner from '../components/ui/ErrorBanner.vue'
 import ListSkeleton from '../components/ui/ListSkeleton.vue'
+import ErrorState from '../components/ui/ErrorState.vue'
 import { useAuthStore } from '../stores/auth'
 import { useChatStore } from '../stores/chat'
 import { useBookingsStore } from '../stores/bookings'
@@ -71,6 +71,14 @@ const loadViewingRequests = () => {
     viewingsStore.fetchLandlordRequests(selectedListingFilter.value || undefined)
   } else if (auth.hasRole('seeker')) {
     viewingsStore.fetchSeekerRequests()
+  }
+}
+
+const retryBookings = () => {
+  bookingsStore.fetchBookings()
+  loadRequests()
+  if (primaryTab.value === 'viewings') {
+    loadViewingRequests()
   }
 }
 
@@ -354,7 +362,7 @@ const scrollToHighlightedViewing = () => {
       </button>
     </div>
 
-    <ErrorBanner v-if="errorMessage" :message="errorMessage" />
+    <ErrorState v-if="errorMessage" :message="errorMessage" retry-label="Retry" @retry="retryBookings" />
 
     <template v-if="primaryTab === 'reservations'">
       <div class="grid grid-cols-3 gap-2 rounded-2xl bg-surface p-1" v-if="reservationTabs.length > 1">

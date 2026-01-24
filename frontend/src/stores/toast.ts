@@ -20,6 +20,13 @@ export const useToastStore = defineStore('toast', {
   }),
   actions: {
     push(toast: Omit<ToastItem, 'id'> & { id?: string }) {
+      const duplicate = this.toasts.find(
+        (t) =>
+          t.title === toast.title &&
+          (t.message ?? '') === (toast.message ?? '') &&
+          t.type === (toast.type ?? 'info'),
+      )
+      if (duplicate) return duplicate.id
       const id = toast.id ?? makeId()
       const item: ToastItem = { ...toast, id, type: toast.type ?? 'info' }
       this.toasts.push(item)

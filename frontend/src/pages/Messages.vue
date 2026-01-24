@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { Plus, Search as SearchIcon } from 'lucide-vue-next'
 import EmptyState from '../components/ui/EmptyState.vue'
-import ErrorBanner from '../components/ui/ErrorBanner.vue'
+import ErrorState from '../components/ui/ErrorState.vue'
 import Input from '../components/ui/Input.vue'
 import ListSkeleton from '../components/ui/ListSkeleton.vue'
 import { useChatStore } from '../stores/chat'
@@ -23,11 +23,16 @@ const items = computed(() =>
 )
 const loading = computed(() => chatStore.loading)
 const error = computed(() => chatStore.error)
+
+const retryMessages = () => {
+  chatStore.clearError()
+  return chatStore.fetchConversations()
+}
 </script>
 
 <template>
   <div class="space-y-4">
-    <ErrorBanner v-if="error" :message="error" />
+    <ErrorState v-if="error" :message="error" retry-label="Retry" @retry="retryMessages" />
     <Input v-model="query" placeholder="Search messages" :left-icon="SearchIcon" />
 
     <ListSkeleton v-if="loading" :count="3" />

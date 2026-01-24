@@ -12,13 +12,17 @@ use App\Models\Message;
 use App\Models\User;
 use App\Services\ChatSpamGuardService;
 use App\Services\ListingStatusService;
+use App\Services\StructuredLogger;
 use App\Events\MessageCreated;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class ConversationController extends Controller
 {
-    public function __construct(private ChatSpamGuardService $spamGuard)
+    public function __construct(
+        private ChatSpamGuardService $spamGuard,
+        private StructuredLogger $log
+    )
     {
     }
 
@@ -157,6 +161,13 @@ class ConversationController extends Controller
         $message = $message->fresh();
 
         event(new MessageCreated($message));
+
+        $this->log->info('chat_message_sent', [
+            'conversation_id' => $conversation->id,
+            'listing_id' => $conversation->listing_id,
+            'user_id' => $sender->id,
+            'message_length' => mb_strlen($body),
+        ]);
 
         return $message;
     }

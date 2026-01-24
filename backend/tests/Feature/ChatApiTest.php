@@ -212,4 +212,27 @@ class ChatApiTest extends TestCase
         $this->actingAs(User::factory()->create(['role' => 'seeker']));
         $this->getJson("/api/v1/conversations/{$conversation->id}")->assertForbidden();
     }
+
+    public function test_chat_messages_are_rate_limited_per_user(): void
+    {
+        $seeker = User::factory()->create(['role' => 'seeker']);
+        $landlord = User::factory()->create(['role' => 'landlord']);
+        $listing = $this->createListing($landlord);
+
+        $conversation = Conversation::create([
+            'tenant_id' => $seeker->id,
+            'landlord_id' => $landlord->id,
+            'listing_id' => $listing->id,
+        ]);
+
+        $this->actingAs($landlord);
+
+        for ($i = 0; $i < 60; $i++) {
+            $this->postJson("/api/v1/conversations/{$conversation->id}/messages", ['message' => 'ping '.$i])
+                ->assertCreated();
+        }
+
+        $this->postJson("/api/v1/conversations/{$conversation->id}/messages", ['message' => 'rate limited'])
+            ->assertStatus(429);
+    }
 }

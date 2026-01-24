@@ -10,6 +10,7 @@ use App\Http\Resources\ApplicationResource;
 use App\Models\Application;
 use App\Models\Listing;
 use App\Services\ListingStatusService;
+use App\Services\StructuredLogger;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -17,6 +18,10 @@ use Illuminate\Support\Facades\Gate;
 
 class ApplicationController extends Controller
 {
+    public function __construct(private readonly StructuredLogger $log)
+    {
+    }
+
     public function apply(ApplyToListingRequest $request, Listing $listing): JsonResponse
     {
         $user = $request->user();
@@ -48,6 +53,13 @@ class ApplicationController extends Controller
         }
 
         event(new ApplicationCreated($application->load('listing')));
+
+        $this->log->info('application_created', [
+            'listing_id' => $listing->id,
+            'user_id' => $user->id,
+            'application_id' => $application->id,
+            'status' => $application->status,
+        ]);
 
         return response()->json(new ApplicationResource($application->load('listing.images')), 201);
     }
@@ -95,6 +107,13 @@ class ApplicationController extends Controller
         $application->update(['status' => $status]);
 
         event(new ApplicationStatusChanged($application->fresh('listing')));
+
+        $this->log->info('application_status_changed', [
+            'application_id' => $application->id,
+            'listing_id' => $application->listing_id,
+            'user_id' => $request->user()?->id,
+            'status' => $status,
+        ]);
 
         return response()->json(new ApplicationResource($application->load('listing.images')));
     }

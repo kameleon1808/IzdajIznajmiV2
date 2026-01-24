@@ -13,9 +13,16 @@ use Illuminate\Http\Middleware\ValidatePathEncoding;
 use Illuminate\Console\Scheduling\Schedule;
 use App\Console\Commands\ExpireListingsCommand;
 use App\Console\Commands\GeocodeListingsCommand;
+use App\Console\Commands\SavedSearchMatchCommand;
 use Spatie\Permission\Middleware\PermissionMiddleware;
 use Spatie\Permission\Middleware\RoleMiddleware;
 use Spatie\Permission\Middleware\RoleOrPermissionMiddleware;
+use App\Services\StructuredLogger;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Auth\AuthenticationException;
+use Illuminate\Http\Exceptions\HttpResponseException;
+use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -28,6 +35,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ExpireListingsCommand::class,
         \App\Console\Commands\SendNotificationDigestCommand::class,
         GeocodeListingsCommand::class,
+        SavedSearchMatchCommand::class,
     ])
     ->withSchedule(function (Schedule $schedule) {
         $schedule->command('listings:expire')->dailyAt('02:00');
@@ -55,5 +63,28 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        $exceptions->report(function (Throwable $e) {
+            if ($e instanceof ValidationException
+                || $e instanceof AuthenticationException
+                || $e instanceof AuthorizationException
+                || $e instanceof HttpResponseException) {
+                return;
+            }
+
+            $status = $e instanceof HttpExceptionInterface ? $e->getStatusCode() : 500;
+            if ($status < 500) {
+                return;
+            }
+
+            app(StructuredLogger::class)->error('unhandled_exception', [
+                'status' => $status,
+                'exception' => get_class($e),
+                'message' => $e->getMessage(),
+                'url' => request()?->fullUrl(),
+            ]);
+
+            if (config('services.sentry.enabled', false) && app()->bound('sentry')) {
+                app('sentry')->captureException($e);
+            }
+        });
     })->create();
