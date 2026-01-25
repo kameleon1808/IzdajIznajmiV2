@@ -1,0 +1,52 @@
+name: Deploy Production
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      SSH_HOST: ${{ secrets.PROD_SSH_HOST }}
+      SSH_USER: ${{ secrets.PROD_SSH_USER }}
+      SSH_KEY: ${{ secrets.PROD_SSH_KEY }}
+      DEPLOY_PATH: ${{ secrets.PROD_DEPLOY_PATH }}
+      BRANCH: ${{ secrets.PROD_BRANCH || 'main' }}
+      HEALTH_URL: ${{ secrets.PROD_HEALTH_URL }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
+
+      - name: Deploy over SSH
+        shell: bash
+        run: |
+          if [ -z "$SSH_HOST" ] || [ -z "$SSH_USER" ] || [ -z "$DEPLOY_PATH" ]; then
+            echo "Missing SSH secrets (host/user/path)." >&2
+            exit 1
+          fi
+
+          BRANCH_VALUE="${BRANCH:-main}"
+          HEALTH="${HEALTH_URL:-http://127.0.0.1/api/v1/health}"
+
+          ssh "$SSH_USER@$SSH_HOST" <<EOF
+set -euo pipefail
+cd "$DEPLOY_PATH"
+git fetch origin "$BRANCH_VALUE"
+git checkout "$BRANCH_VALUE"
+git pull origin "$BRANCH_VALUE"
+ENVIRONMENT=production HEALTH_URL="$HEALTH" ./ops/deploy.sh
+EOF

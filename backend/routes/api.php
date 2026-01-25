@@ -21,6 +21,7 @@ use App\Http\Controllers\NotificationPreferenceController;
 use App\Http\Controllers\ListingLocationController;
 use App\Http\Controllers\ViewingRequestController;
 use App\Http\Controllers\ViewingSlotController;
+use App\Http\Controllers\HealthController;
 use Illuminate\Support\Facades\Route;
 
 $authRoutes = function () {
@@ -35,6 +36,9 @@ $authRoutes = function () {
 
 $apiRoutes = function () use ($authRoutes) {
     Route::prefix('auth')->group($authRoutes);
+
+    Route::get('/health', [HealthController::class, 'liveness']);
+    Route::get('/health/ready', [HealthController::class, 'readiness']);
 
     Route::get('/listings', [ListingController::class, 'index'])->middleware('throttle:listings_search');
     Route::get('/listings/{listing}', [ListingController::class, 'show']);

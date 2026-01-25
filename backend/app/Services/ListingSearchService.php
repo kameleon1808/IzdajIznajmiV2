@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Models\Listing;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\DB;
 
 class ListingSearchService
 {
@@ -17,18 +18,6 @@ class ListingSearchService
         $query = $this->baseQuery();
         $mapMode = (bool) ($filters['mapMode'] ?? false);
         $geoApplied = $this->applyFilters($query, $filters, $mapMode);
-
-        if ($mapMode) {
-            $query->select([
-                'id',
-                'title',
-                'lat',
-                'lng',
-                'price_per_night as pricePerNight',
-                'cover_image as coverImage',
-                'city',
-            ]);
-        }
 
         if ($geoApplied) {
             $query->orderBy('distance_km');
@@ -95,33 +84,40 @@ class ListingSearchService
         }
 
         if (!empty($filters['location'])) {
-            $location = (string) $filters['location'];
-            $query->where(function ($builder) use ($location) {
-                $builder->where('city', 'like', "%{$location}%")
-                    ->orWhere('country', 'like', "%{$location}%")
-                    ->orWhere('title', 'like', "%{$location}%")
-                    ->orWhere('address', 'like', "%{$location}%");
+            $location = $this->normalizeSerbianLatin((string) $filters['location']);
+            $columns = ['city', 'country', 'title', 'address'];
+
+            $query->where(function ($builder) use ($location, $columns) {
+                $first = true;
+                foreach ($columns as $column) {
+                    $method = $first ? 'whereRaw' : 'orWhereRaw';
+                    $builder->{$method}($this->normalizedColumn($column) . ' like ?', ["%{$location}%"]);
+                    $first = false;
+                }
             });
         }
 
         if (!empty($filters['city'])) {
-            $cityInput = (string) $filters['city'];
+            $cityInput = $this->normalizeSerbianLatin((string) $filters['city']);
             $tokens = collect(preg_split('/,/', $cityInput))
                 ->filter()
-                ->map(fn ($token) => trim($token))
+                ->map(fn ($token) => $this->normalizeSerbianLatin(trim($token)))
                 ->values();
 
-            $query->where(function ($builder) use ($cityInput, $tokens) {
-                $builder->where('city', 'like', "%{$cityInput}%")
-                    ->orWhere('country', 'like', "%{$cityInput}%")
-                    ->orWhere('title', 'like', "%{$cityInput}%")
-                    ->orWhere('address', 'like', "%{$cityInput}%");
+            $columns = ['city', 'country', 'title', 'address'];
 
-                $tokens->each(function ($token) use ($builder) {
-                    $builder->orWhere('city', 'like', "%{$token}%")
-                        ->orWhere('country', 'like', "%{$token}%")
-                        ->orWhere('title', 'like', "%{$token}%")
-                        ->orWhere('address', 'like', "%{$token}%");
+            $query->where(function ($builder) use ($cityInput, $tokens, $columns) {
+                $first = true;
+                foreach ($columns as $column) {
+                    $method = $first ? 'whereRaw' : 'orWhereRaw';
+                    $builder->{$method}($this->normalizedColumn($column) . ' like ?', ["%{$cityInput}%"]);
+                    $first = false;
+                }
+
+                $tokens->each(function ($token) use ($builder, $columns) {
+                    foreach ($columns as $column) {
+                        $builder->orWhereRaw($this->normalizedColumn($column) . ' like ?', ["%{$token}%"]);
+                    }
                 });
             });
         }
@@ -132,10 +128,12 @@ class ListingSearchService
 
         $amenitiesToApply = $filters['amenities'] ?? $filters['facilities'] ?? [];
         if (!empty($amenitiesToApply)) {
-            $facilityIds = (array) $amenitiesToApply;
-            $query->whereHas('facilities', function ($builder) use ($facilityIds) {
-                $builder->whereIn('name', $facilityIds);
-            });
+            $facilityIds = array_values((array) $amenitiesToApply);
+            foreach ($facilityIds as $facilityName) {
+                $query->whereHas('facilities', function ($builder) use ($facilityName) {
+                    $builder->where('name', $facilityName);
+                });
+            }
         }
 
         return $this->applyGeoFilter($query, $filters, $mapMode);
@@ -143,6 +141,10 @@ class ListingSearchService
 
     private function applyGeoFilter(Builder $query, array $filters, bool $mapMode = false): bool
     {
+        if (!$mapMode) {
+            return false;
+        }
+
         $centerLat = $this->toFloat($filters['centerLat'] ?? null, -90, 90);
         $centerLng = $this->toFloat($filters['centerLng'] ?? null, -180, 180);
         $radius = $this->toFloat($filters['radiusKm'] ?? null, 1.0, 50.0);
@@ -156,11 +158,11 @@ class ListingSearchService
         }
 
         $radiusKm = $radius ?? 10.0;
-        $query->whereNotNull('lat')->whereNotNull('lng');
-
         $earthRadius = 6371; // km
-        $haversine = "({$earthRadius} * acos(cos(radians(?)) * cos(radians(lat)) * cos(radians(lng) - radians(?)) + sin(radians(?)) * sin(radians(lat))))";
-        $query->select('*')->selectRaw("{$haversine} as distance_km", [$centerLat, $centerLng, $centerLat]);
+        $cosPart = "cos(radians(?)) * cos(radians(lat)) * cos(radians(lng) - radians(?)) + sin(radians(?)) * sin(radians(lat))";
+        $haversine = "({$earthRadius} * acos(max(-1, min(1, {$cosPart}))))";
+        $distanceExpr = "COALESCE({$haversine}, 0)";
+        $query->select('*')->selectRaw("{$distanceExpr} as distance_km", [$centerLat, $centerLng, $centerLat]);
         $query->whereRaw("{$haversine} <= ?", [$centerLat, $centerLng, $centerLat, $radiusKm]);
 
         $deltaLat = $radiusKm / 111.045;
@@ -197,5 +199,38 @@ class ListingSearchService
     private function hasValue(mixed $value): bool
     {
         return $value !== null && $value !== '';
+    }
+
+    private function normalizeSerbianLatin(string $value): string
+    {
+        $map = [
+            'ć' => 'c',
+            'č' => 'c',
+            'ž' => 'z',
+            'š' => 's',
+            'đ' => 'dj',
+        ];
+
+        $normalized = mb_strtolower($value);
+
+        return strtr($normalized, $map);
+    }
+
+    private function normalizedColumn(string $column): string
+    {
+        $expr = "LOWER($column)";
+        $replacements = [
+            'ć' => 'c',
+            'č' => 'c',
+            'ž' => 'z',
+            'š' => 's',
+            'đ' => 'dj',
+        ];
+
+        foreach ($replacements as $from => $to) {
+            $expr = "REPLACE($expr, '$from', '$to')";
+        }
+
+        return $expr;
     }
 }

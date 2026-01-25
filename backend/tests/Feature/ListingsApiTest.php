@@ -550,7 +550,7 @@ class ListingsApiTest extends TestCase
             'status' => 'active',
         ]);
 
-        $response = $this->getJson('/api/v1/listings?centerLat=45&centerLng=15&radiusKm=50');
+        $response = $this->getJson('/api/v1/listings?centerLat=45&centerLng=15&radiusKm=50&mapMode=1');
         $response->assertOk();
 
         $ids = collect($response->json('data'))->pluck('id')->map(fn ($id) => (int) $id);

@@ -124,6 +124,11 @@ npm run dev -- --host --port=5173
 - E2E smoke (mock API): `cd frontend && npm ci && npm run test:e2e` (first run: `npx playwright install --with-deps chromium`)
 - UAT reference: `docs/uat-test-plan-sr.md`; test plan: `docs/test-plan-sr.md`
 
+## Deploy
+- Deployment guide, env templates, and ops scripts live in `docs/deploy/DEPLOYMENT.md`.
+- Ready-to-run scripts: `ops/deploy.sh` (idempotent deploy), `ops/rollback.sh`.
+- GitHub Actions deploy workflows: `.github/workflows/deploy-staging.yml` and `deploy-production.yml` (SSH-based).
+
 ## Roadmap
 - Production deploy (containers/CI, env hardening, object storage/CDN for media).
 - Realtime chat (WebSockets) and delivery receipts; push/email notifications.

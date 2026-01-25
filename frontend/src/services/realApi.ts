@@ -1,4 +1,5 @@
 import { apiClient } from './apiClient'
+import { defaultFilters } from '../stores/listings'
 import type {
   AdminConversion,
   AdminKpiSummary,
@@ -23,6 +24,8 @@ const mapListing = (data: any): Listing => {
     url: typeof img === 'string' ? img : img.url,
     sortOrder: Number(img.sortOrder ?? img.sort_order ?? 0),
     isCover: Boolean(img.isCover ?? img.is_cover ?? false),
+    processingStatus: img.processingStatus ?? img.processing_status ?? 'done',
+    processingError: img.processingError ?? img.processing_error,
   }))
   imagesDetailed.sort((a, b) => a.sortOrder - b.sortOrder)
   const imagesSimple = imagesDetailed.map((i) => i.url).filter(Boolean)
@@ -176,7 +179,7 @@ const applyListingFilters = (filters?: ListingFilters) => {
   if (!filters) return {}
   const params: Record<string, any> = {}
   if (filters.category && filters.category !== 'all') params.category = filters.category
-  if (filters.priceRange?.length) {
+  if (filters.priceRange?.length && (filters.priceRange[0] !== defaultFilters.priceRange[0] || filters.priceRange[1] !== defaultFilters.priceRange[1])) {
     params.priceMin = filters.priceRange[0]
     params.priceMax = filters.priceRange[1]
   }
@@ -185,7 +188,10 @@ const applyListingFilters = (filters?: ListingFilters) => {
   if (filters.location) params.location = filters.location
   if (filters.city) params.city = filters.city
   if (filters.rooms) params.rooms = filters.rooms
-  if (filters.areaRange?.length) {
+  if (
+    filters.areaRange?.length &&
+    (filters.areaRange[0] !== defaultFilters.areaRange?.[0] || filters.areaRange[1] !== defaultFilters.areaRange?.[1])
+  ) {
     params.areaMin = filters.areaRange[0]
     params.areaMax = filters.areaRange[1]
   }

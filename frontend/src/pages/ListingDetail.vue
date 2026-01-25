@@ -26,6 +26,7 @@ import {
   updateListingLocation,
 } from '../services'
 import type { Listing, Review, ViewingSlot } from '../types'
+import ListingGallery from '../components/listing/ListingGallery.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -402,6 +403,17 @@ const pickStartDate = () => {
   return today.toISOString().split('T')[0]
 }
 
+const galleryImages = computed(() => {
+  if (!listing.value) return []
+  if (listing.value.imagesDetailed?.length) {
+    const sorted = [...listing.value.imagesDetailed].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+    const urls = sorted.map((i) => i.url).filter(Boolean)
+    if (urls.length) return urls
+  }
+  if (listing.value.images?.length) return listing.value.images
+  return listing.value.coverImage ? [listing.value.coverImage] : []
+})
+
 const createViewingSlot = async () => {
   if (!listing.value) return
   if (!slotForm.timeFrom || !slotForm.timeTo) {
@@ -471,12 +483,11 @@ const deleteViewingSlot = async (slotId: string) => {
 
 <template>
   <div>
-    <div class="relative h-80 w-full overflow-hidden rounded-b-[28px]">
-      <div v-if="loading" class="h-full w-full bg-surface shimmer"></div>
-      <template v-else-if="listing">
-        <img :src="listing.coverImage" alt="Hero" class="h-full w-full object-cover" />
-        <div class="absolute inset-0 bg-gradient-to-t from-black/40 via-black/10" />
-      </template>
+    <div class="relative w-full overflow-hidden rounded-b-[28px] bg-surface">
+      <div v-if="loading" class="h-80 w-full bg-surface shimmer md:h-96"></div>
+      <div v-else-if="listing" class="px-4 pb-4 pt-3">
+        <ListingGallery :images="galleryImages" :alt="listing.title" />
+      </div>
     </div>
 
     <div v-if="error && !listing" class="px-4 pt-4">
@@ -779,7 +790,7 @@ const deleteViewingSlot = async (slotId: string) => {
 
     <EmptyState v-else-if="!loading" title="Listing unavailable" subtitle="Try again later or choose another stay" />
 
-    <div v-if="listing" class="fixed bottom-4 left-0 right-0 z-40 mx-auto max-w-md px-4">
+    <div v-if="listing" class="fixed bottom-4 left-0 right-0 z-[1200] mx-auto max-w-md px-4">
       <div class="flex items-center gap-3 rounded-3xl bg-white p-4 shadow-card">
         <div class="flex-1">
           <p class="text-xs text-muted">Price</p>

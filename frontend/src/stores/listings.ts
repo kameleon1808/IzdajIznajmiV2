@@ -21,7 +21,7 @@ import type { Listing, ListingFilters } from '../types'
 export const defaultFilters: ListingFilters = {
   category: 'all',
   guests: 1,
-  priceRange: [50, 400],
+  priceRange: [0, 1000000],
   instantBook: false,
   location: '',
   city: '',
@@ -33,7 +33,7 @@ export const defaultFilters: ListingFilters = {
   status: 'all',
   centerLat: null,
   centerLng: null,
-  radiusKm: 15,
+  radiusKm: 50,
 }
 
 const loadFavorites = (): string[] => {

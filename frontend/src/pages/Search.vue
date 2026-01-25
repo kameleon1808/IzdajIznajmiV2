@@ -535,15 +535,15 @@ watch(
   <ModalSheet v-model="filterOpen" title="Filter by">
     <div class="space-y-4">
       <div class="space-y-2">
-        <div class="flex items-center justify-between">
-          <p class="font-semibold text-slate-900">Guests</p>
-          <span class="text-sm text-muted">{{ localFilters.guests }} people</span>
-        </div>
-        <div class="flex gap-2">
-          <Button size="md" variant="secondary" @click="localFilters.guests = Math.max(1, localFilters.guests - 1)">-</Button>
-          <Button size="md" variant="secondary" class="flex-1">{{ localFilters.guests }}</Button>
-          <Button size="md" variant="secondary" @click="localFilters.guests = localFilters.guests + 1">+</Button>
-        </div>
+        <p class="font-semibold text-slate-900">Location</p>
+        <label class="flex items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow-soft border border-white/70 mt-2">
+          <input
+            v-model="localFilters.city"
+            placeholder="City contains (e.g. Zagreb)"
+            type="text"
+            class="flex-1 bg-transparent text-sm font-medium text-slate-900 placeholder:text-muted focus:outline-none"
+          />
+        </label>
       </div>
 
       <div class="space-y-2">
@@ -552,22 +552,125 @@ watch(
           <span class="text-sm text-muted">${{ localFilters.priceRange[0] }} - ${{ localFilters.priceRange[1] }}</span>
         </div>
         <div class="grid grid-cols-2 gap-3">
-          <Input
-            v-model="localFilters.priceRange[0]"
-            type="number"
-            inputmode="decimal"
-            step="0.01"
-            min="0"
-            placeholder="Min"
-          />
-          <Input
-            v-model="localFilters.priceRange[1]"
-            type="number"
-            inputmode="decimal"
-            step="0.01"
-            min="0"
-            placeholder="Max"
-          />
+          <label class="flex items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow-soft border border-white/70" inputmode="decimal" step="0.01" min="0">
+            <input
+              v-model.number="localFilters.priceRange[0]"
+              placeholder="Min"
+              type="number"
+              class="flex-1 bg-transparent text-sm font-medium text-slate-900 placeholder:text-muted focus:outline-none"
+              min="0"
+              step="0.01"
+            />
+          </label>
+          <label class="flex items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow-soft border border-white/70" inputmode="decimal" step="0.01" min="0">
+            <input
+              v-model.number="localFilters.priceRange[1]"
+              placeholder="Max"
+              type="number"
+              class="flex-1 bg-transparent text-sm font-medium text-slate-900 placeholder:text-muted focus:outline-none"
+              min="0"
+              step="0.01"
+            />
+          </label>
+        </div>
+      </div>
+
+      <div class="space-y-2">
+        <div class="flex items-center justify-between">
+          <p class="font-semibold text-slate-900">Area (sqm)</p>
+          <span class="text-sm text-muted">{{ localFilters.areaRange[0] }} - {{ localFilters.areaRange[1] }}</span>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <label class="flex items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow-soft border border-white/70" min="0">
+            <input
+              v-model.number="localFilters.areaRange[0]"
+              placeholder="Min"
+              type="number"
+              class="flex-1 bg-transparent text-sm font-medium text-slate-900 placeholder:text-muted focus:outline-none"
+              min="0"
+            />
+          </label>
+          <label class="flex items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow-soft border border-white/70" min="0">
+            <input
+              v-model.number="localFilters.areaRange[1]"
+              placeholder="Max"
+              type="number"
+              class="flex-1 bg-transparent text-sm font-medium text-slate-900 placeholder:text-muted focus:outline-none"
+              min="0"
+            />
+          </label>
+        </div>
+      </div>
+
+      <div class="space-y-2">
+        <div class="flex items-center justify-between">
+          <p class="font-semibold text-slate-900">Rooms</p>
+          <span class="text-sm text-muted">{{ localFilters.rooms ?? 0 }}+</span>
+        </div>
+        <div class="flex gap-2">
+          <button
+            type="button"
+            class="inline-flex items-center justify-center rounded-full font-semibold transition shadow-soft bg-white text-slate-900 border border-line hover:border-primary/50 h-12 px-5 text-sm"
+            @click="localFilters.rooms = Math.max(0, (localFilters.rooms ?? 0) - 1)"
+          >
+            -
+          </button>
+          <button
+            type="button"
+            class="inline-flex items-center justify-center rounded-full font-semibold transition shadow-soft bg-white text-slate-900 border border-line hover:border-primary/50 h-12 px-5 text-sm flex-1"
+          >
+            {{ localFilters.rooms ?? 0 }}
+          </button>
+          <button
+            type="button"
+            class="inline-flex items-center justify-center rounded-full font-semibold transition shadow-soft bg-white text-slate-900 border border-line hover:border-primary/50 h-12 px-5 text-sm"
+            @click="localFilters.rooms = (localFilters.rooms ?? 0) + 1"
+          >
+            +
+          </button>
+        </div>
+      </div>
+
+      <div class="space-y-2">
+        <p class="font-semibold text-slate-900">Amenities</p>
+        <div class="grid grid-cols-2 gap-2">
+          <label
+            v-for="facility in ['Pool', 'Spa', 'Wi-Fi', 'Breakfast', 'Parking', 'Kitchen', 'Workspace']"
+            :key="facility"
+            class="flex items-center gap-2 rounded-xl border border-line px-3 py-2 text-sm font-semibold text-slate-800"
+          >
+            <input v-model="localFilters.amenities" :value="facility" type="checkbox" class="h-4 w-4 accent-primary" />
+            {{ facility }}
+          </label>
+        </div>
+      </div>
+
+      <div class="space-y-2">
+        <div class="flex items-center justify-between">
+          <p class="font-semibold text-slate-900">Guests</p>
+          <span class="text-sm text-muted">{{ localFilters.guests }} people</span>
+        </div>
+        <div class="flex gap-2">
+          <button
+            type="button"
+            class="inline-flex items-center justify-center rounded-full font-semibold transition shadow-soft bg-white text-slate-900 border border-line hover:border-primary/50 h-12 px-5 text-sm"
+            @click="localFilters.guests = Math.max(1, localFilters.guests - 1)"
+          >
+            -
+          </button>
+          <button
+            type="button"
+            class="inline-flex items-center justify-center rounded-full font-semibold transition shadow-soft bg-white text-slate-900 border border-line hover:border-primary/50 h-12 px-5 text-sm flex-1"
+          >
+            {{ localFilters.guests }}
+          </button>
+          <button
+            type="button"
+            class="inline-flex items-center justify-center rounded-full font-semibold transition shadow-soft bg-white text-slate-900 border border-line hover:border-primary/50 h-12 px-5 text-sm"
+            @click="localFilters.guests = localFilters.guests + 1"
+          >
+            +
+          </button>
         </div>
       </div>
 
@@ -585,105 +688,47 @@ watch(
       </div>
 
       <div class="space-y-2">
-        <p class="font-semibold text-slate-900">Location</p>
-        <div class="flex flex-wrap gap-2">
-          <Chip v-for="city in ['Bali', 'Lisbon', 'Tulum', 'Copenhagen']" :key="city" :active="localFilters.location === city" @click="localFilters.location = city">
-            <MapPin class="mr-2 h-4 w-4" />
-            {{ city }}
-          </Chip>
-        </div>
-        <Input v-model="localFilters.city" class="mt-2" placeholder="City contains (e.g. Zagreb)" />
-      </div>
-
-      <div class="space-y-2">
-        <div class="flex items-center justify-between">
-          <p class="font-semibold text-slate-900">Search radius</p>
-          <span class="text-sm text-muted">{{ localFilters.radiusKm ?? radiusValue }} km</span>
-        </div>
-        <input
-          v-model.number="localFilters.radiusKm"
-          type="range"
-          min="1"
-          max="50"
-          step="1"
-          class="w-full accent-primary"
-        />
-        <p class="text-xs text-muted">Used in map view around the chosen center.</p>
-      </div>
-
-      <div class="space-y-2">
-        <div class="flex items-center justify-between">
-          <p class="font-semibold text-slate-900">Rooms</p>
-          <span class="text-sm text-muted">{{ localFilters.rooms ?? 0 }}+</span>
-        </div>
-        <div class="flex gap-2">
-          <Button size="md" variant="secondary" @click="localFilters.rooms = Math.max(0, (localFilters.rooms ?? 0) - 1)">-</Button>
-          <Button size="md" variant="secondary" class="flex-1">{{ localFilters.rooms ?? 0 }}</Button>
-          <Button size="md" variant="secondary" @click="localFilters.rooms = (localFilters.rooms ?? 0) + 1">+</Button>
-        </div>
-      </div>
-
-      <div class="space-y-2">
-        <div class="flex items-center justify-between">
-          <p class="font-semibold text-slate-900">Area (sqm)</p>
-          <span class="text-sm text-muted">{{ localFilters.areaRange[0] }} - {{ localFilters.areaRange[1] }}</span>
-        </div>
-        <div class="grid grid-cols-2 gap-3">
-          <Input v-model.number="localFilters.areaRange[0]" type="number" min="0" placeholder="Min" />
-          <Input v-model.number="localFilters.areaRange[1]" type="number" min="0" placeholder="Max" />
-        </div>
-      </div>
-
-      <div class="space-y-2">
-        <p class="font-semibold text-slate-900">Amenities</p>
-        <div class="grid grid-cols-2 gap-2">
-          <label
-            v-for="facility in ['Pool', 'Spa', 'Wi-Fi', 'Breakfast', 'Parking', 'Kitchen', 'Workspace']"
-            :key="facility"
-            class="flex items-center gap-2 rounded-xl border border-line px-3 py-2 text-sm font-semibold text-slate-800"
-          >
-            <input
-              v-model="localFilters.amenities"
-              :value="facility"
-              type="checkbox"
-              class="h-4 w-4 accent-primary"
-            />
-            {{ facility }}
-          </label>
-        </div>
-      </div>
-
-      <div class="space-y-2">
-        <p class="font-semibold text-slate-900">Status</p>
-        <div class="flex flex-wrap gap-2">
-          <Chip
-            v-for="status in ['all', 'active', 'paused', 'rented', 'archived', 'expired']"
-            :key="status"
-            :active="localFilters.status === status"
-            @click="localFilters.status = status as any"
-          >
-            {{ status === 'all' ? 'Any' : status }}
-          </Chip>
-        </div>
-      </div>
-
-      <div class="space-y-2">
         <p class="font-semibold text-slate-900">Rating</p>
         <div class="flex gap-2">
-          <Chip
+          <button
             v-for="rate in [5, 4, 3, 2, 1]"
             :key="rate"
-            :active="localFilters.rating === rate"
+            type="button"
+            :class="[
+              'rounded-pill px-4 py-2 text-sm font-semibold transition border border-line shadow-soft',
+              localFilters.rating === rate ? 'bg-primary text-white' : 'bg-white text-slate-700',
+            ]"
             @click="localFilters.rating = rate"
           >
             {{ rate }}+
-          </Chip>
-          <Chip :active="localFilters.rating === null" @click="localFilters.rating = null">Any</Chip>
+          </button>
+          <button
+            type="button"
+            :class="[
+              'rounded-pill px-4 py-2 text-sm font-semibold transition border border-line shadow-soft',
+              localFilters.rating === null ? 'bg-primary text-white' : 'bg-white text-slate-700',
+            ]"
+            @click="localFilters.rating = null"
+          >
+            Any
+          </button>
         </div>
       </div>
 
-      <Button block size="lg" @click="applyFilters">Apply Filters</Button>
-      <Button block size="lg" variant="secondary" @click="resetFilters">Reset Filters</Button>
+      <button
+        type="button"
+        class="inline-flex items-center justify-center rounded-full font-semibold transition shadow-soft bg-primary text-white hover:bg-primary-dark h-14 px-6 text-base w-full"
+        @click="applyFilters"
+      >
+        Apply Filters
+      </button>
+      <button
+        type="button"
+        class="inline-flex items-center justify-center rounded-full font-semibold transition shadow-soft bg-white text-slate-900 border border-line hover:border-primary/50 h-14 px-6 text-base w-full"
+        @click="resetFilters"
+      >
+        Reset Filters
+      </button>
     </div>
   </ModalSheet>
 </template>

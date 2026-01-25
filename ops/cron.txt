@@ -1,0 +1,1 @@
+* * * * * www-data /usr/bin/php /var/www/izdaji/backend/artisan schedule:run >> /var/log/cron.log 2>&1

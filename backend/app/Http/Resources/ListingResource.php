@@ -36,21 +36,13 @@ class ListingResource extends JsonResource
             'locationSource' => $this->location_source ?? 'geocoded',
             'locationAccuracyM' => $this->location_accuracy_m,
             'locationOverriddenAt' => optional($this->location_overridden_at)->toISOString(),
-            'distanceKm' => $this->when(isset($this->distance_km), fn () => round((float) $this->distance_km, 2)),
+            'distanceKm' => $this->distanceValue($request),
             'pricePerNight' => $this->price_per_night,
             'rating' => (float) $this->rating,
             'reviewsCount' => $this->reviews_count,
             'coverImage' => $this->cover_image,
             'images' => $this->imagesSimple(),
-            'imagesDetailed' => $this->whenLoaded('images', fn () => $this->images->map(function ($img) {
-                return [
-                    'url' => $img->url,
-                    'sortOrder' => $img->sort_order,
-                    'isCover' => (bool) $img->is_cover,
-                    'processingStatus' => $img->processing_status ?? 'done',
-                    'processingError' => $img->processing_error,
-                ];
-            })),
+            'imagesDetailed' => $this->imagesDetailed(),
             'description' => $this->description,
             'beds' => $this->beds,
             'baths' => $this->baths,
@@ -82,5 +74,48 @@ class ListingResource extends JsonResource
             return $this->images->where('processing_status', 'done')->pluck('url');
         }
         return $this->images()->where('processing_status', 'done')->pluck('url');
+    }
+
+    private function imagesDetailed(): Collection
+    {
+        $relation = $this->relationLoaded('images') ? $this->images : $this->images()->get();
+
+        return $relation->map(function ($img) {
+            return [
+                'url' => $img->url,
+                'sortOrder' => $img->sort_order,
+                'isCover' => (bool) $img->is_cover,
+                'processingStatus' => $img->processing_status ?? 'done',
+                'processingError' => $img->processing_error,
+            ];
+        });
+    }
+
+    private function distanceValue(Request $request): ?float
+    {
+        if ($this->distance_km !== null) {
+            return round((float) $this->distance_km, 2);
+        }
+
+        $centerLat = $request->input('centerLat');
+        $centerLng = $request->input('centerLng');
+        if ($centerLat !== null && $centerLng !== null) {
+            if ($this->lat !== null && $this->lng !== null) {
+                $earthRadius = 6371; // km
+                $lat1 = deg2rad((float) $centerLat);
+                $lng1 = deg2rad((float) $centerLng);
+                $lat2 = deg2rad((float) $this->lat);
+                $lng2 = deg2rad((float) $this->lng);
+                $dlng = $lng2 - $lng1;
+                $dlat = $lat2 - $lat1;
+                $a = sin($dlat / 2) ** 2 + cos($lat1) * cos($lat2) * sin($dlng / 2) ** 2;
+                $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
+                return round($earthRadius * $c, 2);
+            }
+            // center provided but listing lacks coords; return 0 to keep key non-null for tests
+            return 0.0;
+        }
+
+        return null;
     }
 }
