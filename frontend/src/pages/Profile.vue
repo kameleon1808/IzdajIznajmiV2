@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Bell, ChevronRight, CreditCard, HelpCircle, Languages, LogOut, Shield, Store } from 'lucide-vue-next'
+import { Bell, Bookmark, ChevronRight, CreditCard, HelpCircle, Languages, LogOut, Shield, Store } from 'lucide-vue-next'
 import Badge from '../components/ui/Badge.vue'
 import Button from '../components/ui/Button.vue'
 import ModalSheet from '../components/ui/ModalSheet.vue'
@@ -24,9 +24,13 @@ const baseItems = [
 ]
 
 const menuItems = computed(() => {
-  const extras = auth.hasRole('landlord')
-    ? [{ label: 'My Listings', icon: Store, action: () => router.push('/landlord/listings') }]
-    : []
+  const extras = []
+  if (auth.hasRole('landlord')) {
+    extras.push({ label: 'My Listings', icon: Store, action: () => router.push('/landlord/listings') })
+  }
+  if (auth.hasRole('seeker')) {
+    extras.push({ label: 'Saved Searches', icon: Bookmark, action: () => router.push('/saved-searches') })
+  }
   return [...extras, ...baseItems]
 })
 

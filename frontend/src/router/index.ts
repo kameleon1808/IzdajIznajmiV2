@@ -17,6 +17,7 @@ import AdminDashboard from '../pages/AdminDashboard.vue'
 import AdminModeration from '../pages/AdminModeration.vue'
 import Reviews from '../pages/Reviews.vue'
 import Search from '../pages/Search.vue'
+import SavedSearches from '../pages/SavedSearches.vue'
 import SettingsLanguage from '../pages/SettingsLanguage.vue'
 import SettingsLegal from '../pages/SettingsLegal.vue'
 import SettingsPersonalInfo from '../pages/SettingsPersonalInfo.vue'
@@ -56,6 +57,12 @@ const router = createRouter({
       name: 'favorites',
       component: Favorites,
       meta: { topBar: { type: 'title', title: 'My Favorite' }, showTabs: true, roles: ['seeker'] },
+    },
+    {
+      path: '/saved-searches',
+      name: 'saved-searches',
+      component: SavedSearches,
+      meta: { topBar: { type: 'title', title: 'Saved Searches' }, showTabs: true, roles: ['seeker'] },
     },
     {
       path: '/bookings',

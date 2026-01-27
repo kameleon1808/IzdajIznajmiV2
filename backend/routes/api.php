@@ -18,6 +18,7 @@ use App\Http\Controllers\Admin\ImpersonationController;
 use App\Http\Controllers\GeocodingController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\NotificationPreferenceController;
+use App\Http\Controllers\SavedSearchController;
 use App\Http\Controllers\ListingLocationController;
 use App\Http\Controllers\ViewingRequestController;
 use App\Http\Controllers\ViewingSlotController;
@@ -102,6 +103,11 @@ $apiRoutes = function () use ($authRoutes) {
 
         Route::get('/notification-preferences', [NotificationPreferenceController::class, 'show']);
         Route::put('/notification-preferences', [NotificationPreferenceController::class, 'update']);
+
+        Route::get('/saved-searches', [SavedSearchController::class, 'index']);
+        Route::post('/saved-searches', [SavedSearchController::class, 'store']);
+        Route::put('/saved-searches/{savedSearch}', [SavedSearchController::class, 'update']);
+        Route::delete('/saved-searches/{savedSearch}', [SavedSearchController::class, 'destroy']);
 
         Route::prefix('admin')->group(function () {
             Route::post('/impersonate/stop', [ImpersonationController::class, 'stop']);

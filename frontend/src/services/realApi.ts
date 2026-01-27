@@ -14,6 +14,7 @@ import type {
   Report,
   ViewingRequest,
   ViewingSlot,
+  SavedSearch,
 } from '../types'
 import { useAuthStore } from '../stores/auth'
 
@@ -175,6 +176,17 @@ const mapViewingRequest = (data: any): ViewingRequest => ({
   },
 })
 
+const mapSavedSearch = (data: any): SavedSearch => ({
+  id: String(data.id),
+  name: data.name ?? null,
+  filters: data.filters ?? {},
+  alertsEnabled: Boolean(data.alertsEnabled ?? data.alerts_enabled ?? false),
+  frequency: data.frequency ?? 'instant',
+  lastAlertedAt: data.lastAlertedAt ?? data.last_alerted_at ?? null,
+  createdAt: data.createdAt ?? data.created_at ?? null,
+  updatedAt: data.updatedAt ?? data.updated_at ?? null,
+})
+
 const applyListingFilters = (filters?: ListingFilters) => {
   if (!filters) return {}
   const params: Record<string, any> = {}
@@ -210,6 +222,11 @@ const applyListingFilters = (filters?: ListingFilters) => {
 const appendIfValue = (form: FormData, key: string, value: any) => {
   if (value === undefined || value === null || value === '') return
   form.append(key, value as any)
+}
+
+const appendBoolean = (form: FormData, key: string, value: boolean | null | undefined) => {
+  if (value === undefined || value === null) return
+  form.append(key, value ? '1' : '0')
 }
 
 const mapPaginated = (payload: any) => {
@@ -298,7 +315,7 @@ export const createListing = async (payload: any): Promise<Listing> => {
   appendIfValue(form, 'area', payload.area)
   appendIfValue(form, 'lat', payload.lat)
   appendIfValue(form, 'lng', payload.lng)
-  appendIfValue(form, 'instantBook', payload.instantBook)
+  appendBoolean(form, 'instantBook', payload.instantBook)
   payload.facilities?.forEach((f: any) => form.append('facilities[]', f))
   payload.imagesFiles?.forEach((file: File) => form.append('images[]', file))
   if (payload.coverIndex !== undefined) form.append('coverIndex', payload.coverIndex)
@@ -322,7 +339,7 @@ export const updateListing = async (id: string, payload: any): Promise<Listing> 
   if (payload.area !== undefined) form.append('area', payload.area)
   if (payload.lat !== undefined) form.append('lat', payload.lat)
   if (payload.lng !== undefined) form.append('lng', payload.lng)
-  if (payload.instantBook !== undefined) form.append('instantBook', payload.instantBook)
+  appendBoolean(form, 'instantBook', payload.instantBook)
   payload.facilities?.forEach((f: any) => form.append('facilities[]', f))
   if (payload.keepImages?.length) {
     form.append('keepImages', JSON.stringify(payload.keepImages))
@@ -375,6 +392,50 @@ export const markListingRented = async (id: string): Promise<Listing> => {
 export const markListingAvailable = async (id: string): Promise<Listing> => {
   const { data } = await apiClient.patch(`/landlord/listings/${id}/mark-available`)
   return mapListing(data.data ?? data)
+}
+
+export const getSavedSearches = async (): Promise<SavedSearch[]> => {
+  const { data } = await apiClient.get('/saved-searches')
+  const list = (data.data ?? data) as any[]
+  return list.map(mapSavedSearch)
+}
+
+export const createSavedSearch = async (payload: {
+  name?: string | null
+  filters: Record<string, any>
+  alertsEnabled?: boolean
+  frequency?: SavedSearch['frequency']
+}): Promise<SavedSearch> => {
+  const body = {
+    name: payload.name ?? null,
+    filters: payload.filters,
+    alerts_enabled: payload.alertsEnabled ?? true,
+    frequency: payload.frequency ?? 'instant',
+  }
+  const { data } = await apiClient.post('/saved-searches', body)
+  return mapSavedSearch(data.data ?? data)
+}
+
+export const updateSavedSearch = async (
+  id: string,
+  payload: {
+    name?: string | null
+    filters?: Record<string, any>
+    alertsEnabled?: boolean
+    frequency?: SavedSearch['frequency']
+  },
+): Promise<SavedSearch> => {
+  const body: Record<string, any> = {}
+  if (payload.name !== undefined) body.name = payload.name
+  if (payload.filters !== undefined) body.filters = payload.filters
+  if (payload.alertsEnabled !== undefined) body.alerts_enabled = payload.alertsEnabled
+  if (payload.frequency !== undefined) body.frequency = payload.frequency
+  const { data } = await apiClient.put(`/saved-searches/${id}`, body)
+  return mapSavedSearch(data.data ?? data)
+}
+
+export const deleteSavedSearch = async (id: string): Promise<void> => {
+  await apiClient.delete(`/saved-searches/${id}`)
 }
 
 export const applyToListing = async (listingId: string, message?: string | null): Promise<Application> => {

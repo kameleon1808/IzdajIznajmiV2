@@ -2,11 +2,10 @@
 import { computed, defineAsyncComponent, onMounted, ref, watch } from 'vue'
 import { useDebounceFn } from '@vueuse/core'
 import { useRoute, useRouter } from 'vue-router'
-import { Flame, History, Map as MapIcon, MapPin, List as ListIcon, Search as SearchIcon, SlidersHorizontal } from 'lucide-vue-next'
+import { Bookmark, BookmarkPlus, Flame, Map as MapIcon, MapPin, List as ListIcon, Search as SearchIcon, SlidersHorizontal } from 'lucide-vue-next'
 import ListingCardHorizontal from '../components/listing/ListingCardHorizontal.vue'
 import ListingCard from '../components/listing/ListingCard.vue'
 import ModalSheet from '../components/ui/ModalSheet.vue'
-import Chip from '../components/ui/Chip.vue'
 import Input from '../components/ui/Input.vue'
 import Button from '../components/ui/Button.vue'
 import EmptyState from '../components/ui/EmptyState.vue'
@@ -14,31 +13,75 @@ import ListSkeleton from '../components/ui/ListSkeleton.vue'
 import ErrorState from '../components/ui/ErrorState.vue'
 import { geocodeLocation, suggestLocations } from '../services'
 import { defaultFilters, useListingsStore } from '../stores/listings'
-import type { ListingFilters } from '../types'
+import { useSavedSearchesStore } from '../stores/savedSearches'
+import { useToastStore } from '../stores/toast'
+import { useAuthStore } from '../stores/auth'
+import type { ListingFilters, SavedSearch } from '../types'
 
 const MapExplorer = defineAsyncComponent(() => import('../components/search/MapExplorer.vue'))
 
 const listingsStore = useListingsStore()
+const savedSearchesStore = useSavedSearchesStore()
+const toast = useToastStore()
+const authStore = useAuthStore()
 const router = useRouter()
 const route = useRoute()
 
 const viewMode = ref<'list' | 'map'>((route.query.view as string) === 'map' ? 'map' : 'list')
 const searchQuery = ref<string>((route.query.q as string) ?? '')
 const filterOpen = ref(false)
+const saveSearchOpen = ref(false)
+const savingSearch = ref(false)
 const geocoding = ref(false)
 const geocodeError = ref('')
 const suggestLoading = ref(false)
 const suggestions = ref<{ label: string; lat: number; lng: number; type: string }[]>([])
 const showSuggestions = ref(false)
 const defaultCenter = { lat: 44.8125, lng: 20.4612 } // Belgrade
-const localFilters = ref<ListingFilters & { areaRange: [number, number] }>({
-  ...listingsStore.filters,
-  priceRange: [...listingsStore.filters.priceRange] as [number, number],
-  facilities: [...listingsStore.filters.facilities],
-  amenities: [...(listingsStore.filters.amenities ?? [])],
-  areaRange: [...(listingsStore.filters.areaRange ?? [0, 100000])] as [number, number],
-  radiusKm: listingsStore.filters.radiusKm ?? defaultFilters.radiusKm,
+type FilterDraft = ListingFilters & {
+  areaRange: [number, number]
+  priceMinInput: string
+  priceMaxInput: string
+  areaMinInput: string
+  areaMaxInput: string
+  roomsInput: string
+}
+
+const buildFilterDraft = (filters: ListingFilters): FilterDraft => {
+  const priceRange = filters.priceRange ?? defaultFilters.priceRange
+  const areaRange = filters.areaRange ?? defaultFilters.areaRange ?? [0, 100000]
+  const defaultPriceMin = defaultFilters.priceRange[0]
+  const defaultPriceMax = defaultFilters.priceRange[1]
+  const defaultAreaMin = defaultFilters.areaRange?.[0] ?? 0
+  const defaultAreaMax = defaultFilters.areaRange?.[1] ?? 100000
+
+  return {
+    ...filters,
+    priceRange: [...priceRange] as [number, number],
+    facilities: [...filters.facilities],
+    amenities: [...(filters.amenities ?? [])],
+    areaRange: [...areaRange] as [number, number],
+    radiusKm: filters.radiusKm ?? defaultFilters.radiusKm,
+    priceMinInput: priceRange[0] !== defaultPriceMin ? String(priceRange[0]) : '',
+    priceMaxInput: priceRange[1] !== defaultPriceMax ? String(priceRange[1]) : '',
+    areaMinInput: areaRange[0] !== defaultAreaMin ? String(areaRange[0]) : '',
+    areaMaxInput: areaRange[1] !== defaultAreaMax ? String(areaRange[1]) : '',
+    roomsInput: filters.rooms ? String(filters.rooms) : '',
+  }
+}
+
+const localFilters = ref<FilterDraft>(buildFilterDraft(listingsStore.filters))
+const saveSearchForm = ref({
+  name: '',
+  alertsEnabled: true,
+  frequency: 'instant' as SavedSearch['frequency'],
 })
+const activeSavedSearch = ref<SavedSearch | null>(null)
+const appliedSavedSearchId = ref<string | null>(null)
+
+const syncLocalFilters = () => {
+  localFilters.value = buildFilterDraft(listingsStore.filters)
+}
 const currentQuery = ref('')
 const debouncedSuggest = useDebounceFn(async () => {
   await fetchSuggestions()
@@ -52,6 +95,9 @@ const popular = computed(() => listingsStore.popular.slice(0, 2))
 const loading = computed(() => listingsStore.loading)
 const loadingMore = computed(() => listingsStore.loadingMore)
 const error = computed(() => listingsStore.error)
+const savedSearchId = computed(() =>
+  typeof route.query.savedSearchId === 'string' ? route.query.savedSearchId : null,
+)
 const mapCenter = computed(() =>
   listingsStore.filters.centerLat != null && listingsStore.filters.centerLng != null
     ? { lat: listingsStore.filters.centerLat, lng: listingsStore.filters.centerLng }
@@ -60,6 +106,141 @@ const mapCenter = computed(() =>
 const radiusValue = computed<number>(() => listingsStore.filters.radiusKm ?? defaultFilters.radiusKm ?? 0)
 const inlineRadius = ref(radiusValue.value)
 const missingGeoCount = computed(() => results.value.filter((item) => item.lat == null || item.lng == null).length)
+
+const buildSavedSearchFilters = () => {
+  const f = listingsStore.filters
+  const amenities = f.amenities?.length ? f.amenities : f.facilities
+  return {
+    category: f.category,
+    guests: f.guests,
+    priceMin: f.priceRange?.[0],
+    priceMax: f.priceRange?.[1],
+    rooms: f.rooms,
+    areaMin: f.areaRange?.[0],
+    areaMax: f.areaRange?.[1],
+    instantBook: f.instantBook,
+    location: searchQuery.value || f.location || '',
+    city: f.city,
+    rating: f.rating,
+    status: f.status,
+    amenities,
+    centerLat: f.centerLat,
+    centerLng: f.centerLng,
+    radiusKm: f.radiusKm,
+    mapMode: viewMode.value === 'map',
+  }
+}
+
+const applySavedSearch = async (savedSearch: SavedSearch) => {
+  const filters = savedSearch.filters ?? {}
+
+  viewMode.value = filters.mapMode ? 'map' : 'list'
+  searchQuery.value = filters.location ?? ''
+
+  const nextFilters: Partial<ListingFilters> = {
+    ...listingsStore.filters,
+    category: filters.category ?? defaultFilters.category,
+    guests: filters.guests ?? defaultFilters.guests,
+    priceRange: [
+      filters.priceMin ?? defaultFilters.priceRange[0],
+      filters.priceMax ?? defaultFilters.priceRange[1],
+    ] as [number, number],
+    rooms: filters.rooms ?? null,
+    areaRange: [
+      filters.areaMin ?? defaultFilters.areaRange?.[0] ?? 0,
+      filters.areaMax ?? defaultFilters.areaRange?.[1] ?? 100000,
+    ] as [number, number],
+    instantBook: Boolean(filters.instantBook),
+    location: filters.location ?? '',
+    city: filters.city ?? '',
+    facilities: filters.amenities ?? filters.facilities ?? [],
+    amenities: filters.amenities ?? filters.facilities ?? [],
+    rating: filters.rating ?? null,
+    status: filters.status ?? defaultFilters.status,
+    centerLat: filters.centerLat ?? null,
+    centerLng: filters.centerLng ?? null,
+    radiusKm: filters.radiusKm ?? defaultFilters.radiusKm,
+  }
+
+  listingsStore.setFilters(nextFilters, { fetch: false })
+  syncLocalFilters()
+
+  if (viewMode.value === 'map' && (filters.centerLat == null || filters.centerLng == null)) {
+    await ensureMapCenter()
+  }
+}
+
+const loadSavedSearchFromRoute = async () => {
+  if (!savedSearchId.value) {
+    activeSavedSearch.value = null
+    appliedSavedSearchId.value = null
+    return false
+  }
+  if (!authStore.isAuthenticated && !authStore.isMockMode) {
+    toast.push({ title: 'Log in to use saved searches', type: 'info' })
+    return false
+  }
+  if (appliedSavedSearchId.value === savedSearchId.value && activeSavedSearch.value) {
+    return true
+  }
+  if (!savedSearchesStore.savedSearches.length) {
+    try {
+      await savedSearchesStore.fetchSavedSearches()
+    } catch (error) {
+      toast.push({ title: 'Unable to load saved search', type: 'error' })
+      return false
+    }
+  }
+  const saved = savedSearchesStore.byId(savedSearchId.value)
+  if (!saved) {
+    toast.push({ title: 'Saved search not found', type: 'error' })
+    activeSavedSearch.value = null
+    appliedSavedSearchId.value = null
+    return false
+  }
+  appliedSavedSearchId.value = saved.id
+  activeSavedSearch.value = saved
+  await applySavedSearch(saved)
+  await runSearch()
+  return true
+}
+
+const clearSavedSearch = async () => {
+  activeSavedSearch.value = null
+  appliedSavedSearchId.value = null
+  const { savedSearchId, ...rest } = route.query
+  await router.replace({ query: rest })
+}
+
+const saveSearch = async () => {
+  if (!authStore.isAuthenticated && !authStore.isMockMode) {
+    toast.push({ title: 'Log in to save searches', type: 'info' })
+    router.push('/login')
+    return
+  }
+
+  savingSearch.value = true
+  try {
+    const saved = await savedSearchesStore.createSavedSearch({
+      name: saveSearchForm.value.name.trim() ? saveSearchForm.value.name.trim() : null,
+      filters: buildSavedSearchFilters(),
+      alertsEnabled: saveSearchForm.value.alertsEnabled,
+      frequency: saveSearchForm.value.frequency,
+    })
+    activeSavedSearch.value = saved
+    saveSearchOpen.value = false
+    toast.push({ title: 'Saved search created', type: 'success' })
+  } catch (error) {
+    const err = error as { status?: number; message?: string }
+    if (err.status === 409) {
+      toast.push({ title: 'Already saved', message: err.message ?? 'Search already exists.', type: 'info' })
+    } else {
+      toast.push({ title: 'Save failed', message: err.message ?? 'Unable to save search.', type: 'error' })
+    }
+  } finally {
+    savingSearch.value = false
+  }
+}
 
 watch(radiusValue, (val) => {
   inlineRadius.value = val
@@ -99,14 +280,7 @@ const hydrateFromRoute = () => {
     listingsStore.updateGeoFilters(defaultCenter.lat, defaultCenter.lng, listingsStore.filters.radiusKm ?? defaultFilters.radiusKm)
   }
 
-  localFilters.value = {
-    ...listingsStore.filters,
-    priceRange: [...listingsStore.filters.priceRange] as [number, number],
-    facilities: [...listingsStore.filters.facilities],
-    amenities: [...(listingsStore.filters.amenities ?? [])],
-    areaRange: [...(listingsStore.filters.areaRange ?? [0, 100000])] as [number, number],
-    radiusKm: listingsStore.filters.radiusKm ?? defaultFilters.radiusKm,
-  }
+  syncLocalFilters()
 }
 
 const skipQuerySync = ref(false)
@@ -231,10 +405,44 @@ const widenRadius = async () => {
   await runSearch()
 }
 
+const parseOptionalNumber = (value: string | number | null | undefined) => {
+  if (value === null || value === undefined) return null
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null
+  const trimmed = value.trim()
+  if (!trimmed) return null
+  const parsed = Number(trimmed)
+  return Number.isFinite(parsed) ? parsed : null
+}
+
 const applyFilters = async () => {
-  localFilters.value.amenities = [...(localFilters.value.amenities ?? localFilters.value.facilities ?? [])]
-  localFilters.value.facilities = [...(localFilters.value.amenities ?? [])]
-  listingsStore.setFilters(localFilters.value)
+  const {
+    priceMinInput,
+    priceMaxInput,
+    areaMinInput,
+    areaMaxInput,
+    roomsInput,
+    ...rest
+  } = localFilters.value
+  const priceMin = parseOptionalNumber(priceMinInput)
+  const priceMax = parseOptionalNumber(priceMaxInput)
+  const areaMin = parseOptionalNumber(areaMinInput)
+  const areaMax = parseOptionalNumber(areaMaxInput)
+  const rooms = parseOptionalNumber(roomsInput)
+  const nextFilters: ListingFilters = {
+    ...rest,
+    priceRange: [
+      priceMin ?? defaultFilters.priceRange[0],
+      priceMax ?? defaultFilters.priceRange[1],
+    ] as [number, number],
+    areaRange: [
+      areaMin ?? (defaultFilters.areaRange?.[0] ?? 0),
+      areaMax ?? (defaultFilters.areaRange?.[1] ?? 100000),
+    ] as [number, number],
+    rooms: rooms ?? null,
+  }
+  nextFilters.amenities = [...(nextFilters.amenities ?? nextFilters.facilities ?? [])]
+  nextFilters.facilities = [...(nextFilters.amenities ?? [])]
+  listingsStore.setFilters(nextFilters)
   filterOpen.value = false
   await runSearch()
 }
@@ -243,14 +451,7 @@ const resetFilters = async () => {
   viewMode.value = 'list'
   listingsStore.resetFilters()
   searchQuery.value = ''
-  localFilters.value = {
-    ...listingsStore.filters,
-    priceRange: [...listingsStore.filters.priceRange] as [number, number],
-    facilities: [...listingsStore.filters.facilities],
-    amenities: [...(listingsStore.filters.amenities ?? [])],
-    areaRange: [...(listingsStore.filters.areaRange ?? [0, 100000])] as [number, number],
-    radiusKm: listingsStore.filters.radiusKm ?? defaultFilters.radiusKm,
-  }
+  syncLocalFilters()
   filterOpen.value = false
   await runSearch()
 }
@@ -288,7 +489,10 @@ onMounted(async () => {
   hydrateFromRoute()
   await listingsStore.fetchRecommended()
   await listingsStore.fetchPopular()
-  await runSearch()
+  const applied = await loadSavedSearchFromRoute()
+  if (!applied) {
+    await runSearch()
+  }
   if (viewMode.value === 'map' && (!listingsStore.filters.centerLat || !listingsStore.filters.centerLng)) {
     listingsStore.updateGeoFilters(defaultCenter.lat, defaultCenter.lng, listingsStore.filters.radiusKm ?? defaultFilters.radiusKm)
     syncQueryParams()
@@ -296,25 +500,28 @@ onMounted(async () => {
 })
 
 watch(filterOpen, (open) => {
-  if (open)
-    localFilters.value = {
-      ...listingsStore.filters,
-      priceRange: [...listingsStore.filters.priceRange] as [number, number],
-      facilities: [...listingsStore.filters.facilities],
-      amenities: [...(listingsStore.filters.amenities ?? [])],
-      areaRange: [...(listingsStore.filters.areaRange ?? [0, 100000])] as [number, number],
-      radiusKm: listingsStore.filters.radiusKm ?? defaultFilters.radiusKm,
-    }
+  if (open) syncLocalFilters()
 })
 
 watch(searchQuery, () => {
   debouncedSuggest()
 })
 
+watch(saveSearchOpen, (open) => {
+  if (open) {
+    saveSearchForm.value = {
+      name: '',
+      alertsEnabled: true,
+      frequency: 'instant',
+    }
+  }
+})
+
 watch(
   () => route.query,
-  (newQuery) => {
+  async (newQuery) => {
     if (skipQuerySync.value) return
+    if (await loadSavedSearchFromRoute()) return
     if (JSON.stringify(buildQueryFromState()) === JSON.stringify(newQuery)) return
     hydrateFromRoute()
     runSearch()
@@ -362,44 +569,52 @@ watch(
         </div>
         -->
       </div>
-      <div class="inline-flex overflow-hidden rounded-full border border-line bg-surface text-sm font-semibold shadow-soft">
-        <button
-          :class="[
-            'flex items-center gap-2 px-4 py-2 transition',
-            viewMode === 'list' ? 'bg-white text-primary shadow-soft' : 'text-muted hover:text-slate-800',
-          ]"
-          @click="setViewMode('list')"
-        >
-          <ListIcon class="h-4 w-4" />
-          List
-        </button>
-        <button
-          :class="[
-            'flex items-center gap-2 px-4 py-2 transition',
-            viewMode === 'map' ? 'bg-primary text-white shadow-soft' : 'text-muted hover:text-slate-800',
-          ]"
-          @click="setViewMode('map')"
-        >
-          <MapIcon class="h-4 w-4" />
-          Map
-        </button>
+      <div class="flex flex-wrap items-center gap-2">
+        <div class="inline-flex overflow-hidden rounded-full border border-line bg-surface text-sm font-semibold shadow-soft">
+          <button
+            :class="[
+              'flex items-center gap-2 px-4 py-2 transition',
+              viewMode === 'list' ? 'bg-white text-primary shadow-soft' : 'text-muted hover:text-slate-800',
+            ]"
+            @click="setViewMode('list')"
+          >
+            <ListIcon class="h-4 w-4" />
+            List
+          </button>
+          <button
+            :class="[
+              'flex items-center gap-2 px-4 py-2 transition',
+              viewMode === 'map' ? 'bg-primary text-white shadow-soft' : 'text-muted hover:text-slate-800',
+            ]"
+            @click="setViewMode('map')"
+          >
+            <MapIcon class="h-4 w-4" />
+            Map
+          </button>
+        </div>
+        <Button size="sm" variant="secondary" @click="saveSearchOpen = true">
+          <BookmarkPlus class="mr-2 h-4 w-4" />
+          Save search
+        </Button>
+        <Button size="sm" variant="ghost" @click="router.push('/saved-searches')">
+          <Bookmark class="mr-2 h-4 w-4" />
+          Saved searches
+        </Button>
       </div>
     </div>
 
-    <div class="flex items-center justify-between px-1">
-      <h3 class="section-title">Recent searches</h3>
-      <button class="text-sm text-primary" @click="listingsStore.recentSearches = []">Clear</button>
-    </div>
-    <div class="flex flex-wrap gap-2">
-      <Chip
-        v-for="item in listingsStore.recentSearches"
-        :key="item"
-        :active="searchQuery === item"
-        @click="searchQuery = item; runSearch()"
-      >
-        <History class="mr-2 h-4 w-4" />
-        {{ item }}
-      </Chip>
+    <div
+      v-if="activeSavedSearch"
+      class="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm"
+    >
+      <div>
+        <p class="font-semibold text-slate-900">
+          Showing results for saved search
+          <span class="text-primary">{{ activeSavedSearch.name || 'Saved search' }}</span>
+        </p>
+        <p class="text-xs text-muted">Results are refreshed from the saved filters.</p>
+      </div>
+      <Button size="sm" variant="ghost" @click="clearSavedSearch">Clear</Button>
     </div>
 
     <div v-if="viewMode === 'list'" class="space-y-5">
@@ -549,12 +764,15 @@ watch(
       <div class="space-y-2">
         <div class="flex items-center justify-between">
           <p class="font-semibold text-slate-900">Price range</p>
-          <span class="text-sm text-muted">${{ localFilters.priceRange[0] }} - ${{ localFilters.priceRange[1] }}</span>
+          <span class="text-sm text-muted">
+            {{ localFilters.priceMinInput ? `$${localFilters.priceMinInput}` : 'Any' }} -
+            {{ localFilters.priceMaxInput ? `$${localFilters.priceMaxInput}` : 'Any' }}
+          </span>
         </div>
         <div class="grid grid-cols-2 gap-3">
           <label class="flex items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow-soft border border-white/70" inputmode="decimal" step="0.01" min="0">
             <input
-              v-model.number="localFilters.priceRange[0]"
+              v-model="localFilters.priceMinInput"
               placeholder="Min"
               type="number"
               class="flex-1 bg-transparent text-sm font-medium text-slate-900 placeholder:text-muted focus:outline-none"
@@ -564,7 +782,7 @@ watch(
           </label>
           <label class="flex items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow-soft border border-white/70" inputmode="decimal" step="0.01" min="0">
             <input
-              v-model.number="localFilters.priceRange[1]"
+              v-model="localFilters.priceMaxInput"
               placeholder="Max"
               type="number"
               class="flex-1 bg-transparent text-sm font-medium text-slate-900 placeholder:text-muted focus:outline-none"
@@ -578,12 +796,14 @@ watch(
       <div class="space-y-2">
         <div class="flex items-center justify-between">
           <p class="font-semibold text-slate-900">Area (sqm)</p>
-          <span class="text-sm text-muted">{{ localFilters.areaRange[0] }} - {{ localFilters.areaRange[1] }}</span>
+          <span class="text-sm text-muted">
+            {{ localFilters.areaMinInput || 'Any' }} - {{ localFilters.areaMaxInput || 'Any' }}
+          </span>
         </div>
         <div class="grid grid-cols-2 gap-3">
           <label class="flex items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow-soft border border-white/70" min="0">
             <input
-              v-model.number="localFilters.areaRange[0]"
+              v-model="localFilters.areaMinInput"
               placeholder="Min"
               type="number"
               class="flex-1 bg-transparent text-sm font-medium text-slate-900 placeholder:text-muted focus:outline-none"
@@ -592,7 +812,7 @@ watch(
           </label>
           <label class="flex items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow-soft border border-white/70" min="0">
             <input
-              v-model.number="localFilters.areaRange[1]"
+              v-model="localFilters.areaMaxInput"
               placeholder="Max"
               type="number"
               class="flex-1 bg-transparent text-sm font-medium text-slate-900 placeholder:text-muted focus:outline-none"
@@ -605,30 +825,17 @@ watch(
       <div class="space-y-2">
         <div class="flex items-center justify-between">
           <p class="font-semibold text-slate-900">Rooms</p>
-          <span class="text-sm text-muted">{{ localFilters.rooms ?? 0 }}+</span>
+          <span class="text-sm text-muted">{{ localFilters.roomsInput || 'Any' }}</span>
         </div>
-        <div class="flex gap-2">
-          <button
-            type="button"
-            class="inline-flex items-center justify-center rounded-full font-semibold transition shadow-soft bg-white text-slate-900 border border-line hover:border-primary/50 h-12 px-5 text-sm"
-            @click="localFilters.rooms = Math.max(0, (localFilters.rooms ?? 0) - 1)"
-          >
-            -
-          </button>
-          <button
-            type="button"
-            class="inline-flex items-center justify-center rounded-full font-semibold transition shadow-soft bg-white text-slate-900 border border-line hover:border-primary/50 h-12 px-5 text-sm flex-1"
-          >
-            {{ localFilters.rooms ?? 0 }}
-          </button>
-          <button
-            type="button"
-            class="inline-flex items-center justify-center rounded-full font-semibold transition shadow-soft bg-white text-slate-900 border border-line hover:border-primary/50 h-12 px-5 text-sm"
-            @click="localFilters.rooms = (localFilters.rooms ?? 0) + 1"
-          >
-            +
-          </button>
-        </div>
+        <label class="flex items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow-soft border border-white/70">
+          <input
+            v-model="localFilters.roomsInput"
+            placeholder="Any"
+            type="number"
+            class="flex-1 bg-transparent text-sm font-medium text-slate-900 placeholder:text-muted focus:outline-none"
+            min="0"
+          />
+        </label>
       </div>
 
       <div class="space-y-2">
@@ -729,6 +936,39 @@ watch(
       >
         Reset Filters
       </button>
+    </div>
+  </ModalSheet>
+
+  <ModalSheet v-model="saveSearchOpen" title="Save search">
+    <div class="space-y-4">
+      <Input v-model="saveSearchForm.name" placeholder="Search name (optional)" />
+
+      <div class="flex items-center justify-between rounded-2xl bg-surface px-4 py-3">
+        <div>
+          <p class="font-semibold text-slate-900">Alerts</p>
+          <p class="text-sm text-muted">Enable in-app notifications</p>
+        </div>
+        <label class="relative inline-flex cursor-pointer items-center">
+          <input v-model="saveSearchForm.alertsEnabled" type="checkbox" class="peer sr-only" />
+          <div
+            class="peer h-6 w-11 rounded-full bg-slate-200 after:absolute after:left-[4px] after:top-[4px] after:h-4 after:w-4 after:rounded-full after:bg-white after:transition peer-checked:bg-primary peer-checked:after:translate-x-[18px]"
+          ></div>
+        </label>
+      </div>
+
+      <div class="space-y-2">
+        <p class="font-semibold text-slate-900">Alert frequency</p>
+        <select
+          v-model="saveSearchForm.frequency"
+          class="w-full rounded-xl border border-line bg-white px-3 py-2 text-sm font-semibold text-slate-700"
+        >
+          <option value="instant">Instant</option>
+          <option value="daily">Daily</option>
+          <option value="weekly">Weekly</option>
+        </select>
+      </div>
+
+      <Button size="lg" :loading="savingSearch" block @click="saveSearch">Save search</Button>
     </div>
   </ModalSheet>
 </template>

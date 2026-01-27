@@ -72,6 +72,7 @@ class SendNotificationDigestCommand extends Command
             })->values()->all();
 
             $typeLabels = [
+                Notification::TYPE_LISTING_NEW_MATCH => 'Saved Search Matches',
                 Notification::TYPE_APPLICATION_CREATED => 'Applications',
                 Notification::TYPE_APPLICATION_STATUS_CHANGED => 'Application Updates',
                 Notification::TYPE_MESSAGE_RECEIVED => 'Messages',

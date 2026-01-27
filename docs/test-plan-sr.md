@@ -48,6 +48,14 @@
 | LL-03 | Landlord B token, listing A vlasništvo | 1) PUT /api/v1/landlord/listings/{A-id} | 403 | policy |
 | LL-04 | Landlord token | 1) GET /api/v1/landlord/listings | 200, samo njegove + facilities/images | owner filter |
 
+### Saved searches & alerts
+| ID | Precondition | Koraci | Očekivano | Napomena |
+| --- | --- | --- | --- | --- |
+| SS-01 | Seeker session | 1) POST /api/v1/saved-searches (filters + name opcionalno) | 201, vraća saved search sa normalizovanim filters | create |
+| SS-02 | SS-01 | 1) POST isti filters payload | 409 Conflict | dedupe |
+| SS-03 | Seeker session, ACTIVE listing koji matchuje | 1) Pokreni `php artisan saved-searches:match` 2) GET /api/v1/notifications | 200, kreiran match + listing.new_match notifikacija | matcher |
+| SS-04 | SS-03 | 1) Ponovi `php artisan saved-searches:match` bez novih listinga | nema duplih matchova/notifikacija | idempotent |
+
 ### Booking requests (inquiry)
 | ID | Precondition | Koraci | Očekivano | Napomena |
 | --- | --- | --- | --- | --- |

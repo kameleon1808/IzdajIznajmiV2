@@ -44,12 +44,16 @@ const form = reactive({
   description: '',
   beds: 1,
   baths: 1,
+  rooms: 1,
+  area: '',
   facilities: [] as string[],
+  instantBook: false,
   lat: '',
   lng: '',
 })
 
 const gallery = ref<GalleryItem[]>([])
+const amenityOptions = ['Pool', 'Spa', 'Wi-Fi', 'Breakfast', 'Parking', 'Kitchen', 'Workspace']
 
 const loadListing = async () => {
   if (!isEdit.value) return
@@ -68,6 +72,8 @@ const loadListing = async () => {
       form.description = data.description || ''
       form.beds = data.beds
       form.baths = data.baths
+      form.rooms = data.rooms ?? data.beds
+      form.area = data.area != null ? String(data.area) : ''
       const detailed: { url: string; sortOrder: number; isCover?: boolean; processingStatus?: string }[] = data.imagesDetailed?.length
         ? data.imagesDetailed
         : (data.images || []).map((url: string, idx: number) => ({ url, sortOrder: idx, isCover: idx === 0, processingStatus: 'done' }))
@@ -82,6 +88,7 @@ const loadListing = async () => {
         processingStatus: img.processingStatus ?? 'done',
       }))
       form.facilities = data.facilities || []
+      form.instantBook = Boolean(data.instantBook)
       form.lat = data.lat?.toString() || ''
       form.lng = data.lng?.toString() || ''
     }
@@ -96,14 +103,29 @@ onMounted(() => {
   loadListing()
 })
 
-const isValid = computed(() =>
-  !!form.title &&
-  !!form.address &&
-  !!form.city &&
-  !!form.country &&
-  form.pricePerNight > 0 &&
-  form.description.trim().length >= 30,
-)
+const isValid = computed(() => {
+  const areaValue = form.area !== '' ? Number(form.area) : NaN
+  const priceValue = Number(form.pricePerNight)
+  return (
+    !!form.title &&
+    !!form.address &&
+    !!form.city &&
+    !!form.country &&
+    Number.isFinite(priceValue) &&
+    Number.isInteger(priceValue) &&
+    priceValue >= 1 &&
+    form.description.trim().length >= 30 &&
+    Number.isFinite(areaValue) &&
+    Number.isInteger(areaValue) &&
+    areaValue >= 10 &&
+    Number.isInteger(form.beds) &&
+    form.beds >= 1 &&
+    Number.isInteger(form.baths) &&
+    form.baths >= 1 &&
+    Number.isInteger(form.rooms) &&
+    form.rooms >= 1
+  )
+})
 
 const onFilesChange = (event: Event) => {
   const files = (event.target as HTMLInputElement).files
@@ -166,8 +188,13 @@ const save = async () => {
   const ordered = [...activeGallery.value].sort((a, b) => a.sortOrder - b.sortOrder)
   ordered.forEach((item, idx) => (item.sortOrder = idx))
   try {
+    const areaValue = form.area !== '' ? Number(form.area) : undefined
+    const roomsValue = Number.isFinite(form.rooms) ? form.rooms : undefined
     const payload: any = {
       ...form,
+      instantBook: Boolean(form.instantBook),
+      area: areaValue,
+      rooms: roomsValue,
       lat: form.lat ? Number(form.lat) : undefined,
       lng: form.lng ? Number(form.lng) : undefined,
       ownerId: auth.user.id,
@@ -212,8 +239,13 @@ const publishNow = async () => {
   try {
     let listingId = route.params.id as string | undefined
     if (!isEdit.value) {
+      const areaValue = form.area !== '' ? Number(form.area) : undefined
+      const roomsValue = Number.isFinite(form.rooms) ? form.rooms : undefined
       const created = await listingsStore.createListing({
         ...form,
+        instantBook: Boolean(form.instantBook),
+        area: areaValue,
+        rooms: roomsValue,
         lat: form.lat ? Number(form.lat) : undefined,
         lng: form.lng ? Number(form.lng) : undefined,
         ownerId: auth.user.id,
@@ -267,7 +299,8 @@ const publishNow = async () => {
           <input
             v-model.number="form.pricePerNight"
             type="number"
-            min="0"
+            min="1"
+            step="1"
             class="mt-1 w-full rounded-xl border border-line px-3 py-3 text-sm focus:border-primary focus:outline-none"
             placeholder="180"
           />
@@ -328,12 +361,25 @@ const publishNow = async () => {
 
       <div class="grid grid-cols-2 gap-3">
         <label class="text-sm font-semibold text-slate-900">
-          Beds
+          Guests
           <input
             v-model.number="form.beds"
             type="number"
-            min="0"
+            min="1"
+            step="1"
             class="mt-1 w-full rounded-xl border border-line px-3 py-3 text-sm focus:border-primary focus:outline-none"
+            placeholder="2"
+          />
+        </label>
+        <label class="text-sm font-semibold text-slate-900">
+          Rooms
+          <input
+            v-model.number="form.rooms"
+            type="number"
+            min="1"
+            step="1"
+            class="mt-1 w-full rounded-xl border border-line px-3 py-3 text-sm focus:border-primary focus:outline-none"
+            placeholder="2"
           />
         </label>
         <label class="text-sm font-semibold text-slate-900">
@@ -341,9 +387,49 @@ const publishNow = async () => {
           <input
             v-model.number="form.baths"
             type="number"
-            min="0"
+            min="1"
+            step="1"
             class="mt-1 w-full rounded-xl border border-line px-3 py-3 text-sm focus:border-primary focus:outline-none"
           />
+        </label>
+        <label class="text-sm font-semibold text-slate-900">
+          Area (sqm)
+          <input
+            v-model="form.area"
+            type="number"
+            min="10"
+            step="1"
+            required
+            class="mt-1 w-full rounded-xl border border-line px-3 py-3 text-sm focus:border-primary focus:outline-none"
+            placeholder="e.g. 55"
+          />
+        </label>
+      </div>
+
+      <div class="space-y-2">
+        <p class="text-sm font-semibold text-slate-900">Amenities</p>
+        <div class="grid grid-cols-2 gap-2">
+          <label
+            v-for="facility in amenityOptions"
+            :key="facility"
+            class="flex items-center gap-2 rounded-xl border border-line px-3 py-2 text-sm font-semibold text-slate-800"
+          >
+            <input v-model="form.facilities" :value="facility" type="checkbox" class="h-4 w-4 accent-primary" />
+            {{ facility }}
+          </label>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-between rounded-2xl bg-surface px-4 py-3">
+        <div>
+          <p class="font-semibold text-slate-900">Instant book</p>
+          <p class="text-sm text-muted">Book without waiting</p>
+        </div>
+        <label class="relative inline-flex cursor-pointer items-center">
+          <input v-model="form.instantBook" type="checkbox" class="peer sr-only" />
+          <div
+            class="peer h-6 w-11 rounded-full bg-slate-200 after:absolute after:left-[4px] after:top-[4px] after:h-4 after:w-4 after:rounded-full after:bg-white after:transition peer-checked:bg-primary peer-checked:after:translate-x-[18px]"
+          ></div>
         </label>
       </div>
 

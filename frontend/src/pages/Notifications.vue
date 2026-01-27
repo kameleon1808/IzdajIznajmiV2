@@ -83,6 +83,7 @@ const formatTime = (dateString: string) => {
 
 const getNotificationIcon = (type: string) => {
   const icons: Record<string, string> = {
+    'listing.new_match': '🔎',
     'application.created': '📝',
     'application.status_changed': '✅',
     'message.received': '💬',

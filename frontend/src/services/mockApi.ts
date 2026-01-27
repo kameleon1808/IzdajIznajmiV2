@@ -12,6 +12,7 @@ import type {
   Rating,
   Report,
   Review,
+  SavedSearch,
   ViewingRequest,
   ViewingSlot,
 } from '../types'
@@ -203,6 +204,8 @@ const listings: Listing[] = [
     createdAt: '2025-07-01T12:30:00Z',
   },
 ]
+
+const savedSearches: SavedSearch[] = []
 
 listings.forEach((item) => {
   if (!item.coverImage && item.images?.length) {
@@ -1032,6 +1035,7 @@ type ListingInput = {
   lat?: number
   lng?: number
   facilities?: string[]
+  instantBook?: boolean
 }
 
 export async function createListing(payload: ListingInput & { ownerId: string | number }): Promise<Listing> {
@@ -1059,7 +1063,7 @@ export async function createListing(payload: ListingInput & { ownerId: string | 
     area: (payload as any).area ?? 90,
     category: payload.category,
     isFavorite: false,
-    instantBook: true,
+    instantBook: payload.instantBook ?? true,
     facilities: payload.facilities ?? [],
     ownerId: payload.ownerId,
     createdAt: new Date().toISOString(),
@@ -1239,5 +1243,65 @@ export async function stopImpersonation() {
   return {
     user: { id: 'admin-1', name: 'Admin', role: 'admin', roles: ['admin'] },
     impersonating: false,
+  }
+}
+
+export async function getSavedSearches(): Promise<SavedSearch[]> {
+  await delay()
+  return JSON.parse(JSON.stringify(savedSearches))
+}
+
+export async function createSavedSearch(payload: {
+  name?: string | null
+  filters: Record<string, any>
+  alertsEnabled?: boolean
+  frequency?: SavedSearch['frequency']
+}): Promise<SavedSearch> {
+  await delay()
+  const now = new Date().toISOString()
+  const saved: SavedSearch = {
+    id: makeId(),
+    name: payload.name ?? null,
+    filters: payload.filters ?? {},
+    alertsEnabled: payload.alertsEnabled ?? true,
+    frequency: payload.frequency ?? 'instant',
+    lastAlertedAt: null,
+    createdAt: now,
+    updatedAt: now,
+  }
+  savedSearches.unshift(saved)
+  return JSON.parse(JSON.stringify(saved))
+}
+
+export async function updateSavedSearch(
+  id: string,
+  payload: {
+    name?: string | null
+    filters?: Record<string, any>
+    alertsEnabled?: boolean
+    frequency?: SavedSearch['frequency']
+  },
+): Promise<SavedSearch> {
+  await delay()
+  const index = savedSearches.findIndex((item) => item.id === id)
+  if (index === -1) throw new Error('Not found')
+  const current = savedSearches[index]!
+  const updated: SavedSearch = {
+    ...current,
+    name: payload.name !== undefined ? payload.name : current.name,
+    filters: payload.filters !== undefined ? payload.filters : current.filters,
+    alertsEnabled: payload.alertsEnabled !== undefined ? payload.alertsEnabled : current.alertsEnabled,
+    frequency: payload.frequency !== undefined ? payload.frequency : current.frequency,
+    updatedAt: new Date().toISOString(),
+  }
+  savedSearches[index] = updated
+  return JSON.parse(JSON.stringify(updated))
+}
+
+export async function deleteSavedSearch(id: string): Promise<void> {
+  await delay()
+  const index = savedSearches.findIndex((item) => item.id === id)
+  if (index >= 0) {
+    savedSearches.splice(index, 1)
   }
 }

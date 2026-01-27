@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Models\BookingRequest;
 use App\Models\Application;
 use App\Models\Listing;
+use App\Models\SavedSearch;
 use App\Observers\ListingObserver;
 use App\Models\Rating;
 use App\Models\ViewingRequest;
@@ -12,6 +13,7 @@ use App\Models\ViewingSlot;
 use App\Policies\BookingRequestPolicy;
 use App\Policies\ApplicationPolicy;
 use App\Policies\ListingPolicy;
+use App\Policies\SavedSearchPolicy;
 use App\Policies\ViewingRequestPolicy;
 use App\Policies\ViewingSlotPolicy;
 use App\Services\Geocoding\CachedGeocoder;
@@ -87,6 +89,7 @@ class AppServiceProvider extends ServiceProvider
     {
         Listing::observe(ListingObserver::class);
         Gate::policy(Listing::class, ListingPolicy::class);
+        Gate::policy(SavedSearch::class, SavedSearchPolicy::class);
         Gate::policy(BookingRequest::class, BookingRequestPolicy::class);
         Gate::policy(Application::class, ApplicationPolicy::class);
         Gate::policy(ViewingSlot::class, ViewingSlotPolicy::class);

@@ -15,12 +15,12 @@ class SavedSearchMatchCommandTest extends TestCase
     {
         Cache::lock('saved-search-matcher')->forceRelease();
 
-        $this->artisan('saved-searches:run')->assertExitCode(Command::SUCCESS);
+        $this->artisan('saved-searches:match')->assertExitCode(Command::SUCCESS);
 
         $lock = Cache::lock('saved-search-matcher', 600);
         $lock->get();
 
-        $this->artisan('saved-searches:run')
+        $this->artisan('saved-searches:match')
             ->expectsOutput('Saved search matcher is already running.')
             ->assertExitCode(Command::FAILURE);
 

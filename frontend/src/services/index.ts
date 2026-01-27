@@ -70,5 +70,9 @@ export const confirmViewingRequest = pick('confirmViewingRequest')
 export const rejectViewingRequest = pick('rejectViewingRequest')
 export const cancelViewingRequest = pick('cancelViewingRequest')
 export const downloadViewingRequestIcs = pick('downloadViewingRequestIcs')
+export const getSavedSearches = pick('getSavedSearches')
+export const createSavedSearch = pick('createSavedSearch')
+export const updateSavedSearch = pick('updateSavedSearch')
+export const deleteSavedSearch = pick('deleteSavedSearch')
 
 export const isMockApi = useMock

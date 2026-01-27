@@ -62,6 +62,7 @@ type ListingFormInput = {
   lat?: number
   lng?: number
   facilities?: string[]
+  instantBook?: boolean
   ownerId: string | number
   imagesFiles?: File[]
   keepImages?: { url: string; sortOrder: number; isCover: boolean }[]

@@ -41,6 +41,19 @@ export interface Listing {
   warnings?: string[]
 }
 
+export type SavedSearchFrequency = 'instant' | 'daily' | 'weekly'
+
+export interface SavedSearch {
+  id: string
+  name?: string | null
+  filters: Record<string, any>
+  alertsEnabled: boolean
+  frequency: SavedSearchFrequency
+  lastAlertedAt?: string | null
+  createdAt?: string | null
+  updatedAt?: string | null
+}
+
 export interface Review {
   id: string
   userName: string

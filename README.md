@@ -12,6 +12,7 @@ The goal is to demonstrate a UX-forward SPA backed by a clean, well-documented A
 ## Key Features
 - Marketplace & roles: guest browsing; seeker favorites and booking inquiries; landlord listing CRUD and publishing; admin oversight. Listing statuses: draft → active/paused → rented/archived/expired (auto after 30d) with duplicate-address guard rails.
 - Discovery: browsing, search/filters (city/location, price range, rooms/guests, area, instant book, amenities/status/rating), pagination, and listing detail. Map view is a visual placeholder hero (no live map yet).
+- Saved searches + alerts: seekers can save search filters, manage alert frequency (instant/daily/weekly), and receive in-app notifications for new matching listings.
 - Favorites: client-side (frontend local) favorites with quick toggle.
 - Booking Requests (inquiry flow): tenant creates; landlord accepts/rejects; tenant can cancel while pending. Statuses surface in UI and API.
 - Viewings: separate appointment scheduling for in-person visits (slots per listing, seeker requests, landlord confirms/rejects/cancels, ICS download, deep-linked notifications) surfaced in a new "Viewings" tab under `/bookings`.
@@ -54,6 +55,7 @@ The goal is to demonstrate a UX-forward SPA backed by a clean, well-documented A
 - `"/map"` Visual map hero placeholder (stylized background, no live map data yet).
 - `"/listing/:id"` Detail with gallery, facilities, reviews, inquiry CTA; `"/facilities"` and `"/reviews"` sub-routes.
 - `"/favorites"` Favorites grid (local-only); `"/bookings"` now split into Reservations vs Viewings tabs; `"/messages"` conversations and `"/messages/:id"` chat (unread/online placeholders).
+- `"/saved-searches"` Manage saved searches (alerts, frequency, run/delete); notifications deep-link to `"/search?savedSearchId={id}"` and hydrate filters.
 - `"/profile"` with mock role switch when in mock mode; settings pages for personal info/legal/language.
 - Landlord: `"/landlord/listings"` index, `"/landlord/listings/new"` create, `"/landlord/listings/:id/edit"` edit; publish/unpublish/archive actions surface from API states.
 - Auth: `"/login"` and `"/register"`; protected routes redirect to login when real API is enabled.
@@ -75,7 +77,8 @@ php artisan key:generate
 php artisan migrate:fresh --seed
 php artisan storage:link
 php artisan queue:work    # keep running for image processing
-php artisan schedule:work # runs listings:expire auto-expiry and other scheduled tasks
+php artisan schedule:work # runs listings:expire auto-expiry, saved-searches:match, and digests on schedule
+php artisan saved-searches:match # on-demand matcher for saved searches + alerts
 php artisan serve --port=8000
 ```
 - API base: `/api/v1` (auth also available at `/api/auth/*` during the transition); SPA cookie auth via `/sanctum/csrf-cookie`.
@@ -113,6 +116,7 @@ npm run dev -- --host --port=5173
 - Roles: guest (browse), seeker (favorites, inquiries), landlord (listing CRUD/publish), admin (override).
 - Auth: Laravel Sanctum SPA cookies (`/sanctum/csrf-cookie` + session) on `/api/v1/auth/*`; legacy `/api/auth/*` kept temporarily. Route guards block protected pages in real API mode.
 - Listings safety: duplicate-address guard (blocks same landlord active duplicates, warns on cross-landlord conflicts) and scheduled auto-expire after 30 days of being active (`php artisan listings:expire`).
+- Saved searches: `/api/v1/saved-searches` (POST/GET/PUT/DELETE). Alerts link to `/search?savedSearchId={id}` and matcher runs via scheduler (every 15 minutes).
 - Policies: listings view published or owner/admin; updates require owner/admin (archived immutable except admin). Booking requests: seeker can cancel pending own; landlord can accept/reject pending for own listing; admin bypasses.
 - Rate limiting (429): auth 10/min/IP; listings search 60/min/IP; booking requests 20/min/user or IP; landlord writes 30/min/user or IP.
 - Storage & media: uploads via multipart, stored to `public`; queue processes WebP conversions and updates cover/ordering with `processing_status` (`pending/done/failed`).
