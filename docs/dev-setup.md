@@ -5,6 +5,15 @@
 - PHP 8.2+ (CI runs on 8.3)
 - Composer, npm
 
+## Docker dev (Windows / Docker Desktop)
+- Konfiguracija je u root `docker-compose.yml` i pokrece: backend (`artisan serve`), queue (`queue:work`), scheduler (`schedule:work`), frontend (`npm run dev`) i MeiliSearch.
+- Start (prvi put): `docker compose up --build`
+- Inicijalne migracije/seed: `docker compose run --rm backend php artisan migrate:fresh --seed`
+- Opcioni reindex (MeiliSearch): `docker compose run --rm backend php artisan search:listings:reindex --reset`
+- Stop: `docker compose down`
+- Portovi: API `http://localhost:8000`, Frontend `http://localhost:5173`, Meili `http://localhost:7700`.
+- Compose automatski kopira `backend/.env.example` u `backend/.env` ako `.env` ne postoji, generise `APP_KEY`, kreira SQLite file i radi `storage:link`.
+
 ## Backend (Laravel API)
 - Lokacija: `/backend`
 - Port: `http://localhost:8000`

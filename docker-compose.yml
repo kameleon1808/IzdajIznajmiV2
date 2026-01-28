@@ -1,0 +1,93 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - backend-vendor:/app/vendor
+      - backend-storage:/app/storage
+    environment:
+      APP_ENV: local
+      APP_DEBUG: "true"
+      SEARCH_DRIVER: meili
+      MEILISEARCH_HOST: http://meilisearch:7700
+      MEILISEARCH_KEY: K0PbmVca20iYH4ggtobpOYlCPcLNQm5380s7gnSGLHE
+    depends_on:
+      - meilisearch
+    command: ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
+
+  queue:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    working_dir: /app
+    volumes:
+      - ./backend:/app
+      - backend-vendor:/app/vendor
+      - backend-storage:/app/storage
+    environment:
+      APP_ENV: local
+      APP_DEBUG: "true"
+      SEARCH_DRIVER: meili
+      MEILISEARCH_HOST: http://meilisearch:7700
+      MEILISEARCH_KEY: K0PbmVca20iYH4ggtobpOYlCPcLNQm5380s7gnSGLHE
+    depends_on:
+      - meilisearch
+    command: ["php", "artisan", "queue:work", "--sleep=3", "--tries=1"]
+
+  scheduler:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    working_dir: /app
+    volumes:
+      - ./backend:/app
+      - backend-vendor:/app/vendor
+      - backend-storage:/app/storage
+    environment:
+      APP_ENV: local
+      APP_DEBUG: "true"
+      SEARCH_DRIVER: meili
+      MEILISEARCH_HOST: http://meilisearch:7700
+      MEILISEARCH_KEY: K0PbmVca20iYH4ggtobpOYlCPcLNQm5380s7gnSGLHE
+    depends_on:
+      - meilisearch
+    command: ["php", "artisan", "schedule:work"]
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    working_dir: /app
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - frontend-node-modules:/app/node_modules
+    environment:
+      VITE_API_BASE_URL: ""
+      API_PROXY_TARGET: http://backend:8000
+      VITE_USE_MOCK_API: "false"
+      CHOKIDAR_USEPOLLING: "1"
+      CHOKIDAR_INTERVAL: "100"
+    depends_on:
+      - backend
+    command: ["sh", "-lc", "if [ ! -x node_modules/.bin/vite ]; then npm install; fi; npm run dev -- --host --port 5173"]
+
+  meilisearch:
+    image: getmeili/meilisearch:v1.8
+    ports:
+      - "7700:7700"
+    environment:
+      MEILI_MASTER_KEY: K0PbmVca20iYH4ggtobpOYlCPcLNQm5380s7gnSGLHE
+    volumes:
+      - meili-data:/meili_data
+
+volumes:
+  backend-vendor:
+  backend-storage:
+  frontend-node-modules:
+  meili-data:
