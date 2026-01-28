@@ -3,6 +3,8 @@
 namespace App\Observers;
 
 use App\Jobs\GeocodeListingJob;
+use App\Jobs\IndexListingJob;
+use App\Jobs\RemoveListingFromIndexJob;
 use App\Models\Listing;
 
 class ListingObserver
@@ -16,17 +18,15 @@ class ListingObserver
             if ($this->coordsInvalid($listing)) {
                 $listing->forceFill(['lat' => null, 'lng' => null, 'geocoded_at' => null])->saveQuietly();
             }
-            return;
-        }
-
-        if ($this->coordsPresent($listing) && !$this->coordsInvalid($listing)) {
+        } elseif ($this->coordsPresent($listing) && !$this->coordsInvalid($listing)) {
             if (!$listing->geocoded_at) {
                 $listing->forceFill(['geocoded_at' => now()])->saveQuietly();
             }
-            return;
+        } else {
+            GeocodeListingJob::dispatchSync($listing->id, true);
         }
 
-        GeocodeListingJob::dispatchSync($listing->id, true);
+        IndexListingJob::dispatch($listing->id);
     }
 
     public function updated(Listing $listing): void
@@ -35,21 +35,26 @@ class ListingObserver
             if ($this->coordsInvalid($listing)) {
                 $listing->forceFill(['lat' => null, 'lng' => null])->saveQuietly();
             }
-            return;
+        } else {
+            $addressChanged = $listing->wasChanged(['address', 'city', 'country']);
+            $latLngProvided = $listing->wasChanged(['lat', 'lng']) && $listing->lat !== null && $listing->lng !== null;
+            $latMissing = $listing->lat === null || $listing->lng === null || $this->coordsInvalid($listing);
+
+            if ($latMissing || ($addressChanged && !$latLngProvided)) {
+                GeocodeListingJob::dispatchSync($listing->id, $addressChanged);
+            } elseif ($latLngProvided && !$listing->geocoded_at) {
+                $listing->forceFill(['geocoded_at' => now()])->saveQuietly();
+            }
         }
 
-        $addressChanged = $listing->wasChanged(['address', 'city', 'country']);
-        $latLngProvided = $listing->wasChanged(['lat', 'lng']) && $listing->lat !== null && $listing->lng !== null;
-        $latMissing = $listing->lat === null || $listing->lng === null || $this->coordsInvalid($listing);
-
-        if ($latMissing || ($addressChanged && !$latLngProvided)) {
-            GeocodeListingJob::dispatchSync($listing->id, $addressChanged);
-            return;
+        if ($this->shouldIndexListing($listing)) {
+            IndexListingJob::dispatch($listing->id);
         }
+    }
 
-        if ($latLngProvided && !$listing->geocoded_at) {
-            $listing->forceFill(['geocoded_at' => now()])->saveQuietly();
-        }
+    public function deleted(Listing $listing): void
+    {
+        RemoveListingFromIndexJob::dispatch($listing->id);
     }
 
     private function coordsPresent(Listing $listing): bool
@@ -64,5 +69,26 @@ class ListingObserver
         }
 
         return $listing->lat < -90 || $listing->lat > 90 || $listing->lng < -180 || $listing->lng > 180;
+    }
+
+    private function shouldIndexListing(Listing $listing): bool
+    {
+        return $listing->wasChanged([
+            'title',
+            'description',
+            'city',
+            'country',
+            'price_per_night',
+            'rooms',
+            'area',
+            'status',
+            'owner_id',
+            'rating',
+            'published_at',
+            'cover_image',
+            'beds',
+            'baths',
+            'instant_book',
+        ]);
     }
 }

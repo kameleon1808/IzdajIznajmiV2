@@ -23,6 +23,7 @@ use App\Http\Controllers\ListingLocationController;
 use App\Http\Controllers\ViewingRequestController;
 use App\Http\Controllers\ViewingSlotController;
 use App\Http\Controllers\HealthController;
+use App\Http\Controllers\SearchController;
 use Illuminate\Support\Facades\Route;
 
 $authRoutes = function () {
@@ -43,6 +44,10 @@ $apiRoutes = function () use ($authRoutes) {
 
     Route::get('/listings', [ListingController::class, 'index'])->middleware('throttle:listings_search');
     Route::get('/listings/{listing}', [ListingController::class, 'show']);
+    Route::prefix('search')->group(function () {
+        Route::get('/listings', [SearchController::class, 'listings'])->middleware('throttle:listings_search');
+        Route::get('/suggest', [SearchController::class, 'suggest'])->middleware('throttle:listings_search');
+    });
     Route::get('/users/{user}', [UserProfileController::class, 'show']);
     Route::get('/users/{user}/ratings', [RatingController::class, 'userRatings']);
     Route::get('/geocode', [GeocodingController::class, 'lookup'])->middleware('throttle:listings_search');

@@ -11,12 +11,12 @@ import Button from '../components/ui/Button.vue'
 import EmptyState from '../components/ui/EmptyState.vue'
 import ListSkeleton from '../components/ui/ListSkeleton.vue'
 import ErrorState from '../components/ui/ErrorState.vue'
-import { geocodeLocation, suggestLocations } from '../services'
+import { geocodeLocation, suggestLocations, suggestSearch } from '../services'
 import { defaultFilters, useListingsStore } from '../stores/listings'
 import { useSavedSearchesStore } from '../stores/savedSearches'
 import { useToastStore } from '../stores/toast'
 import { useAuthStore } from '../stores/auth'
-import type { ListingFilters, SavedSearch } from '../types'
+import type { ListingFilters, SavedSearch, SearchSuggestion } from '../types'
 
 const MapExplorer = defineAsyncComponent(() => import('../components/search/MapExplorer.vue'))
 
@@ -35,7 +35,7 @@ const savingSearch = ref(false)
 const geocoding = ref(false)
 const geocodeError = ref('')
 const suggestLoading = ref(false)
-const suggestions = ref<{ label: string; lat: number; lng: number; type: string }[]>([])
+const suggestions = ref<SearchSuggestion[]>([])
 const showSuggestions = ref(false)
 const defaultCenter = { lat: 44.8125, lng: 20.4612 } // Belgrade
 type FilterDraft = ListingFilters & {
@@ -87,10 +87,43 @@ const debouncedSuggest = useDebounceFn(async () => {
   await fetchSuggestions()
 }, 250)
 const currentQueryValue = computed(() => currentQuery.value)
+const searchV2Enabled = computed(() => import.meta.env.VITE_SEARCH_V2 === 'true')
+const searchFacets = computed(() => listingsStore.searchFacets)
 
-const results = computed(() =>
-  viewMode.value === 'map' ? listingsStore.searchResults : searchQuery.value ? listingsStore.searchResults : listingsStore.filteredRecommended,
-)
+const hasActiveListFilters = computed(() => {
+  const f = listingsStore.filters
+  if (f.category !== defaultFilters.category) return true
+  if (f.guests !== defaultFilters.guests) return true
+  if (f.priceBucket) return true
+  if (f.areaBucket) return true
+  if (f.instantBook) return true
+  if (f.location) return true
+  if (f.city) return true
+  if (f.rooms) return true
+  if (f.rating) return true
+  if (f.status && f.status !== 'all') return true
+  if (f.amenities?.length) return true
+  if (f.facilities?.length) return true
+  if (
+    f.priceRange?.length &&
+    (f.priceRange[0] !== defaultFilters.priceRange[0] || f.priceRange[1] !== defaultFilters.priceRange[1])
+  ) {
+    return true
+  }
+  if (
+    f.areaRange?.length &&
+    (f.areaRange[0] !== defaultFilters.areaRange?.[0] || f.areaRange[1] !== defaultFilters.areaRange?.[1])
+  ) {
+    return true
+  }
+  return false
+})
+
+const results = computed(() => {
+  if (viewMode.value === 'map') return listingsStore.searchResults
+  if (searchQuery.value || hasActiveListFilters.value) return listingsStore.searchResults
+  return listingsStore.filteredRecommended
+})
 const popular = computed(() => listingsStore.popular.slice(0, 2))
 const loading = computed(() => listingsStore.loading)
 const loadingMore = computed(() => listingsStore.loadingMore)
@@ -106,6 +139,30 @@ const mapCenter = computed(() =>
 const radiusValue = computed<number>(() => listingsStore.filters.radiusKm ?? defaultFilters.radiusKm ?? 0)
 const inlineRadius = ref(radiusValue.value)
 const missingGeoCount = computed(() => results.value.filter((item) => item.lat == null || item.lng == null).length)
+const facetCityOptions = computed(() => (searchFacets.value.city ?? []).slice(0, 8))
+const facetStatusOptions = computed(() => (searchFacets.value.status ?? []).slice(0, 6))
+const facetRoomsOptions = computed(() => {
+  const rooms = (searchFacets.value.rooms ?? [])
+    .map((item) => ({ value: item.value, count: item.count, numeric: Number(item.value) }))
+    .filter((item) => Number.isFinite(item.numeric))
+    .sort((a, b) => a.numeric - b.numeric)
+
+  if (!rooms.length) return []
+
+  let running = 0
+  const cumulative = [...rooms]
+    .reverse()
+    .map((item) => {
+      running += item.count
+      return { value: item.value, count: running, numeric: item.numeric }
+    })
+    .reverse()
+
+  return cumulative.slice(0, 6).map(({ value, count }) => ({ value, count }))
+})
+const facetAmenityOptions = computed(() => (searchFacets.value.amenities ?? []).slice(0, 10))
+const facetPriceOptions = computed(() => searchFacets.value.price_bucket ?? [])
+const facetAreaOptions = computed(() => searchFacets.value.area_bucket ?? [])
 
 const buildSavedSearchFilters = () => {
   const f = listingsStore.filters
@@ -115,9 +172,11 @@ const buildSavedSearchFilters = () => {
     guests: f.guests,
     priceMin: f.priceRange?.[0],
     priceMax: f.priceRange?.[1],
+    priceBucket: f.priceBucket ?? null,
     rooms: f.rooms,
     areaMin: f.areaRange?.[0],
     areaMax: f.areaRange?.[1],
+    areaBucket: f.areaBucket ?? null,
     instantBook: f.instantBook,
     location: searchQuery.value || f.location || '',
     city: f.city,
@@ -145,11 +204,13 @@ const applySavedSearch = async (savedSearch: SavedSearch) => {
       filters.priceMin ?? defaultFilters.priceRange[0],
       filters.priceMax ?? defaultFilters.priceRange[1],
     ] as [number, number],
+    priceBucket: filters.priceBucket ?? null,
     rooms: filters.rooms ?? null,
     areaRange: [
       filters.areaMin ?? defaultFilters.areaRange?.[0] ?? 0,
       filters.areaMax ?? defaultFilters.areaRange?.[1] ?? 100000,
     ] as [number, number],
+    areaBucket: filters.areaBucket ?? null,
     instantBook: Boolean(filters.instantBook),
     location: filters.location ?? '',
     city: filters.city ?? '',
@@ -258,9 +319,11 @@ const hydrateFromRoute = () => {
   if (query.guests) parsed.guests = Number(query.guests)
   if (query.priceMin) parsed.priceRange = [Number(query.priceMin), listingsStore.filters.priceRange[1]] as [number, number]
   if (query.priceMax) parsed.priceRange = [listingsStore.filters.priceRange[0], Number(query.priceMax)] as [number, number]
+  if (query.priceBucket) parsed.priceBucket = String(query.priceBucket)
   if (query.rooms) parsed.rooms = Number(query.rooms)
   if (query.areaMin) parsed.areaRange = [Number(query.areaMin), listingsStore.filters.areaRange?.[1] ?? 100000] as [number, number]
   if (query.areaMax) parsed.areaRange = [listingsStore.filters.areaRange?.[0] ?? 0, Number(query.areaMax)] as [number, number]
+  if (query.areaBucket) parsed.areaBucket = String(query.areaBucket)
   if (query.status) parsed.status = query.status as any
   if (query.instantBook) parsed.instantBook = query.instantBook === '1' || query.instantBook === 'true'
   if (query.rating) parsed.rating = Number(query.rating)
@@ -294,12 +357,14 @@ const buildQueryFromState = () => {
   if (f.guests !== defaultFilters.guests) nextQuery.guests = f.guests
   if (f.priceRange?.[0] !== defaultFilters.priceRange[0]) nextQuery.priceMin = f.priceRange?.[0]
   if (f.priceRange?.[1] !== defaultFilters.priceRange[1]) nextQuery.priceMax = f.priceRange?.[1]
+  if (f.priceBucket) nextQuery.priceBucket = f.priceBucket
   if (f.instantBook) nextQuery.instantBook = '1'
   if (f.location) nextQuery.location = f.location
   if (f.city) nextQuery.city = f.city
   if (f.rooms) nextQuery.rooms = f.rooms
   if (f.areaRange?.[0] !== defaultFilters.areaRange?.[0]) nextQuery.areaMin = f.areaRange?.[0]
   if (f.areaRange?.[1] !== defaultFilters.areaRange?.[1]) nextQuery.areaMax = f.areaRange?.[1]
+  if (f.areaBucket) nextQuery.areaBucket = f.areaBucket
   if (f.facilities?.length) nextQuery.facilities = f.facilities
   if (f.amenities?.length) nextQuery.amenities = f.amenities
   if (f.rating) nextQuery.rating = f.rating
@@ -365,7 +430,16 @@ const fetchSuggestions = async () => {
   }
   suggestLoading.value = true
   try {
-    suggestions.value = await suggestLocations(q, 5)
+    if (searchV2Enabled.value) {
+      suggestions.value = await suggestSearch(q, 8)
+    } else {
+      const legacy = await suggestLocations(q, 5)
+      suggestions.value = legacy.map((item: { label: string }) => ({
+        label: item.label,
+        type: 'city' as const,
+        value: item.label,
+      }))
+    }
   } catch (err) {
     // swallow
   } finally {
@@ -373,13 +447,25 @@ const fetchSuggestions = async () => {
   }
 }
 
-// const selectSuggestion = (item: { label: string; lat: number; lng: number; type: string }) => {
-//   searchQuery.value = item.label
-//   listingsStore.updateGeoFilters(item.lat, item.lng, listingsStore.filters.radiusKm ?? defaultFilters.radiusKm)
-//   syncQueryParams()
-//   showSuggestions.value = false
-//   // do not auto-run search; user will click Snap / Search area
-// }
+const selectSuggestion = async (item: SearchSuggestion) => {
+  if (item.type === 'query' || item.type === 'city') {
+    searchQuery.value = item.label
+  }
+  if (item.type === 'amenity') {
+    searchQuery.value = ''
+  }
+  if (item.type === 'city') {
+    listingsStore.setFilters({ city: item.value }, { fetch: false })
+  }
+  if (item.type === 'amenity') {
+    const current = new Set(listingsStore.filters.amenities ?? [])
+    current.add(item.value)
+    listingsStore.setFilters({ amenities: Array.from(current) }, { fetch: false })
+  }
+  syncLocalFilters()
+  showSuggestions.value = false
+  await runSearch()
+}
 
 const hideSuggestions = () => {
   setTimeout(() => (showSuggestions.value = false), 150)
@@ -434,10 +520,12 @@ const applyFilters = async () => {
       priceMin ?? defaultFilters.priceRange[0],
       priceMax ?? defaultFilters.priceRange[1],
     ] as [number, number],
+    priceBucket: null,
     areaRange: [
       areaMin ?? (defaultFilters.areaRange?.[0] ?? 0),
       areaMax ?? (defaultFilters.areaRange?.[1] ?? 100000),
     ] as [number, number],
+    areaBucket: null,
     rooms: rooms ?? null,
   }
   nextFilters.amenities = [...(nextFilters.amenities ?? nextFilters.facilities ?? [])]
@@ -454,6 +542,62 @@ const resetFilters = async () => {
   syncLocalFilters()
   filterOpen.value = false
   await runSearch()
+}
+
+const applyFacetFilters = async (next: Partial<ListingFilters>) => {
+  listingsStore.setFilters(next, { fetch: false })
+  syncLocalFilters()
+  await runSearch()
+}
+
+const selectCityFacet = async (value: string) => {
+  searchQuery.value = value
+  await applyFacetFilters({ city: value })
+}
+
+const clearCityFacet = async () => {
+  searchQuery.value = ''
+  await applyFacetFilters({ city: '' })
+}
+
+const toggleAmenityFacet = async (value: string) => {
+  const current = new Set(listingsStore.filters.amenities ?? [])
+  if (current.has(value)) {
+    current.delete(value)
+  } else {
+    current.add(value)
+  }
+  await applyFacetFilters({ amenities: Array.from(current) })
+}
+
+const selectRoomsFacet = async (value: string) => {
+  const numeric = Number(value)
+  const nextValue = listingsStore.filters.rooms === numeric ? null : numeric
+  await applyFacetFilters({ rooms: nextValue })
+}
+
+const selectStatusFacet = async (value: string) => {
+  const nextValue = listingsStore.filters.status === value ? 'all' : (value as ListingFilters['status'])
+  await applyFacetFilters({ status: nextValue })
+}
+
+const selectPriceBucketFacet = async (value: string) => {
+  await applyFacetFilters({
+    priceBucket: value,
+    priceRange: [...defaultFilters.priceRange] as [number, number],
+  })
+}
+
+const clearPriceBucketFacet = async () => {
+  await applyFacetFilters({ priceBucket: null })
+}
+
+const selectAreaBucketFacet = async (value: string) => {
+  const nextValue = listingsStore.filters.areaBucket === value ? null : value
+  await applyFacetFilters({
+    areaBucket: nextValue,
+    areaRange: [...(defaultFilters.areaRange ?? [0, 100000])] as [number, number],
+  })
 }
 
 const handleSearchArea = async (coords: { lat: number; lng: number }) => {
@@ -549,7 +693,6 @@ watch(
           @blur="hideSuggestions"
           @input="showSuggestions = true"
         />
-        <!-- Suggestion dropdown temporarily disabled; keep markup for future re-enable
         <div
           v-if="showSuggestions && suggestions.length"
           class="absolute z-20 mt-1 w-full rounded-2xl border border-line bg-white shadow-soft"
@@ -560,14 +703,14 @@ watch(
             class="flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-surface"
             @mousedown.prevent="selectSuggestion(item)"
           >
-            <MapPin class="h-4 w-4 text-primary" />
+            <MapPin v-if="item.type === 'city'" class="h-4 w-4 text-primary" />
+            <SearchIcon v-else class="h-4 w-4 text-primary" />
             <div>
               <p class="text-sm font-semibold text-slate-900">{{ item.label }}</p>
               <p class="text-[11px] uppercase tracking-[0.08em] text-muted">{{ item.type }}</p>
             </div>
           </button>
         </div>
-        -->
       </div>
       <div class="flex flex-wrap items-center gap-2">
         <div class="inline-flex overflow-hidden rounded-full border border-line bg-surface text-sm font-semibold shadow-soft">
@@ -617,55 +760,184 @@ watch(
       <Button size="sm" variant="ghost" @click="clearSavedSearch">Clear</Button>
     </div>
 
-    <div v-if="viewMode === 'list'" class="space-y-5">
-      <div class="flex items-center justify-between px-1">
-        <h3 class="section-title">Recently viewed</h3>
-        <button class="text-sm font-semibold text-primary" @click="router.push('/favorites')">See all</button>
-      </div>
-      <div class="grid grid-cols-1 gap-3">
-        <ListSkeleton v-if="loading && !popular.length" :count="2" />
-        <ListingCardHorizontal
-          v-for="item in popular"
-          :key="item.id"
-          :listing="item"
-          @toggle="listingsStore.toggleFavorite"
-          @click="router.push(`/listing/${item.id}`)"
-        />
-      </div>
-
-      <div class="flex items-center justify-between px-1">
-        <h3 class="section-title">Results</h3>
-        <div class="flex items-center gap-2 text-xs text-muted">
-          <Flame class="h-4 w-4 text-primary" />
-          Dynamic based on filters
+    <div v-if="viewMode === 'list'" :class="searchV2Enabled ? 'grid gap-6 md:grid-cols-[260px,1fr]' : 'space-y-5'">
+      <aside v-if="searchV2Enabled" class="space-y-4">
+        <div class="rounded-2xl border border-line bg-white p-4 shadow-soft">
+          <div class="flex items-center justify-between">
+            <p class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">City</p>
+            <button v-if="listingsStore.filters.city" class="text-xs font-semibold text-primary" @click="clearCityFacet">
+              Clear
+            </button>
+          </div>
+          <div class="mt-3 space-y-2">
+            <button
+              v-for="item in facetCityOptions"
+              :key="item.value"
+              :class="[
+                'flex w-full items-center justify-between rounded-xl border px-3 py-2 text-sm font-semibold transition',
+                listingsStore.filters.city === item.value ? 'border-primary/40 bg-primary/10 text-primary' : 'border-line text-slate-800',
+              ]"
+              @click="selectCityFacet(item.value)"
+            >
+              <span>{{ item.value }}</span>
+              <span class="text-xs text-muted">{{ item.count }}</span>
+            </button>
+            <p v-if="!facetCityOptions.length" class="text-xs text-muted">No city facets yet.</p>
+          </div>
         </div>
-      </div>
-      <div class="space-y-3">
-        <ListSkeleton v-if="loading && !results.length" :count="3" />
-        <ListingCardHorizontal
-          v-for="item in results"
-          :key="item.id"
-          :listing="item"
-          @toggle="listingsStore.toggleFavorite"
-          @click="router.push(`/listing/${item.id}`)"
-        />
-        <EmptyState
-          v-if="!loading && !results.length && !error"
-          title="No results yet"
-          subtitle="Try adjusting filters or search text"
-          :icon="SearchIcon"
-        >
-          <Button size="sm" variant="secondary" @click="resetFilters">Reset filters</Button>
-        </EmptyState>
-        <div class="flex justify-center">
-          <Button
-            v-if="listingsStore.searchMeta && listingsStore.searchMeta.current_page < listingsStore.searchMeta.last_page"
-            :loading="loadingMore"
-            variant="secondary"
-            @click="listingsStore.loadMoreSearch(currentQueryValue)"
+
+        <div v-if="facetPriceOptions.length" class="rounded-2xl border border-line bg-white p-4 shadow-soft">
+          <div class="flex items-center justify-between">
+            <p class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Price</p>
+            <button
+              v-if="listingsStore.filters.priceBucket"
+              class="text-xs font-semibold text-primary"
+              @click="clearPriceBucketFacet"
+            >
+              Clear
+            </button>
+          </div>
+          <div class="mt-3 space-y-2">
+            <button
+              v-for="item in facetPriceOptions"
+              :key="item.value"
+              :class="[
+                'flex w-full items-center justify-between rounded-xl border px-3 py-2 text-sm font-semibold transition',
+                listingsStore.filters.priceBucket === item.value ? 'border-primary/40 bg-primary/10 text-primary' : 'border-line text-slate-800',
+              ]"
+              @click="selectPriceBucketFacet(item.value)"
+            >
+              <span>{{ item.value }}</span>
+              <span class="text-xs text-muted">{{ item.count }}</span>
+            </button>
+          </div>
+        </div>
+
+        <div v-if="facetRoomsOptions.length" class="rounded-2xl border border-line bg-white p-4 shadow-soft">
+          <p class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Rooms</p>
+          <div class="mt-3 space-y-2">
+            <button
+              v-for="item in facetRoomsOptions"
+              :key="item.value"
+              :class="[
+                'flex w-full items-center justify-between rounded-xl border px-3 py-2 text-sm font-semibold transition',
+                Number(item.value) === listingsStore.filters.rooms ? 'border-primary/40 bg-primary/10 text-primary' : 'border-line text-slate-800',
+              ]"
+              @click="selectRoomsFacet(item.value)"
+            >
+              <span>{{ item.value }}+</span>
+              <span class="text-xs text-muted">{{ item.count }}</span>
+            </button>
+          </div>
+        </div>
+
+        <div v-if="facetAmenityOptions.length" class="rounded-2xl border border-line bg-white p-4 shadow-soft">
+          <p class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Amenities</p>
+          <div class="mt-3 space-y-2">
+            <button
+              v-for="item in facetAmenityOptions"
+              :key="item.value"
+              :class="[
+                'flex w-full items-center justify-between rounded-xl border px-3 py-2 text-sm font-semibold transition',
+                listingsStore.filters.amenities?.includes(item.value)
+                  ? 'border-primary/40 bg-primary/10 text-primary'
+                  : 'border-line text-slate-800',
+              ]"
+              @click="toggleAmenityFacet(item.value)"
+            >
+              <span>{{ item.value }}</span>
+              <span class="text-xs text-muted">{{ item.count }}</span>
+            </button>
+          </div>
+        </div>
+
+        <div v-if="facetAreaOptions.length" class="rounded-2xl border border-line bg-white p-4 shadow-soft">
+          <p class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Area</p>
+          <div class="mt-3 space-y-2">
+            <button
+              v-for="item in facetAreaOptions"
+              :key="item.value"
+              :class="[
+                'flex w-full items-center justify-between rounded-xl border px-3 py-2 text-sm font-semibold transition',
+                listingsStore.filters.areaBucket === item.value ? 'border-primary/40 bg-primary/10 text-primary' : 'border-line text-slate-800',
+              ]"
+              @click="selectAreaBucketFacet(item.value)"
+            >
+              <span>{{ item.value }}</span>
+              <span class="text-xs text-muted">{{ item.count }}</span>
+            </button>
+          </div>
+        </div>
+
+        <div v-if="facetStatusOptions.length" class="rounded-2xl border border-line bg-white p-4 shadow-soft">
+          <p class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Status</p>
+          <div class="mt-3 space-y-2">
+            <button
+              v-for="item in facetStatusOptions"
+              :key="item.value"
+              :class="[
+                'flex w-full items-center justify-between rounded-xl border px-3 py-2 text-sm font-semibold transition',
+                listingsStore.filters.status === item.value ? 'border-primary/40 bg-primary/10 text-primary' : 'border-line text-slate-800',
+              ]"
+              @click="selectStatusFacet(item.value)"
+            >
+              <span class="capitalize">{{ item.value }}</span>
+              <span class="text-xs text-muted">{{ item.count }}</span>
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      <div class="space-y-5">
+        <div class="flex items-center justify-between px-1">
+          <h3 class="section-title">Recently viewed</h3>
+          <button class="text-sm font-semibold text-primary" @click="router.push('/favorites')">See all</button>
+        </div>
+        <div class="grid grid-cols-1 gap-3">
+          <ListSkeleton v-if="loading && !popular.length" :count="2" />
+          <ListingCardHorizontal
+            v-for="item in popular"
+            :key="item.id"
+            :listing="item"
+            @toggle="listingsStore.toggleFavorite"
+            @click="router.push(`/listing/${item.id}`)"
+          />
+        </div>
+
+        <div class="flex items-center justify-between px-1">
+          <h3 class="section-title">Results</h3>
+          <div class="flex items-center gap-2 text-xs text-muted">
+            <Flame class="h-4 w-4 text-primary" />
+            Dynamic based on filters
+          </div>
+        </div>
+        <div class="space-y-3">
+          <ListSkeleton v-if="loading && !results.length" :count="3" />
+          <ListingCardHorizontal
+            v-for="item in results"
+            :key="item.id"
+            :listing="item"
+            @toggle="listingsStore.toggleFavorite"
+            @click="router.push(`/listing/${item.id}`)"
+          />
+          <EmptyState
+            v-if="!loading && !results.length && !error"
+            title="No results yet"
+            subtitle="Try adjusting filters or search text"
+            :icon="SearchIcon"
           >
-            Load more
-          </Button>
+            <Button size="sm" variant="secondary" @click="resetFilters">Reset filters</Button>
+          </EmptyState>
+          <div class="flex justify-center">
+            <Button
+              v-if="listingsStore.hasMoreSearchResults"
+              :loading="loadingMore"
+              variant="secondary"
+              @click="listingsStore.loadMoreSearch(currentQueryValue)"
+            >
+              Load more
+            </Button>
+          </div>
         </div>
       </div>
     </div>
@@ -736,7 +1008,7 @@ watch(
 
       <div class="flex justify-center">
         <Button
-          v-if="listingsStore.searchMeta && listingsStore.searchMeta.current_page < listingsStore.searchMeta.last_page"
+          v-if="listingsStore.hasMoreSearchResults"
           :loading="loadingMore"
           variant="secondary"
           @click="listingsStore.loadMoreSearch(currentQueryValue)"

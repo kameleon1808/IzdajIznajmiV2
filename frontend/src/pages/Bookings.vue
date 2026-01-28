@@ -306,6 +306,31 @@ const viewingListingTitle = (request: ViewingRequest) =>
   request.listing?.title ?? listingLookup.value.get(request.listing?.id ?? '') ?? request.listing?.id ?? 'Listing'
 
 const formatSlotTime = (request: ViewingRequest) => {
+  if (request.scheduledAt) {
+    const start = new Date(request.scheduledAt)
+    if (Number.isNaN(start.getTime())) return 'Time pending'
+    let end = new Date(start.getTime() + 60 * 60 * 1000)
+    if (request.slot?.timeTo) {
+      const [hStr, mStr] = request.slot.timeTo.split(':')
+      if (hStr && mStr) {
+        const h = Number.parseInt(hStr, 10)
+        const m = Number.parseInt(mStr, 10)
+        if (!Number.isNaN(h) && !Number.isNaN(m)) {
+          const candidate = new Date(start)
+          candidate.setHours(h, m, 0, 0)
+          if (candidate > start && candidate < end) {
+            end = candidate
+          }
+        }
+      }
+    } else if (request.slot?.endsAt) {
+      const slotEnd = new Date(request.slot.endsAt)
+      if (!Number.isNaN(slotEnd.getTime()) && slotEnd > start && slotEnd < end) {
+        end = slotEnd
+      }
+    }
+    return `${start.toLocaleDateString()} · ${start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - ${end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+  }
   if (!request.slot) return 'Time pending'
   const start = new Date(request.slot.startsAt)
   const end = new Date(request.slot.endsAt)

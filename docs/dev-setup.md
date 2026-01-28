@@ -46,6 +46,12 @@
   - API: `/api/v1/geocode?q=...` (GET) za frontend centriranje mape; pretraga oglasa prihvata `centerLat`, `centerLng`, `radiusKm` (km) uz ostale filtere i vraća `distanceKm` kada je geo filter aktivan.
   - Verifikacija lokacije: detalj oglasa ima "View on map" link + Leaflet preview sa pinom. Vlasnik/admin mogu da ukljuce "Adjust pin" (draggable marker) i sacuvaju rucne koordinate preko `PATCH /api/v1/listings/{id}/location`; reset na automatsko geokodiranje ide kroz `POST /api/v1/listings/{id}/location/reset`.
   - Manual override pravilo: kada je `location_source=manual` geokoder preskace osvjezavanje dok se ne promeni adresa (sto automatski vraca `location_source` na `geocoded`) ili dok se ne pozove reset endpoint. U DEV modu ispod mape se ispisuju lat/lng radi debug-a.
+- Search v2 (MeiliSearch):
+  - Pokretanje lokalno (Docker): `docker run --rm -p 7700:7700 -e MEILI_MASTER_KEY=masterKey getmeili/meilisearch:v1.8`.
+  - Env: `SEARCH_DRIVER=meili`, `MEILISEARCH_HOST=http://localhost:7700`, `MEILISEARCH_KEY=masterKey`, `MEILISEARCH_INDEX=listings`.
+  - Reindex: `php artisan search:listings:reindex`.
+  - Clean rebuild (drop + reindex): `php artisan search:listings:reindex --reset`.
+  - Frontend flag: `VITE_SEARCH_V2=true` (koristi `/api/v1/search/listings` + `/api/v1/search/suggest`).
 
 ## Frontend (Vue 3 + Vite)
 - Lokacija: `/frontend`

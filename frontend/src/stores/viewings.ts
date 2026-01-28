@@ -91,12 +91,12 @@ export const useViewingsStore = defineStore('viewings', {
         throw error
       }
     },
-    async requestSlot(slotId: string, message?: string) {
+    async requestSlot(slotId: string, message?: string, scheduledAt?: string) {
       this.error = ''
       try {
         const auth = useAuthStore()
         const seekerId = isMockApi ? auth.user.id : undefined
-        const request = await requestViewingSlot(slotId, message, seekerId)
+        const request = await requestViewingSlot(slotId, message, scheduledAt, seekerId)
         this.seekerRequests = [request, ...this.seekerRequests.filter((r) => r.id !== request.id)]
         return request
       } catch (error) {

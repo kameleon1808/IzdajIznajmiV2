@@ -6,6 +6,7 @@ use App\Http\Requests\StoreListingRequest;
 use App\Http\Requests\UpdateListingRequest;
 use App\Http\Resources\ListingResource;
 use App\Jobs\ProcessListingImage;
+use App\Jobs\IndexListingJob;
 use App\Models\Facility;
 use App\Models\Listing;
 use App\Models\ListingImage;
@@ -434,6 +435,7 @@ class LandlordListingController extends Controller
             ->all();
 
         $listing->facilities()->sync($facilityIds);
+        IndexListingJob::dispatch($listing->id);
     }
 
     private function userHasRole($user, array|string $roles): bool

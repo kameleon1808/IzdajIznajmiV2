@@ -19,6 +19,7 @@ class ViewingRequestResource extends JsonResource
             'message' => $this->message,
             'cancelledBy' => $this->cancelled_by,
             'createdAt' => optional($this->created_at)->toIso8601String(),
+            'scheduledAt' => optional($this->scheduled_at)->toIso8601String(),
             'slot' => $slot ? $this->formatSlot($slot) : null,
             'listing' => $listing ? $this->formatListing($listing) : null,
             'participants' => [

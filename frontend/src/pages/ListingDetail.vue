@@ -79,6 +79,8 @@ const slotForm = reactive({
 })
 
 const viewingNotes = reactive<Record<string, string>>({})
+const viewingDates = reactive<Record<string, string>>({})
+const viewingTimes = reactive<Record<string, string>>({})
 
 const description = computed(
   () =>
@@ -177,6 +179,7 @@ const loadViewingSlots = async () => {
   try {
     await viewingsStore.fetchSlots(listing.value.id)
     autoFillSingleSlotTimes()
+    seedViewingDefaults()
   } catch (err) {
     viewingError.value = (err as Error).message || 'Failed to load viewing slots.'
   }
@@ -189,6 +192,118 @@ const autoFillSingleSlotTimes = () => {
     slotForm.timeFrom = first.timeFrom
     slotForm.timeTo = first.timeTo
   }
+}
+
+const toDateInput = (iso?: string): string => {
+  if (!iso) return ''
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return ''
+  const [ymd] = date.toISOString().split('T')
+  return ymd ?? ''
+}
+
+const toTimeInput = (iso?: string): string => {
+  if (!iso) return ''
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return ''
+  return date.toTimeString().slice(0, 5)
+}
+
+const seedViewingDefaults = () => {
+  viewingSlots.value.forEach((slot) => {
+    if (!viewingDates[slot.id]) {
+      viewingDates[slot.id] = toDateInput(slot.startsAt) || toDateInput(new Date().toISOString())
+    }
+    if (!viewingTimes[slot.id]) {
+      viewingTimes[slot.id] = slot.timeFrom || toTimeInput(slot.startsAt) || '10:00'
+    }
+  })
+}
+
+const parseTimeToMinutes = (time?: string | null) => {
+  if (!time) return null
+  const [hStr, mStr] = time.split(':')
+  if (!hStr || !mStr) return null
+  const h = Number.parseInt(hStr, 10)
+  const m = Number.parseInt(mStr, 10)
+  if (Number.isNaN(h) || Number.isNaN(m)) return null
+  return h * 60 + m
+}
+
+const isWeekend = (day: number) => day === 0 || day === 6
+
+const buildScheduledAt = (slot: ViewingSlot): string | null => {
+  const date = viewingDates[slot.id]
+  const time = viewingTimes[slot.id]
+  if (!date || !time) {
+    toast.push({ title: 'Odaberi datum i vreme', message: 'Potrebno je odabrati termin pre slanja zahteva.', type: 'error' })
+    return null
+  }
+  const scheduled = new Date(`${date}T${time}:00`)
+  if (Number.isNaN(scheduled.getTime())) {
+    toast.push({ title: 'Neispravan termin', message: 'Odabrani datum ili vreme nisu validni.', type: 'error' })
+    return null
+  }
+  if (scheduled.getTime() <= Date.now()) {
+    toast.push({ title: 'Termin mora biti u budućnosti', type: 'error' })
+    return null
+  }
+
+  const slotStart = new Date(slot.startsAt)
+  const slotEnd = new Date(slot.endsAt)
+  const selectedDate = new Date(scheduled.getFullYear(), scheduled.getMonth(), scheduled.getDate())
+  const startDate = new Date(slotStart.getFullYear(), slotStart.getMonth(), slotStart.getDate())
+  const endDate = new Date(slotEnd.getFullYear(), slotEnd.getMonth(), slotEnd.getDate())
+  const isRecurring = slot.pattern && slot.pattern !== 'once'
+  const hasRangeEnd = endDate.getTime() - startDate.getTime() >= 24 * 60 * 60 * 1000
+  if (!isRecurring) {
+    if (selectedDate < startDate || selectedDate > endDate) {
+      toast.push({ title: 'Datum nije u opsegu slot-a', type: 'error' })
+      return null
+    }
+  } else {
+    if (selectedDate < startDate) {
+      toast.push({ title: 'Datum nije u opsegu slot-a', type: 'error' })
+      return null
+    }
+    if (hasRangeEnd && selectedDate > endDate) {
+      toast.push({ title: 'Datum nije u opsegu slot-a', type: 'error' })
+      return null
+    }
+  }
+
+  const dayOfWeek = scheduled.getDay()
+  if (slot.pattern === 'weekends' && !isWeekend(dayOfWeek)) {
+    toast.push({ title: 'Odaberi vikend termin', type: 'error' })
+    return null
+  }
+  if (slot.pattern === 'weekdays' && isWeekend(dayOfWeek)) {
+    toast.push({ title: 'Odaberi radni dan', type: 'error' })
+    return null
+  }
+  if (slot.pattern === 'custom' && slot.daysOfWeek?.length && !slot.daysOfWeek.includes(dayOfWeek)) {
+    toast.push({ title: 'Odabrani dan nije dostupan', type: 'error' })
+    return null
+  }
+
+  if (slot.timeFrom && slot.timeTo) {
+    const selectedMinutes = scheduled.getHours() * 60 + scheduled.getMinutes()
+    const fromMinutes = parseTimeToMinutes(slot.timeFrom)
+    const toMinutes = parseTimeToMinutes(slot.timeTo)
+    if (fromMinutes == null || toMinutes == null || toMinutes < fromMinutes) {
+      toast.push({ title: 'Neispravan opseg vremena', type: 'error' })
+      return null
+    }
+    if (selectedMinutes < fromMinutes || selectedMinutes > toMinutes) {
+      toast.push({ title: 'Vreme nije u okviru slot-a', type: 'error' })
+      return null
+    }
+  } else if (scheduled < slotStart || scheduled > slotEnd) {
+    toast.push({ title: 'Vreme nije u okviru slot-a', type: 'error' })
+    return null
+  }
+
+  return scheduled.toISOString()
 }
 
 const toggleFavorite = () => {
@@ -386,8 +501,15 @@ const requestViewingSlot = async (slotId: string) => {
   }
   viewingSubmitting.value = true
   try {
+    const slot = viewingSlots.value.find((item) => item.id === slotId)
+    if (!slot) {
+      toast.push({ title: 'Termin nije pronađen', type: 'error' })
+      return
+    }
+    const scheduledAt = buildScheduledAt(slot)
+    if (!scheduledAt) return
     const note = viewingNotes[slotId] ?? ''
-    const created = await viewingsStore.requestSlot(slotId, note)
+    const created = await viewingsStore.requestSlot(slotId, note, scheduledAt)
     viewingNotes[slotId] = ''
     toast.push({ title: 'Viewing requested', message: 'Host will confirm your visit.', type: 'success' })
     router.push({ path: '/bookings', query: { tab: 'viewings', viewingRequestId: created.id } })
@@ -755,6 +877,26 @@ const deleteViewingSlot = async (slotId: string) => {
                   </div>
                 </template>
                 <template v-else>
+                  <div class="grid grid-cols-1 gap-2 md:grid-cols-2">
+                    <label class="space-y-1 text-xs font-semibold text-slate-900">
+                      Datum
+                      <input
+                        v-model="viewingDates[slot.id]"
+                        type="date"
+                        class="w-full rounded-xl border border-line px-3 py-2 text-sm focus:border-primary focus:outline-none"
+                      />
+                    </label>
+                    <label class="space-y-1 text-xs font-semibold text-slate-900">
+                      Vreme
+                      <input
+                        v-model="viewingTimes[slot.id]"
+                        type="time"
+                        :min="slot.timeFrom ?? undefined"
+                        :max="slot.timeTo ?? undefined"
+                        class="w-full rounded-xl border border-line px-3 py-2 text-sm focus:border-primary focus:outline-none"
+                      />
+                    </label>
+                  </div>
                   <textarea
                     v-model="viewingNotes[slot.id]"
                     rows="2"

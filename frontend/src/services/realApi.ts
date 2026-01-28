@@ -15,6 +15,7 @@ import type {
   ViewingRequest,
   ViewingSlot,
   SavedSearch,
+  SearchSuggestion,
 } from '../types'
 import { useAuthStore } from '../stores/auth'
 
@@ -159,6 +160,7 @@ const mapViewingRequest = (data: any): ViewingRequest => ({
   message: data.message ?? null,
   cancelledBy: data.cancelledBy ?? data.cancelled_by ?? null,
   createdAt: data.createdAt ?? data.created_at ?? null,
+  scheduledAt: data.scheduledAt ?? data.scheduled_at ?? null,
   slot: data.slot ? mapViewingSlot(data.slot) : null,
   listing: data.listing
     ? {
@@ -219,6 +221,14 @@ const applyListingFilters = (filters?: ListingFilters) => {
   return params
 }
 
+const applySearchV2Filters = (filters?: ListingFilters) => {
+  if (!filters) return {}
+  const params = applyListingFilters(filters)
+  if (filters.priceBucket) params.price_bucket = filters.priceBucket
+  if (filters.areaBucket) params.area_bucket = filters.areaBucket
+  return params
+}
+
 const appendIfValue = (form: FormData, key: string, value: any) => {
   if (value === undefined || value === null || value === '') return
   form.append(key, value as any)
@@ -262,6 +272,21 @@ export const searchListings = async (
   return mapPaginated(data)
 }
 
+export const searchListingsV2 = async (
+  query: string,
+  filters?: ListingFilters,
+  page = 1,
+  perPage = 10,
+): Promise<{ items: Listing[]; meta: any; facets: any }> => {
+  const params: Record<string, any> = { ...applySearchV2Filters(filters), q: query || filters?.location, page, perPage }
+  const { data } = await apiClient.get('/search/listings', { params })
+  return {
+    items: (data.data ?? []).map(mapListing),
+    meta: data.meta ?? null,
+    facets: data.facets ?? {},
+  }
+}
+
 export const geocodeLocation = async (query: string): Promise<{ lat: number; lng: number }> => {
   const { data } = await apiClient.get('/geocode', { params: { q: query } })
   return { lat: Number(data.lat), lng: Number(data.lng) }
@@ -272,6 +297,11 @@ export type GeocodeSuggestion = { label: string; lat: number; lng: number; type:
 export const suggestLocations = async (query: string, limit = 5): Promise<GeocodeSuggestion[]> => {
   const { data } = await apiClient.get('/geocode/suggest', { params: { q: query, limit } })
   return data as GeocodeSuggestion[]
+}
+
+export const suggestSearch = async (query: string, limit = 8): Promise<SearchSuggestion[]> => {
+  const { data } = await apiClient.get('/search/suggest', { params: { q: query, limit } })
+  return data as SearchSuggestion[]
 }
 
 export const getListingById = async (id: string): Promise<Listing | null> => {
@@ -735,8 +765,17 @@ export const deleteViewingSlot = async (slotId: string): Promise<void> => {
   await apiClient.delete(`/viewing-slots/${slotId}`)
 }
 
-export const requestViewingSlot = async (slotId: string, message?: string): Promise<ViewingRequest> => {
-  const { data } = await apiClient.post(`/viewing-slots/${slotId}/request`, { message })
+export const requestViewingSlot = async (
+  slotId: string,
+  message?: string,
+  scheduledAt?: string,
+  _seekerId?: string,
+): Promise<ViewingRequest> => {
+  const payload: Record<string, any> = { message }
+  if (scheduledAt) {
+    payload.scheduledAt = scheduledAt
+  }
+  const { data } = await apiClient.post(`/viewing-slots/${slotId}/request`, payload)
   return mapViewingRequest(data.data ?? data)
 }
 

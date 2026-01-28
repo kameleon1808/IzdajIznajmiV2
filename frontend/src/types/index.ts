@@ -97,6 +97,7 @@ export interface ViewingRequest {
   message?: string | null
   cancelledBy?: 'seeker' | 'landlord' | 'system' | null
   createdAt?: string
+  scheduledAt?: string | null
   slot: ViewingSlot | null
   listing: {
     id: string
@@ -238,6 +239,7 @@ export interface ListingFilters {
   category: 'all' | ListingCategory
   guests: number
   priceRange: [number, number]
+  priceBucket?: string | null
   instantBook: boolean
   location: string
   facilities: string[]
@@ -245,9 +247,30 @@ export interface ListingFilters {
   city?: string
   rooms?: number | null
   areaRange?: [number, number] | null
+  areaBucket?: string | null
   status?: Listing['status'] | 'all'
   amenities?: string[]
   centerLat?: number | null
   centerLng?: number | null
   radiusKm?: number | null
+}
+
+export interface FacetOption {
+  value: string
+  count: number
+}
+
+export interface ListingSearchFacets {
+  city: FacetOption[]
+  status: FacetOption[]
+  rooms: FacetOption[]
+  amenities: FacetOption[]
+  price_bucket: FacetOption[]
+  area_bucket: FacetOption[]
+}
+
+export interface SearchSuggestion {
+  label: string
+  type: 'query' | 'city' | 'amenity'
+  value: string
 }

@@ -3,10 +3,12 @@ import {
   createListing,
   getFavorites,
   getLandlordListings,
+  getListingById,
   getPopularListings,
   getRecommendedListings,
   isMockApi,
   searchListings,
+  searchListingsV2,
   updateListing,
   publishListing,
   unpublishListing,
@@ -16,12 +18,13 @@ import {
   markListingRented,
 } from '../services'
 import { useAuthStore } from './auth'
-import type { Listing, ListingFilters } from '../types'
+import type { Listing, ListingFilters, ListingSearchFacets } from '../types'
 
 export const defaultFilters: ListingFilters = {
   category: 'all',
   guests: 1,
   priceRange: [0, 1000000],
+  priceBucket: null,
   instantBook: false,
   location: '',
   city: '',
@@ -30,11 +33,23 @@ export const defaultFilters: ListingFilters = {
   rating: null,
   rooms: null,
   areaRange: [0, 100000],
+  areaBucket: null,
   status: 'all',
   centerLat: null,
   centerLng: null,
   radiusKm: 50,
 }
+
+const emptyFacets: ListingSearchFacets = {
+  city: [],
+  status: [],
+  rooms: [],
+  amenities: [],
+  price_bucket: [],
+  area_bucket: [],
+}
+
+const searchV2Enabled = import.meta.env.VITE_SEARCH_V2 === 'true'
 
 const loadFavorites = (): string[] => {
   if (typeof localStorage === 'undefined') return []
@@ -69,6 +84,10 @@ type ListingFormInput = {
   removeImageUrls?: string[]
 }
 
+const shouldUseSearchV2 = (options: { mapMode?: boolean } = {}) => {
+  return searchV2Enabled && !options.mapMode
+}
+
 export const useListingsStore = defineStore('listings', {
   state: () => ({
     popular: [] as Listing[],
@@ -80,6 +99,7 @@ export const useListingsStore = defineStore('listings', {
     filters: { ...defaultFilters },
     searchResults: [] as Listing[],
     searchMeta: null as any,
+    searchFacets: { ...emptyFacets } as ListingSearchFacets,
     searchPage: 1,
     recentSearches: ['Bali', 'Barcelona', 'Lisbon'],
     loading: false,
@@ -95,6 +115,16 @@ export const useListingsStore = defineStore('listings', {
         ...item,
         isFavorite: state.favorites.includes(item.id) || item.isFavorite,
       }))
+    },
+    hasMoreSearchResults(state): boolean {
+      if (!state.searchMeta) return false
+      const current = Number(state.searchMeta.current_page ?? state.searchMeta.page ?? state.searchPage)
+      const perPage = Number(state.searchMeta.per_page ?? state.searchMeta.perPage ?? 10)
+      const total = Number(state.searchMeta.total ?? 0)
+      const last =
+        Number(state.searchMeta.last_page ?? state.searchMeta.lastPage) ||
+        (perPage > 0 ? Math.ceil(total / perPage) : current)
+      return current < last
     },
   },
   actions: {
@@ -164,6 +194,22 @@ export const useListingsStore = defineStore('listings', {
           const favs = await getFavorites()
           this.favorites = favs.map((f: Listing) => f.id)
           this.favoriteListings = favs
+        } else {
+          const ids = this.favorites
+          if (!ids.length) {
+            this.favoriteListings = []
+          } else {
+            const fetched = await Promise.all(
+              ids.map(async (id) => {
+                try {
+                  return await getListingById(id)
+                } catch {
+                  return null
+                }
+              }),
+            )
+            this.favoriteListings = fetched.filter((item): item is Listing => Boolean(item))
+          }
         }
         this.recommended = this.syncFavorites(this.recommended)
         this.popular = this.syncFavorites(this.popular)
@@ -181,16 +227,25 @@ export const useListingsStore = defineStore('listings', {
       this.error = ''
       this.searchPage = 1
       try {
-        const resp = await searchListings(query, this.filters, this.searchPage, 10, options)
-        const list = Array.isArray(resp) ? resp : resp.items
-        this.searchMeta = Array.isArray(resp) ? null : resp.meta
-        this.searchResults = this.syncFavorites(list)
+        if (shouldUseSearchV2(options)) {
+          const resp = await searchListingsV2(query, this.filters, this.searchPage, 10)
+          this.searchMeta = resp.meta ?? null
+          this.searchFacets = resp.facets ?? { ...emptyFacets }
+          this.searchResults = this.syncFavorites(resp.items ?? [])
+        } else {
+          const resp = await searchListings(query, this.filters, this.searchPage, 10, options)
+          const list = Array.isArray(resp) ? resp : resp.items
+          this.searchMeta = Array.isArray(resp) ? null : resp.meta
+          this.searchFacets = { ...emptyFacets }
+          this.searchResults = this.syncFavorites(list)
+        }
         if (query.trim() && !this.recentSearches.includes(query)) {
           this.recentSearches = [query, ...this.recentSearches].slice(0, 5)
         }
       } catch (error) {
         this.error = (error as Error).message || 'Search failed.'
         this.searchResults = []
+        this.searchFacets = { ...emptyFacets }
       } finally {
         this.loading = false
       }
@@ -198,15 +253,23 @@ export const useListingsStore = defineStore('listings', {
     async loadMoreSearch(query: string | { value: string }, options: { mapMode?: boolean } = {}) {
       const q = typeof query === 'string' ? query : query.value
       if (this.loadingMore) return
-      if (this.searchMeta && this.searchMeta.current_page >= this.searchMeta.last_page) return
+      if (this.searchMeta && !this.hasMoreSearchResults) return
       this.loadingMore = true
       try {
-        const nextPage = (this.searchMeta?.current_page ?? this.searchPage) + 1
-        const resp = await searchListings(q, this.filters, nextPage, 10, options)
-        const list = Array.isArray(resp) ? resp : resp.items
-        this.searchMeta = Array.isArray(resp) ? null : resp.meta
-        this.searchPage = nextPage
-        this.searchResults = this.syncFavorites([...this.searchResults, ...list])
+        const currentPage = Number(this.searchMeta?.current_page ?? this.searchMeta?.page ?? this.searchPage)
+        const nextPage = currentPage + 1
+        if (shouldUseSearchV2(options)) {
+          const resp = await searchListingsV2(q, this.filters, nextPage, 10)
+          this.searchMeta = resp.meta ?? null
+          this.searchPage = nextPage
+          this.searchResults = this.syncFavorites([...this.searchResults, ...(resp.items ?? [])])
+        } else {
+          const resp = await searchListings(q, this.filters, nextPage, 10, options)
+          const list = Array.isArray(resp) ? resp : resp.items
+          this.searchMeta = Array.isArray(resp) ? null : resp.meta
+          this.searchPage = nextPage
+          this.searchResults = this.syncFavorites([...this.searchResults, ...list])
+        }
       } catch (error) {
         this.error = (error as Error).message || 'Search failed.'
       } finally {

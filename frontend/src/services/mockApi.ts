@@ -7,12 +7,14 @@ import type {
   Conversation,
   Listing,
   ListingFilters,
+  ListingSearchFacets,
   Message,
   PublicProfile,
   Rating,
   Report,
   Review,
   SavedSearch,
+  SearchSuggestion,
   ViewingRequest,
   ViewingSlot,
 } from '../types'
@@ -533,6 +535,25 @@ const hashString = (value: string) => {
   return hex.padEnd(32, '0')
 }
 
+const priceBuckets = [
+  { label: '0-300', min: 0, max: 300 },
+  { label: '300-600', min: 300, max: 600 },
+  { label: '600-1000', min: 600, max: 1000 },
+  { label: '1000+', min: 1000, max: Infinity },
+]
+
+const areaBuckets = [
+  { label: '0-30', min: 0, max: 30 },
+  { label: '30-60', min: 30, max: 60 },
+  { label: '60-100', min: 60, max: 100 },
+  { label: '100+', min: 100, max: Infinity },
+]
+
+const bucketFor = (value: number | undefined, buckets: { label: string; min: number; max: number }[]) => {
+  if (value == null) return null
+  return buckets.find((bucket) => value >= bucket.min && value < bucket.max)?.label ?? null
+}
+
 const applyFilters = (items: Listing[], filters?: Partial<ListingFilters>) => {
   if (!filters) return items.map((item) => ({ ...item }))
   let filtered = items.map((item) => ({ ...item }))
@@ -540,6 +561,7 @@ const applyFilters = (items: Listing[], filters?: Partial<ListingFilters>) => {
     const matchCategory = filters.category && filters.category !== 'all' ? item.category === filters.category : true
     const matchGuests = filters.guests ? item.beds >= filters.guests : true
     const matchPrice = filters.priceRange ? item.pricePerNight >= filters.priceRange[0] && item.pricePerNight <= filters.priceRange[1] : true
+    const matchPriceBucket = filters.priceBucket ? bucketFor(item.pricePerNight, priceBuckets) === filters.priceBucket : true
     const matchInstant = filters.instantBook ? item.instantBook : true
     const matchLocation = filters.location
       ? `${item.city} ${item.country}`.toLowerCase().includes(filters.location.toLowerCase())
@@ -549,12 +571,27 @@ const applyFilters = (items: Listing[], filters?: Partial<ListingFilters>) => {
     const matchArea = filters.areaRange
       ? (item.area ?? 0) >= (filters.areaRange[0] ?? 0) && (item.area ?? 0) <= (filters.areaRange[1] ?? Infinity)
       : true
+    const matchAreaBucket = filters.areaBucket ? bucketFor(item.area ?? 0, areaBuckets) === filters.areaBucket : true
     const matchRating = filters.rating ? item.rating >= filters.rating : true
     const amenities = (filters.amenities?.length ? filters.amenities : filters.facilities) ?? []
     const matchFacilities = amenities.length ? amenities.some((f) => item.facilities?.includes(f)) : true
     const matchStatus = filters.status && filters.status !== 'all' ? item.status === filters.status : true
 
-    return matchCategory && matchGuests && matchPrice && matchInstant && matchLocation && matchCity && matchRooms && matchArea && matchRating && matchFacilities && matchStatus
+    return (
+      matchCategory &&
+      matchGuests &&
+      matchPrice &&
+      matchPriceBucket &&
+      matchInstant &&
+      matchLocation &&
+      matchCity &&
+      matchRooms &&
+      matchArea &&
+      matchAreaBucket &&
+      matchRating &&
+      matchFacilities &&
+      matchStatus
+    )
   })
 
   if (filters.centerLat != null && filters.centerLng != null) {
@@ -572,6 +609,41 @@ const applyFilters = (items: Listing[], filters?: Partial<ListingFilters>) => {
   return filtered
 }
 
+const buildFacets = (items: Listing[]): ListingSearchFacets => {
+  const tally = (map: Map<string, number>, value: string | null | undefined) => {
+    if (!value) return
+    map.set(value, (map.get(value) ?? 0) + 1)
+  }
+
+  const city = new Map<string, number>()
+  const status = new Map<string, number>()
+  const rooms = new Map<string, number>()
+  const amenities = new Map<string, number>()
+  const priceBucket = new Map<string, number>()
+  const areaBucket = new Map<string, number>()
+
+  items.forEach((item) => {
+    tally(city, item.city)
+    tally(status, item.status)
+    tally(rooms, String(item.rooms ?? item.beds ?? ''))
+    item.facilities?.forEach((facility) => tally(amenities, facility))
+    tally(priceBucket, bucketFor(item.pricePerNight, priceBuckets))
+    tally(areaBucket, bucketFor(item.area ?? 0, areaBuckets))
+  })
+
+  const mapToArray = (map: Map<string, number>) =>
+    Array.from(map.entries()).map(([value, count]) => ({ value, count }))
+
+  return {
+    city: mapToArray(city).sort((a, b) => b.count - a.count),
+    status: mapToArray(status).sort((a, b) => b.count - a.count),
+    rooms: mapToArray(rooms).sort((a, b) => Number(a.value) - Number(b.value)),
+    amenities: mapToArray(amenities).sort((a, b) => b.count - a.count),
+    price_bucket: mapToArray(priceBucket),
+    area_bucket: mapToArray(areaBucket),
+  }
+}
+
 export async function getPopularListings(): Promise<Listing[]> {
   return simulate(listings.slice(0, 3))
 }
@@ -583,6 +655,20 @@ export async function getRecommendedListings(filters?: Partial<ListingFilters>):
 export async function searchListings(query: string, filters?: Partial<ListingFilters>): Promise<Listing[]> {
   const filtered = applyFilters(listings, filters)
   return simulate(filtered.filter((item) => item.title.toLowerCase().includes(query.toLowerCase())))
+}
+
+export async function searchListingsV2(
+  query: string,
+  filters?: Partial<ListingFilters>,
+): Promise<{ items: Listing[]; meta: any; facets: ListingSearchFacets }> {
+  const filtered = applyFilters(listings, filters)
+  const q = query.trim().toLowerCase()
+  const items = q ? filtered.filter((item) => item.title.toLowerCase().includes(q)) : filtered
+  return simulate({
+    items,
+    meta: { page: 1, perPage: items.length, total: items.length, lastPage: 1 },
+    facets: buildFacets(items),
+  })
 }
 
 export async function suggestLocations(query: string, limit = 5): Promise<{ label: string; lat: number; lng: number; type: string }[]> {
@@ -598,6 +684,25 @@ export async function suggestLocations(query: string, limit = 5): Promise<{ labe
   if (!normalized) return simulate([])
   const matched = base.filter((item) => item.label.toLowerCase().includes(normalized)).slice(0, limit)
   return simulate(matched)
+}
+
+export async function suggestSearch(query: string, limit = 8): Promise<SearchSuggestion[]> {
+  const normalized = query.trim().toLowerCase()
+  if (!normalized) return simulate([])
+  const suggestions: SearchSuggestion[] = [{ label: query, type: 'query', value: query }]
+  const cityMatches = listings
+    .map((item) => item.city)
+    .filter((city) => city.toLowerCase().includes(normalized))
+    .slice(0, limit)
+    .map((city) => ({ label: city, type: 'city' as const, value: city }))
+  const amenityMatches = listings
+    .flatMap((item) => item.facilities ?? [])
+    .filter((facility) => facility.toLowerCase().includes(normalized))
+    .slice(0, limit)
+    .map((facility) => ({ label: facility, type: 'amenity' as const, value: facility }))
+  const merged = [...suggestions, ...cityMatches, ...amenityMatches]
+  const unique = Array.from(new Map(merged.map((item) => [`${item.type}:${item.value}`, item])).values())
+  return simulate(unique.slice(0, limit))
 }
 
 export async function geocodeLocation(query: string): Promise<{ lat: number; lng: number }> {
@@ -760,7 +865,12 @@ const makeListingSummary = (listingId: string) => {
   }
 }
 
-export async function requestViewingSlot(slotId: string, message?: string, seekerId?: string): Promise<ViewingRequest> {
+export async function requestViewingSlot(
+  slotId: string,
+  message?: string,
+  scheduledAt?: string,
+  seekerId?: string,
+): Promise<ViewingRequest> {
   const slot = viewingSlots.find((s) => s.id === slotId)
   if (!slot || !slot.isActive) {
     throw new Error('Viewing slot unavailable')
@@ -777,6 +887,7 @@ export async function requestViewingSlot(slotId: string, message?: string, seeke
     message: message ?? '',
     cancelledBy: null,
     createdAt: new Date().toISOString(),
+    scheduledAt: scheduledAt ?? null,
     slot: cloneSlot(slot) as ViewingSlot,
     listing: makeListingSummary(slot.listingId),
     participants: {

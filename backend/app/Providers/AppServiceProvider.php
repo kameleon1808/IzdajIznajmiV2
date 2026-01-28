@@ -24,11 +24,15 @@ use App\Services\Geocoding\Geocoder;
 use App\Services\Geocoding\NominatimGeocoder;
 use App\Services\Geocoding\NominatimSuggestGeocoder;
 use App\Services\Geocoding\SuggestGeocoder;
+use App\Services\Search\MeiliSearchDriver;
+use App\Services\Search\SearchDriver;
+use App\Services\Search\SqlSearchDriver;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use MeiliSearch\Client;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -37,6 +41,18 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $this->app->singleton(Client::class, function ($app) {
+            $config = $app['config']->get('search.meili', []);
+            return new Client($config['host'] ?? 'http://localhost:7700', $config['key'] ?? null);
+        });
+
+        $this->app->bind(SearchDriver::class, function ($app) {
+            $driver = $app['config']->get('search.driver', 'sql');
+            return $driver === 'meili'
+                ? $app->make(MeiliSearchDriver::class)
+                : $app->make(SqlSearchDriver::class);
+        });
+
         $this->app->singleton(Geocoder::class, function ($app) {
             $config = $app['config']->get('geocoding', []);
             $driver = $config['driver'] ?? 'fake';

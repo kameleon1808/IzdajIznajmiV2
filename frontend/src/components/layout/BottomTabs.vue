@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useRoute, useRouter } from 'vue-router'
-import { CalendarCheck, Home, MessageSquare, UserRound } from 'lucide-vue-next'
+import { CalendarCheck, Heart, Home, MessageSquare, UserRound } from 'lucide-vue-next'
 
 const router = useRouter()
 const route = useRoute()
@@ -8,6 +8,7 @@ const route = useRoute()
 const tabs = [
   { label: 'Home', to: '/', icon: Home },
   { label: 'My Booking', to: '/bookings', icon: CalendarCheck },
+  { label: 'Favorites', to: '/favorites', icon: Heart },
   { label: 'Message', to: '/messages', icon: MessageSquare },
   { label: 'Profile', to: '/profile', icon: UserRound },
 ]
@@ -23,7 +24,7 @@ const go = (path: string) => router.push(path)
 <template>
   <nav class="mx-auto max-w-md px-4 pb-4">
     <div class="safe-bottom rounded-3xl border border-white/60 bg-white/95 p-3 shadow-card backdrop-blur">
-      <div class="grid grid-cols-4 gap-2">
+      <div class="grid grid-cols-5 gap-2">
         <button
           v-for="tab in tabs"
           :key="tab.to"

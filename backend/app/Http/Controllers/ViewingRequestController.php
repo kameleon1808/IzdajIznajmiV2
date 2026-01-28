@@ -37,7 +37,8 @@ class ViewingRequestController extends Controller
             return response()->json(['message' => 'Listing is not active for viewings'], 422);
         }
 
-        if (! $viewingSlot->is_active || $viewingSlot->ends_at <= now() || $viewingSlot->starts_at <= now()) {
+        $isRecurring = in_array($viewingSlot->pattern, ['weekends', 'weekdays', 'everyday', 'custom'], true);
+        if (! $viewingSlot->is_active || (! $isRecurring && $viewingSlot->ends_at <= now())) {
             return response()->json(['message' => 'Viewing slot is not available'], 422);
         }
 
@@ -46,9 +47,14 @@ class ViewingRequestController extends Controller
         }
 
         $payload = $request->validated();
+        $scheduledAt = Carbon::parse($payload['scheduled_at']);
+        $scheduleError = $this->validateScheduledAt($viewingSlot, $scheduledAt);
+        if ($scheduleError) {
+            return response()->json(['message' => $scheduleError], 422);
+        }
 
         try {
-            $viewingRequest = DB::transaction(function () use ($viewingSlot, $listing, $user, $payload) {
+            $viewingRequest = DB::transaction(function () use ($viewingSlot, $listing, $user, $payload, $scheduledAt) {
                 $slot = ViewingSlot::where('id', $viewingSlot->id)->lockForUpdate()->firstOrFail();
 
                 $activeRequests = ViewingRequest::where('viewing_slot_id', $slot->id)
@@ -67,6 +73,7 @@ class ViewingRequestController extends Controller
                     'landlord_id' => $slot->landlord_id,
                     'status' => ViewingRequest::STATUS_REQUESTED,
                     'message' => $payload['message'] ?? null,
+                    'scheduled_at' => $scheduledAt,
                 ]);
             });
         } catch (\RuntimeException $e) {
@@ -77,13 +84,14 @@ class ViewingRequestController extends Controller
         $landlord = $listing->owner ?? User::find($listing->owner_id);
 
         if ($landlord) {
+            $slotTime = $viewingRequest->scheduled_at ?? $viewingRequest->slot?->starts_at;
             $this->notifications->createNotification($landlord, Notification::TYPE_VIEWING_REQUESTED, [
                 'title' => 'New viewing request',
                 'body' => sprintf(
                     '%s requested a viewing for "%s" on %s.',
                     $user->name ?? 'A seeker',
                     $listing->title,
-                    $viewingRequest->slot?->starts_at?->toDayDateTimeString()
+                    $slotTime?->toDayDateTimeString() ?? 'a selected time'
                 ),
                 'data' => [
                     'viewing_request_id' => $viewingRequest->id,
@@ -277,6 +285,13 @@ class ViewingRequestController extends Controller
         $starts = $slot->starts_at instanceof Carbon ? $slot->starts_at : Carbon::parse($slot->starts_at);
         $ends = $slot->ends_at instanceof Carbon ? $slot->ends_at : Carbon::parse($slot->ends_at);
 
+        if ($viewingRequest->scheduled_at) {
+            $starts = $viewingRequest->scheduled_at instanceof Carbon
+                ? $viewingRequest->scheduled_at
+                : Carbon::parse($viewingRequest->scheduled_at);
+            $ends = $this->resolveScheduledEnd($starts, $slot);
+        }
+
         $ics = $this->buildIcs($viewingRequest, $listing, $starts, $ends);
 
         $filename = sprintf('viewing-%d.ics', $viewingRequest->id);
@@ -320,6 +335,101 @@ class ViewingRequestController extends Controller
     private function escapeIcsText(string $text): string
     {
         return addcslashes($text, ",;\\");
+    }
+
+    private function validateScheduledAt(ViewingSlot $slot, Carbon $scheduledAt): ?string
+    {
+        $slotStart = $slot->starts_at instanceof Carbon ? $slot->starts_at : Carbon::parse($slot->starts_at);
+        $slotEnd = $slot->ends_at instanceof Carbon ? $slot->ends_at : Carbon::parse($slot->ends_at);
+
+        $selectedDate = $scheduledAt->copy()->startOfDay();
+        $startDate = $slotStart->copy()->startOfDay();
+        $endDate = $slotEnd->copy()->startOfDay();
+        $isRecurring = in_array($slot->pattern, ['weekends', 'weekdays', 'everyday', 'custom'], true);
+        $hasRangeEnd = $endDate->diffInDays($startDate) >= 1;
+
+        if (! $isRecurring) {
+            if ($selectedDate->lt($startDate) || $selectedDate->gt($endDate)) {
+                return 'Selected date is outside slot availability';
+            }
+        } else {
+            if ($selectedDate->lt($startDate)) {
+                return 'Selected date is outside slot availability';
+            }
+            if ($hasRangeEnd && $selectedDate->gt($endDate)) {
+                return 'Selected date is outside slot availability';
+            }
+        }
+
+        if ($slot->pattern === 'weekends' && $scheduledAt->isWeekday()) {
+            return 'Selected date must be on a weekend';
+        }
+
+        if ($slot->pattern === 'weekdays' && $scheduledAt->isWeekend()) {
+            return 'Selected date must be on a weekday';
+        }
+
+        if ($slot->pattern === 'custom') {
+            $allowedDays = $slot->days_of_week ?? [];
+            if (! in_array($scheduledAt->dayOfWeek, $allowedDays, true)) {
+                return 'Selected date is not available for this slot';
+            }
+        }
+
+        if ($slot->time_from && $slot->time_to) {
+            $fromMinutes = $this->parseTimeToMinutes($slot->time_from);
+            $toMinutes = $this->parseTimeToMinutes($slot->time_to);
+            if ($fromMinutes === null || $toMinutes === null || $toMinutes < $fromMinutes) {
+                return 'Slot time window is invalid';
+            }
+            $selectedMinutes = ((int) $scheduledAt->format('H')) * 60 + (int) $scheduledAt->format('i');
+            if ($selectedMinutes < $fromMinutes || $selectedMinutes > $toMinutes) {
+                return 'Selected time is outside slot hours';
+            }
+        } else {
+            if ($scheduledAt->lt($slotStart) || $scheduledAt->gt($slotEnd)) {
+                return 'Selected time is outside slot availability';
+            }
+        }
+
+        return null;
+    }
+
+    private function parseTimeToMinutes(?string $time): ?int
+    {
+        if (! $time || ! preg_match('/^\d{2}:\d{2}$/', $time)) {
+            return null;
+        }
+        [$hours, $minutes] = array_map('intval', explode(':', $time, 2));
+        if ($hours < 0 || $hours > 23 || $minutes < 0 || $minutes > 59) {
+            return null;
+        }
+        return ($hours * 60) + $minutes;
+    }
+
+    private function resolveScheduledEnd(Carbon $starts, ?ViewingSlot $slot): Carbon
+    {
+        $end = $starts->copy()->addMinutes(60);
+        if (! $slot) {
+            return $end;
+        }
+
+        if ($slot->time_to) {
+            $timeToMinutes = $this->parseTimeToMinutes($slot->time_to);
+            if ($timeToMinutes !== null) {
+                $timeTo = $starts->copy()->setTime(intdiv($timeToMinutes, 60), $timeToMinutes % 60, 0);
+                if ($timeTo->gt($starts) && $timeTo->lt($end)) {
+                    $end = $timeTo;
+                }
+            }
+        } elseif ($slot->ends_at) {
+            $slotEnd = $slot->ends_at instanceof Carbon ? $slot->ends_at : Carbon::parse($slot->ends_at);
+            if ($slotEnd->gt($starts) && $slotEnd->lt($end)) {
+                $end = $slotEnd;
+            }
+        }
+
+        return $end;
     }
 
     private function viewingDeepLink(int $requestId): string

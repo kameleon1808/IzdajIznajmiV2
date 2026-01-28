@@ -14,6 +14,8 @@ use Illuminate\Console\Scheduling\Schedule;
 use App\Console\Commands\ExpireListingsCommand;
 use App\Console\Commands\GeocodeListingsCommand;
 use App\Console\Commands\SavedSearchMatchCommand;
+use App\Console\Commands\SearchListingsReindexCommand;
+use App\Console\Commands\SearchListingsSyncMissingCommand;
 use Spatie\Permission\Middleware\PermissionMiddleware;
 use Spatie\Permission\Middleware\RoleMiddleware;
 use Spatie\Permission\Middleware\RoleOrPermissionMiddleware;
@@ -36,6 +38,8 @@ return Application::configure(basePath: dirname(__DIR__))
         \App\Console\Commands\SendNotificationDigestCommand::class,
         GeocodeListingsCommand::class,
         SavedSearchMatchCommand::class,
+        SearchListingsReindexCommand::class,
+        SearchListingsSyncMissingCommand::class,
     ])
     ->withSchedule(function (Schedule $schedule) {
         $schedule->command('listings:expire')->dailyAt('02:00');

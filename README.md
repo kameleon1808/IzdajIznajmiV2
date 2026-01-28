@@ -104,8 +104,9 @@ npm run dev -- --host --port=5173
 - Seekers: `tena@demo.com`, `tomas@demo.com`, `tara@demo.com`
 
 ## Environment Variables
-- Frontend: `VITE_API_BASE_URL` (blank to use dev proxy), `VITE_USE_MOCK_API`.
+- Frontend: `VITE_API_BASE_URL` (blank to use dev proxy), `VITE_USE_MOCK_API`, `VITE_SEARCH_V2` (enable Search v2 UI).
 - Backend (minimum): `APP_URL` (e.g., http://localhost:8000), `FRONTEND_URL` (http://localhost:5173), `FRONTEND_URLS` (comma list for CORS), `SANCTUM_STATEFUL_DOMAINS=localhost:5173,127.0.0.1:5173`, `SESSION_DOMAIN=localhost`, `DB_CONNECTION` (sqlite by default), `QUEUE_CONNECTION=database`, `IMAGE_OPTIMIZE`, `IMAGE_MAX_WIDTH`, `IMAGE_WEBP_QUALITY`.
+- Search v2 (optional): `SEARCH_DRIVER=meili`, `MEILISEARCH_HOST`, `MEILISEARCH_KEY`, `MEILISEARCH_INDEX`.
 
 ## API Documentation
 - Contract: `docs/api-contract.md`

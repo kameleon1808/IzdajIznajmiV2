@@ -26,12 +26,14 @@ class ViewingRequest extends Model
         'landlord_id',
         'status',
         'message',
+        'scheduled_at',
         'cancelled_by',
     ];
 
     protected $casts = [
         'created_at' => 'datetime',
         'updated_at' => 'datetime',
+        'scheduled_at' => 'datetime',
     ];
 
     public function slot(): BelongsTo

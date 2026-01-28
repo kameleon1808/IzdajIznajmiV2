@@ -136,6 +136,156 @@ class ListingsSeeder extends Seeder
                 'area' => 74,
                 'category' => 'apartment',
             ],
+            [
+                'address' => 'Kralja Milana 22',
+                'lat' => 44.806631,
+                'lng' => 20.469613,
+            ],
+            [
+                'address' => 'Terazije 26',
+                'lat' => 44.813413,
+                'lng' => 20.461605,
+            ],
+            [
+                'address' => 'Takovska 11',
+                'lat' => 44.815388,
+                'lng' => 20.469648,
+            ],
+            [
+                'address' => 'Dečanska 8',
+                'lat' => 44.8119,
+                'lng' => 20.46552,
+            ],
+            [
+                'address' => 'Makedonska 28',
+                'lat' => 44.81294,
+                'lng' => 20.46882,
+            ],
+            [
+                'address' => 'Francuska 14',
+                'lat' => 44.81852,
+                'lng' => 20.4641,
+            ],
+            [
+                'address' => 'Strahinjića Bana 28',
+                'lat' => 44.82565,
+                'lng' => 20.45782,
+            ],
+            [
+                'address' => 'Skadarska 32',
+                'lat' => 44.81761,
+                'lng' => 20.46631,
+            ],
+            [
+                'address' => 'Hilandarska 7',
+                'lat' => 44.8122,
+                'lng' => 20.46952,
+            ],
+            [
+                'address' => 'Palmotićeva 29',
+                'lat' => 44.81132,
+                'lng' => 20.47276,
+            ],
+            [
+                'address' => 'Bulevar despota Stefana 28',
+                'lat' => 44.8209,
+                'lng' => 20.4759,
+            ],
+            [
+                'address' => 'Dobračina 7',
+                'lat' => 44.8192,
+                'lng' => 20.4619,
+            ],
+            [
+                'address' => 'Knez Miletina 10',
+                'lat' => 44.8197,
+                'lng' => 20.473,
+            ],
+            [
+                'address' => 'Gundulićev venac 23',
+                'lat' => 44.8202,
+                'lng' => 20.4713,
+            ],
+            [
+                'address' => 'Kralja Petra 53',
+                'lat' => 44.8178,
+                'lng' => 20.4569,
+            ],
+            [
+                'address' => 'Venizelosova 24',
+                'lat' => 44.8215,
+                'lng' => 20.4718,
+            ],
+            [
+                'address' => 'Dunavska 22',
+                'lat' => 44.8249,
+                'lng' => 20.4722,
+            ],
+            [
+                'address' => 'Ruzveltova 34',
+                'lat' => 44.8051,
+                'lng' => 20.4874,
+            ],
+            [
+                'address' => 'Kraljice Marije 47',
+                'lat' => 44.8059,
+                'lng' => 20.4896,
+            ],
+            [
+                'address' => 'Vojvode Stepe 101',
+                'lat' => 44.7721,
+                'lng' => 20.4755,
+            ],
+            [
+                'address' => 'Bulevar oslobođenja 46',
+                'lat' => 44.7926,
+                'lng' => 20.4691,
+            ],
+            [
+                'address' => 'Južni bulevar 95',
+                'lat' => 44.7921,
+                'lng' => 20.4768,
+            ],
+            [
+                'address' => 'Njegoševa 21',
+                'lat' => 44.8069,
+                'lng' => 20.4734,
+            ],
+            [
+                'address' => 'Krunska 64',
+                'lat' => 44.8079,
+                'lng' => 20.4806,
+            ],
+            [
+                'address' => 'Svetog Save 14',
+                'lat' => 44.8034,
+                'lng' => 20.4682,
+            ],
+            [
+                'address' => 'Makenzijeva 58',
+                'lat' => 44.8026,
+                'lng' => 20.4794,
+            ],
+            [
+                'address' => 'Mileševska 9',
+                'lat' => 44.8039,
+                'lng' => 20.4812,
+            ],
+            [
+                'address' => 'Ustanička 190',
+                'lat' => 44.7792,
+                'lng' => 20.5041,
+            ],
+            [
+                'address' => 'Mirijevski bulevar 78',
+                'lat' => 44.811,
+                'lng' => 20.5158,
+            ],
+            [
+                'address' => 'Vojislava Ilića 141',
+                'lat' => 44.7933,
+                'lng' => 20.5015,
+            ],
         ];
 
         foreach ($beogradListings as $i => $data) {
@@ -146,12 +296,15 @@ class ListingsSeeder extends Seeder
 
             $images = collect($imagePool)->shuffle()->take(3)->values();
             $addressKey = $addressGuard->normalizeAddressKey($data['address'], 'Beograd', 'Srbija');
-            $statusPool = ['active', 'active', 'paused', 'draft'];
-            $status = $statusPool[array_rand($statusPool)];
+            $status = 'active';
+            $rooms = $data['rooms'] ?? $faker->numberBetween(1, 3);
+            $area = $data['area'] ?? $faker->numberBetween(35, 120);
+            $price = $data['price'] ?? $faker->numberBetween(60, 180);
+            $title = $data['title'] ?? ('Belgrade Stay - ' . $data['address']);
 
             $listing = Listing::create([
                 'owner_id' => $ownerId,
-                'title' => $data['title'],
+                'title' => $title,
                 'address' => $data['address'],
                 'address_key' => $addressKey,
                 'city' => 'Beograd',
@@ -159,19 +312,19 @@ class ListingsSeeder extends Seeder
                 'lat' => $data['lat'],
                 'lng' => $data['lng'],
                 'geocoded_at' => now(),
-                'price_per_night' => $data['price'],
+                'price_per_night' => $price,
                 'rating' => $faker->randomFloat(1, 4.2, 5),
                 'reviews_count' => $faker->numberBetween(10, 150),
                 'cover_image' => $images->first(),
                 'description' => $faker->sentences(3, true),
-                'beds' => max(2, $data['rooms']),
+                'beds' => max(2, $rooms),
                 'baths' => 1,
-                'rooms' => $data['rooms'],
-                'area' => $data['area'],
+                'rooms' => $rooms,
+                'area' => $area,
                 'category' => $data['category'] ?? $categories[array_rand($categories)],
                 'instant_book' => true,
                 'status' => $status,
-                'published_at' => $status === 'active' ? now()->subDays(rand(1, 10)) : null,
+                'published_at' => now()->subDays(rand(1, 10)),
                 'archived_at' => $status === 'archived' ? now()->subDays(rand(1, 30)) : null,
                 'location_source' => 'geocoded',
                 'location_accuracy_m' => null,

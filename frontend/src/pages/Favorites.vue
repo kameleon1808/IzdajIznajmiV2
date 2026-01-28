@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { Heart, Search as SearchIcon, SlidersHorizontal } from 'lucide-vue-next'
 import Chip from '../components/ui/Chip.vue'
 import EmptyState from '../components/ui/EmptyState.vue'
@@ -9,6 +10,7 @@ import Input from '../components/ui/Input.vue'
 import { useListingsStore } from '../stores/listings'
 
 const listingsStore = useListingsStore()
+const router = useRouter()
 const category = ref<'all' | 'villa' | 'hotel' | 'apartment'>('all')
 const query = ref('')
 
@@ -51,7 +53,8 @@ const error = computed(() => listingsStore.error)
       <div
         v-for="item in favorites"
         :key="item.id"
-        class="overflow-hidden rounded-2xl bg-white shadow-soft border border-white/60"
+        class="overflow-hidden rounded-2xl bg-white shadow-soft border border-white/60 cursor-pointer"
+        @click="router.push(`/listing/${item.id}`)"
       >
         <div class="relative h-32 w-full overflow-hidden">
           <img :src="item.coverImage" :alt="item.title" class="h-full w-full object-cover" />

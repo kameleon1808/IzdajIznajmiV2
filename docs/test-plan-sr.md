@@ -40,6 +40,13 @@
 | LST-02 | Seed podaci | 1) GET /api/v1/listings?category=villa&priceMin=100&priceMax=300&rating=4.5 | 200, svi rezultati po filteru | filter |
 | LST-03 | Seed podaci | 1) GET /api/v1/listings/{id} | 200, uključuje images[], facilities[] | detail |
 
+### Search v2 (Meili)
+| ID | Precondition | Koraci | Očekivano | Napomena |
+| --- | --- | --- | --- | --- |
+| SRCH-01 | `SEARCH_DRIVER=meili`, indeksiran sadržaj | 1) GET /api/v1/search/listings?q=beograd | 200, data + facets keys | v2 search |
+| SRCH-02 | SRCH-01 | 1) GET /api/v1/search/listings?priceBucket=0-300&rooms=2 | 200, facet counts prate filtere | facets |
+| SRCH-03 | SRCH-01 | 1) GET /api/v1/search/suggest?q=beo | 200, city/amenity/query predlozi | autosuggest |
+
 ### Landlord listings CRUD & policy
 | ID | Precondition | Koraci | Očekivano | Napomena |
 | --- | --- | --- | --- | --- |
