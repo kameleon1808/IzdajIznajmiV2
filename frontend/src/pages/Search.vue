@@ -86,7 +86,6 @@ const currentQuery = ref('')
 const debouncedSuggest = useDebounceFn(async () => {
   await fetchSuggestions()
 }, 250)
-const currentQueryValue = computed(() => currentQuery.value)
 const searchV2Enabled = computed(() => import.meta.env.VITE_SEARCH_V2 === 'true')
 const searchFacets = computed(() => listingsStore.searchFacets)
 
@@ -104,6 +103,7 @@ const hasActiveListFilters = computed(() => {
   if (f.status && f.status !== 'all') return true
   if (f.amenities?.length) return true
   if (f.facilities?.length) return true
+  if (f.centerLat != null || f.centerLng != null) return true
   if (
     f.priceRange?.length &&
     (f.priceRange[0] !== defaultFilters.priceRange[0] || f.priceRange[1] !== defaultFilters.priceRange[1])
@@ -469,6 +469,10 @@ const selectSuggestion = async (item: SearchSuggestion) => {
 
 const hideSuggestions = () => {
   setTimeout(() => (showSuggestions.value = false), 150)
+}
+
+const loadMoreResults = async () => {
+  await listingsStore.loadMoreSearch(currentQuery.value, { mapMode: viewMode.value === 'map' })
 }
 
 const runSearch = async () => {
@@ -933,7 +937,7 @@ watch(
               v-if="listingsStore.hasMoreSearchResults"
               :loading="loadingMore"
               variant="secondary"
-              @click="listingsStore.loadMoreSearch(currentQueryValue)"
+              @click="loadMoreResults"
             >
               Load more
             </Button>
@@ -1011,7 +1015,7 @@ watch(
           v-if="listingsStore.hasMoreSearchResults"
           :loading="loadingMore"
           variant="secondary"
-          @click="listingsStore.loadMoreSearch(currentQueryValue)"
+          @click="loadMoreResults"
         >
           Load more results
         </Button>
