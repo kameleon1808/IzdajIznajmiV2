@@ -13,6 +13,13 @@ class ConversationResource extends JsonResource
         $participant = $authId === $this->tenant_id ? $this->landlord : $this->tenant;
         $listing = $this->resource->relationLoaded('listing') ? $this->listing : null;
         $lastMessage = $this->whenLoaded('messages', fn () => $this->messages->sortByDesc('created_at')->first());
+        $lastMessageText = $lastMessage?->body ?? '';
+
+        if (! trim($lastMessageText ?? '') && $lastMessage?->relationLoaded('attachments')) {
+            if ($lastMessage->attachments->count() > 0) {
+                $lastMessageText = 'Sent an attachment';
+            }
+        }
 
         return [
             'id' => $this->id,
@@ -22,7 +29,7 @@ class ConversationResource extends JsonResource
             'listingCoverImage' => $listing?->cover_image ?? ($listing?->relationLoaded('images') ? $listing->images->sortBy('sort_order')->first()?->url : null),
             'userName' => $participant?->name ?? 'Guest',
             'avatarUrl' => null,
-            'lastMessage' => $lastMessage?->body ?? 'Start chatting',
+            'lastMessage' => $lastMessageText ?: 'Start chatting',
             'time' => optional($lastMessage?->created_at ?? $this->created_at)->toISOString(),
             'unreadCount' => $this->unread_count ?? 0,
             'online' => false,

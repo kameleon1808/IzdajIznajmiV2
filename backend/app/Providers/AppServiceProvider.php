@@ -153,9 +153,16 @@ class AppServiceProvider extends ServiceProvider
         });
 
         RateLimiter::for('chat_messages', function (Request $request) {
-            $key = $request->user()?->id ?? $request->ip();
+            $userId = $request->user()?->id ?? $request->ip();
+            $threadId = $request->route('conversation')?->id
+                ?? $request->route('conversation')
+                ?? $request->route('listing')?->id
+                ?? $request->route('listing')
+                ?? 'unknown';
+            $key = sprintf('chat_messages:%s:%s', $userId, $threadId);
+            $limit = (int) config('chat.rate_limits.messages_per_minute', 30);
 
-            return Limit::perMinute(60)
+            return Limit::perMinute($limit)
                 ->by($key)
                 ->response(function () {
                     return response()->json(['message' => 'Chat limit reached. Please slow down.'], 429);

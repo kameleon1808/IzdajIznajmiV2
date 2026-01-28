@@ -16,6 +16,8 @@ use App\Http\Controllers\Admin\ModerationController;
 use App\Http\Controllers\Admin\KpiController;
 use App\Http\Controllers\Admin\ImpersonationController;
 use App\Http\Controllers\GeocodingController;
+use App\Http\Controllers\ChatAttachmentController;
+use App\Http\Controllers\ChatSignalController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\NotificationPreferenceController;
 use App\Http\Controllers\SavedSearchController;
@@ -73,12 +75,21 @@ $apiRoutes = function () use ($authRoutes) {
         Route::get('/listings/{listing}/conversation', [ConversationController::class, 'conversationForListing']);
         Route::post('/listings/{listing}/conversation', [ConversationController::class, 'conversationForListing']);
         Route::get('/listings/{listing}/messages', [ConversationController::class, 'messagesForListing']);
-        Route::post('/listings/{listing}/messages', [ConversationController::class, 'sendMessageForListing'])->middleware('throttle:chat_messages');
+        Route::post('/listings/{listing}/messages', [ConversationController::class, 'sendMessageForListing'])
+            ->middleware(['throttle:chat_messages', 'chat_attachments']);
         Route::post('/applications/{application}/conversation', [ConversationController::class, 'conversationForApplication']);
         Route::get('/conversations/{conversation}/messages', [ConversationController::class, 'messages']);
         Route::get('/conversations/{conversation}', [ConversationController::class, 'show']);
-        Route::post('/conversations/{conversation}/messages', [ConversationController::class, 'send'])->middleware('throttle:chat_messages');
+        Route::post('/conversations/{conversation}/messages', [ConversationController::class, 'send'])
+            ->middleware(['throttle:chat_messages', 'chat_attachments']);
         Route::post('/conversations/{conversation}/read', [ConversationController::class, 'markRead']);
+        Route::post('/conversations/{conversation}/typing', [ChatSignalController::class, 'typing']);
+        Route::get('/conversations/{conversation}/typing', [ChatSignalController::class, 'typingStatus']);
+        Route::get('/chat/attachments/{attachment}', [ChatAttachmentController::class, 'show'])->name('chat.attachments.show');
+        Route::get('/chat/attachments/{attachment}/thumb', [ChatAttachmentController::class, 'thumb'])->name('chat.attachments.thumb');
+
+        Route::post('/presence/ping', [ChatSignalController::class, 'presencePing']);
+        Route::get('/users/{user}/presence', [ChatSignalController::class, 'presenceStatus']);
 
         Route::post('/listings/{listing}/ratings', [RatingController::class, 'store']);
         Route::get('/me/ratings', [RatingController::class, 'myRatings']);

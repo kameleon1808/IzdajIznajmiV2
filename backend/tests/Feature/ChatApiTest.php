@@ -9,7 +9,10 @@ use App\Models\User;
 use App\Models\Application;
 use App\Services\ListingAddressGuardService;
 use App\Services\ListingStatusService;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class ChatApiTest extends TestCase
@@ -227,12 +230,198 @@ class ChatApiTest extends TestCase
 
         $this->actingAs($landlord);
 
-        for ($i = 0; $i < 60; $i++) {
+        for ($i = 0; $i < 30; $i++) {
             $this->postJson("/api/v1/conversations/{$conversation->id}/messages", ['message' => 'ping '.$i])
                 ->assertCreated();
         }
 
         $this->postJson("/api/v1/conversations/{$conversation->id}/messages", ['message' => 'rate limited'])
             ->assertStatus(429);
+    }
+
+    public function test_participant_can_send_message_with_image_attachment(): void
+    {
+        Queue::fake();
+        Storage::fake('private');
+
+        $seeker = User::factory()->create(['role' => 'seeker']);
+        $landlord = User::factory()->create(['role' => 'landlord']);
+        $listing = $this->createListing($landlord);
+
+        $conversation = Conversation::create([
+            'tenant_id' => $seeker->id,
+            'landlord_id' => $landlord->id,
+            'listing_id' => $listing->id,
+        ]);
+
+        $this->actingAs($landlord);
+
+        $file = UploadedFile::fake()->image('kitchen.jpg', 800, 600);
+
+        $response = $this->post("/api/v1/conversations/{$conversation->id}/messages", [
+            'body' => 'See the kitchen',
+            'attachments' => [$file],
+        ]);
+
+        $response->assertCreated();
+        $payload = $response->json();
+        $this->assertNotEmpty($payload['attachments']);
+        $this->assertSame('image', $payload['attachments'][0]['kind']);
+
+        $attachment = $conversation->messages()->latest()->first()->attachments()->first();
+        $this->assertNotNull($attachment);
+        Storage::disk('private')->assertExists($attachment->path_original);
+    }
+
+    public function test_participant_can_download_attachment(): void
+    {
+        Storage::fake('private');
+
+        $seeker = User::factory()->create(['role' => 'seeker']);
+        $landlord = User::factory()->create(['role' => 'landlord']);
+        $listing = $this->createListing($landlord);
+
+        $conversation = Conversation::create([
+            'tenant_id' => $seeker->id,
+            'landlord_id' => $landlord->id,
+            'listing_id' => $listing->id,
+        ]);
+
+        $message = Message::create([
+            'conversation_id' => $conversation->id,
+            'sender_id' => $landlord->id,
+            'body' => 'Attachment',
+        ]);
+
+        $path = 'chat/'.$conversation->id.'/file.pdf';
+        Storage::disk('private')->put($path, 'pdf-content');
+
+        $attachment = $message->attachments()->create([
+            'conversation_id' => $conversation->id,
+            'uploader_id' => $landlord->id,
+            'kind' => 'document',
+            'original_name' => 'file.pdf',
+            'mime_type' => 'application/pdf',
+            'size_bytes' => 10,
+            'disk' => 'private',
+            'path_original' => $path,
+        ]);
+
+        $this->actingAs($seeker);
+
+        $this->get("/api/v1/chat/attachments/{$attachment->id}")
+            ->assertOk();
+    }
+
+    public function test_non_participant_cannot_download_or_send(): void
+    {
+        Storage::fake('private');
+
+        $seeker = User::factory()->create(['role' => 'seeker']);
+        $landlord = User::factory()->create(['role' => 'landlord']);
+        $intruder = User::factory()->create(['role' => 'seeker']);
+        $listing = $this->createListing($landlord);
+
+        $conversation = Conversation::create([
+            'tenant_id' => $seeker->id,
+            'landlord_id' => $landlord->id,
+            'listing_id' => $listing->id,
+        ]);
+
+        $message = Message::create([
+            'conversation_id' => $conversation->id,
+            'sender_id' => $landlord->id,
+            'body' => 'Attachment',
+        ]);
+
+        $path = 'chat/'.$conversation->id.'/file.pdf';
+        Storage::disk('private')->put($path, 'pdf-content');
+
+        $attachment = $message->attachments()->create([
+            'conversation_id' => $conversation->id,
+            'uploader_id' => $landlord->id,
+            'kind' => 'document',
+            'original_name' => 'file.pdf',
+            'mime_type' => 'application/pdf',
+            'size_bytes' => 10,
+            'disk' => 'private',
+            'path_original' => $path,
+        ]);
+
+        $this->actingAs($intruder);
+        $this->get("/api/v1/chat/attachments/{$attachment->id}")->assertForbidden();
+
+        $this->postJson("/api/v1/conversations/{$conversation->id}/messages", ['message' => 'Nope'])
+            ->assertForbidden();
+    }
+
+    public function test_message_attachment_validation_rules(): void
+    {
+        $seeker = User::factory()->create(['role' => 'seeker']);
+        $landlord = User::factory()->create(['role' => 'landlord']);
+        $listing = $this->createListing($landlord);
+
+        $conversation = Conversation::create([
+            'tenant_id' => $seeker->id,
+            'landlord_id' => $landlord->id,
+            'listing_id' => $listing->id,
+        ]);
+
+        $this->actingAs($landlord);
+
+        $this->postJson("/api/v1/conversations/{$conversation->id}/messages", [])->assertStatus(422);
+
+        $tooLarge = UploadedFile::fake()->create('big.pdf', 10241, 'application/pdf');
+        $this->post("/api/v1/conversations/{$conversation->id}/messages", [
+            'body' => 'Large file',
+            'attachments' => [$tooLarge],
+        ])->assertStatus(422);
+
+        $bad = UploadedFile::fake()->create('bad.txt', 10, 'text/plain');
+        $this->post("/api/v1/conversations/{$conversation->id}/messages", [
+            'body' => 'Bad file',
+            'attachments' => [$bad],
+        ])->assertStatus(422);
+
+        $many = [];
+        for ($i = 0; $i < 6; $i++) {
+            $many[] = UploadedFile::fake()->image('img'.$i.'.jpg', 10, 10);
+        }
+        $this->post("/api/v1/conversations/{$conversation->id}/messages", [
+            'body' => 'Too many',
+            'attachments' => $many,
+        ])->assertStatus(422);
+    }
+
+    public function test_chat_attachments_are_rate_limited_per_thread(): void
+    {
+        Queue::fake();
+        Storage::fake('private');
+
+        $seeker = User::factory()->create(['role' => 'seeker']);
+        $landlord = User::factory()->create(['role' => 'landlord']);
+        $listing = $this->createListing($landlord);
+
+        $conversation = Conversation::create([
+            'tenant_id' => $seeker->id,
+            'landlord_id' => $landlord->id,
+            'listing_id' => $listing->id,
+        ]);
+
+        $this->actingAs($landlord);
+
+        for ($i = 0; $i < 10; $i++) {
+            $file = UploadedFile::fake()->image('img'.$i.'.jpg', 10, 10);
+            $this->post("/api/v1/conversations/{$conversation->id}/messages", [
+                'body' => 'Ping '.$i,
+                'attachments' => [$file],
+            ])->assertCreated();
+        }
+
+        $file = UploadedFile::fake()->image('overflow.jpg', 10, 10);
+        $this->post("/api/v1/conversations/{$conversation->id}/messages", [
+            'body' => 'Overflow',
+            'attachments' => [$file],
+        ])->assertStatus(429);
     }
 }

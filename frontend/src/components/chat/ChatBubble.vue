@@ -1,5 +1,8 @@
 <script setup lang="ts">
-defineProps<{ text: string; from: 'me' | 'them'; time?: string }>()
+import ChatAttachmentGrid from './ChatAttachmentGrid.vue'
+import type { ChatAttachment } from '../../types'
+
+defineProps<{ text?: string; attachments?: ChatAttachment[]; from: 'me' | 'them'; time?: string }>()
 </script>
 
 <template>
@@ -10,7 +13,8 @@ defineProps<{ text: string; from: 'me' | 'them'; time?: string }>()
         from === 'me' ? 'bg-primary text-white rounded-br-sm' : 'bg-white text-slate-900 rounded-bl-sm border border-white/70',
       ]"
     >
-      <p>{{ text }}</p>
+      <p v-if="text" class="whitespace-pre-line">{{ text }}</p>
+      <ChatAttachmentGrid v-if="attachments?.length" :attachments="attachments" class="mt-2" />
       <p v-if="time" class="mt-1 text-[11px] opacity-80">{{ time }}</p>
     </div>
   </div>

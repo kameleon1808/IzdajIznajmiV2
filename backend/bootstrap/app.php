@@ -11,6 +11,7 @@ use Illuminate\Http\Middleware\HandleCors;
 use Illuminate\Http\Middleware\TrustProxies;
 use Illuminate\Http\Middleware\ValidatePathEncoding;
 use Illuminate\Console\Scheduling\Schedule;
+use App\Http\Middleware\ChatAttachmentRateLimit;
 use App\Console\Commands\ExpireListingsCommand;
 use App\Console\Commands\GeocodeListingsCommand;
 use App\Console\Commands\SavedSearchMatchCommand;
@@ -65,6 +66,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => RoleMiddleware::class,
             'permission' => PermissionMiddleware::class,
             'role_or_permission' => RoleOrPermissionMiddleware::class,
+            'chat_attachments' => ChatAttachmentRateLimit::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

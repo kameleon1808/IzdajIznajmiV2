@@ -158,6 +158,17 @@ export interface Message {
   text: string
   createdAt?: string
   time: string
+  attachments?: ChatAttachment[]
+}
+
+export interface ChatAttachment {
+  id: string
+  kind: 'image' | 'document'
+  originalName: string
+  mimeType: string
+  sizeBytes: number
+  url: string
+  thumbUrl?: string | null
 }
 
 export interface PublicProfile {

@@ -5,6 +5,7 @@ import type {
   AdminKpiSummary,
   AdminTrendPoint,
   Application,
+  ChatAttachment,
   Conversation,
   Listing,
   ListingFilters,
@@ -125,6 +126,16 @@ const mapConversation = (data: any): Conversation => {
   }
 }
 
+const mapChatAttachment = (data: any): ChatAttachment => ({
+  id: String(data.id),
+  kind: data.kind,
+  originalName: data.originalName ?? data.original_name ?? '',
+  mimeType: data.mimeType ?? data.mime_type ?? '',
+  sizeBytes: Number(data.sizeBytes ?? data.size_bytes ?? 0),
+  url: data.url ?? '',
+  thumbUrl: data.thumbUrl ?? data.thumb_url ?? null,
+})
+
 const mapMessage = (data: any): Message => {
   const auth = useAuthStore()
   const senderId = String(data.sender_id ?? data.senderId ?? '')
@@ -137,6 +148,7 @@ const mapMessage = (data: any): Message => {
     text: data.body ?? data.text ?? '',
     createdAt: rawTime,
     time: rawTime ? new Date(rawTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : data.time ?? '',
+    attachments: Array.isArray(data.attachments) ? data.attachments.map(mapChatAttachment) : [],
   }
 }
 
@@ -522,14 +534,81 @@ export const getMessagesForListing = async (listingId: string): Promise<Message[
   return list.map(mapMessage)
 }
 
-export const sendMessageToListing = async (listingId: string, message: string): Promise<Message> => {
-  const { data } = await apiClient.post(`/listings/${listingId}/messages`, { message })
+export const sendMessageToListing = async (
+  listingId: string,
+  message: string,
+  attachments?: File[],
+  onProgress?: (progress: number) => void,
+): Promise<Message> => {
+  if (attachments && attachments.length) {
+    const form = new FormData()
+    if (message?.trim()) form.append('body', message)
+    attachments.forEach((file) => form.append('attachments[]', file))
+    const { data } = await apiClient.post(`/listings/${listingId}/messages`, form, {
+      onUploadProgress: (event) => {
+        if (!event.total) return
+        onProgress?.(Math.round((event.loaded / event.total) * 100))
+      },
+    })
+    return mapMessage(data.data ?? data)
+  }
+  const { data } = await apiClient.post(`/listings/${listingId}/messages`, { body: message })
   return mapMessage(data.data ?? data)
 }
 
-export const sendMessageToConversation = async (conversationId: string, message: string): Promise<Message> => {
-  const { data } = await apiClient.post(`/conversations/${conversationId}/messages`, { message })
+export const sendMessageToConversation = async (
+  conversationId: string,
+  message: string,
+  attachments?: File[],
+  onProgress?: (progress: number) => void,
+): Promise<Message> => {
+  if (attachments && attachments.length) {
+    const form = new FormData()
+    if (message?.trim()) form.append('body', message)
+    attachments.forEach((file) => form.append('attachments[]', file))
+    const { data } = await apiClient.post(`/conversations/${conversationId}/messages`, form, {
+      onUploadProgress: (event) => {
+        if (!event.total) return
+        onProgress?.(Math.round((event.loaded / event.total) * 100))
+      },
+    })
+    return mapMessage(data.data ?? data)
+  }
+  const { data } = await apiClient.post(`/conversations/${conversationId}/messages`, { body: message })
   return mapMessage(data.data ?? data)
+}
+
+export const setTypingStatus = async (conversationId: string, isTyping: boolean): Promise<void> => {
+  await apiClient.post(`/conversations/${conversationId}/typing`, { is_typing: isTyping })
+}
+
+export const getTypingStatus = async (
+  conversationId: string,
+): Promise<{ users: Array<{ id: string; name: string; expiresIn: number }>; ttlSeconds: number }> => {
+  const { data } = await apiClient.get(`/conversations/${conversationId}/typing`)
+  return {
+    users: (data.users ?? []).map((user: any) => ({
+      id: String(user.id),
+      name: user.name ?? '',
+      expiresIn: Number(user.expiresIn ?? 0),
+    })),
+    ttlSeconds: Number(data.ttlSeconds ?? 0),
+  }
+}
+
+export const pingPresence = async (): Promise<void> => {
+  await apiClient.post('/presence/ping')
+}
+
+export const getUserPresence = async (
+  userId: string,
+): Promise<{ userId: string; online: boolean; expiresIn: number }> => {
+  const { data } = await apiClient.get(`/users/${userId}/presence`)
+  return {
+    userId: String(data.userId ?? userId),
+    online: Boolean(data.online),
+    expiresIn: Number(data.expiresIn ?? 0),
+  }
 }
 
 export const markConversationRead = async (conversationId: string): Promise<void> => {

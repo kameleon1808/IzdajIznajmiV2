@@ -85,7 +85,20 @@ Base URL: `/api/v1` (auth also available under `/api/auth/*` during the transiti
 ## Messaging
 - `GET /api/v1/conversations` -> `Conversation[]`
 - `GET /api/v1/conversations/:id/messages` -> `Message[]`
-- Notes: unread/online are placeholders for now; messages are returned newest-first limited to last 50.
+- `POST /api/v1/conversations/:id/messages` (multipart) -> `Message`
+  - fields: `body?`, `attachments[]?` (max 5)
+  - allowed: images `jpg/jpeg/png/webp`, documents `pdf`, max 10MB/file
+  - body required when no attachments
+- `GET /api/v1/chat/attachments/:id` (authorized, inline for images, download for pdf)
+- `GET /api/v1/chat/attachments/:id/thumb` (authorized, image only)
+- `POST /api/v1/conversations/:id/typing` (`{ is_typing: true|false }`)
+- `GET /api/v1/conversations/:id/typing` (returns typing users + TTL)
+- `POST /api/v1/presence/ping`
+- `GET /api/v1/users/:id/presence` (online status)
+- Notes:
+  - Originals are stored privately and served only via authorized `/chat/attachments/*` endpoints.
+  - Suggested polling: typing every ~4s, presence ping every 20-30s, presence check every ~30s.
+  - Unread/online are placeholders for now; messages are returned newest-first limited to last 50.
 
 ## Filtering Notes
 - `facilities[]` filter currently matches ANY facility provided (can be tightened to ALL later if needed).
@@ -95,4 +108,4 @@ Base URL: `/api/v1` (auth also available under `/api/auth/*` during the transiti
 - `BookingRequest`: `{ id, listingId, tenantId (seeker), landlordId, startDate?, endDate?, guests, message, status ('pending'|'accepted'|'rejected'|'cancelled'), createdAt }`
 - `Booking`: `{ id, listingId, listingTitle, datesRange, guestsText, pricePerNight, rating, coverImage, status ('booked'|'history') }`
 - `Conversation`: `{ id, userName, avatarUrl, lastMessage, time, unreadCount, online }`
-- `Message`: `{ id, conversationId, from ('me'|'them'), text, time }`
+- `Message`: `{ id, conversationId, from ('me'|'them'), text, time, attachments?: [{ id, kind, originalName, mimeType, sizeBytes, url, thumbUrl? }] }`

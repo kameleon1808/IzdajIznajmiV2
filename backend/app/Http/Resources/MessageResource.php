@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
+use App\Http\Resources\ChatAttachmentResource;
 
 class MessageResource extends JsonResource
 {
@@ -19,6 +20,7 @@ class MessageResource extends JsonResource
             'text' => $this->body,
             'time' => optional($this->created_at)->format('H:i'),
             'createdAt' => optional($this->created_at)->toISOString(),
+            'attachments' => ChatAttachmentResource::collection($this->whenLoaded('attachments')),
         ];
     }
 }

@@ -6,16 +6,21 @@ use App\Http\Requests\SendMessageRequest;
 use App\Http\Resources\ConversationResource;
 use App\Http\Resources\MessageResource;
 use App\Models\Application;
+use App\Models\ChatAttachment;
 use App\Models\Conversation;
 use App\Models\Listing;
 use App\Models\Message;
 use App\Models\User;
+use App\Jobs\ProcessChatAttachmentJob;
 use App\Services\ChatSpamGuardService;
 use App\Services\ListingStatusService;
 use App\Services\StructuredLogger;
 use App\Events\MessageCreated;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class ConversationController extends Controller
 {
@@ -35,7 +40,7 @@ class ConversationController extends Controller
             'tenant:id,name',
             'landlord:id,name',
             'listing.images',
-            'messages' => fn ($query) => $query->latest()->limit(1),
+            'messages' => fn ($query) => $query->latest()->limit(1)->with('attachments'),
         ])
             ->where(fn ($query) => $query->where('tenant_id', $user->id)->orWhere('landlord_id', $user->id))
             ->orderByDesc('updated_at')
@@ -53,7 +58,7 @@ class ConversationController extends Controller
 
         $participants = $this->resolveListingConversationParticipants($request, $listing, $user);
         $conversation = $this->findOrCreateListingConversation($listing, $participants['seeker'], $participants['landlord']);
-        $conversation->loadMissing(['tenant:id,name', 'landlord:id,name', 'listing.images', 'messages' => fn ($query) => $query->latest()->limit(1)]);
+        $conversation->loadMissing(['tenant:id,name', 'landlord:id,name', 'listing.images', 'messages' => fn ($query) => $query->latest()->limit(1)->with('attachments')]);
         $conversation->unread_count = $conversation->unreadCountFor($user);
 
         return response()->json(new ConversationResource($conversation));
@@ -78,7 +83,7 @@ class ConversationController extends Controller
             []
         );
 
-        $conversation->loadMissing(['tenant:id,name', 'landlord:id,name', 'listing.images', 'messages' => fn ($query) => $query->latest()->limit(1)]);
+        $conversation->loadMissing(['tenant:id,name', 'landlord:id,name', 'listing.images', 'messages' => fn ($query) => $query->latest()->limit(1)->with('attachments')]);
         $conversation->unread_count = $conversation->unreadCountFor($user);
 
         return response()->json(new ConversationResource($conversation));
@@ -89,7 +94,7 @@ class ConversationController extends Controller
         $user = $this->requireSeeker($request, $listing);
         $conversation = $this->findOrCreateListingConversation($listing, $user);
 
-        $messages = $conversation->messages()->latest()->limit(200)->get()->sortBy('created_at')->values();
+        $messages = $conversation->messages()->with('attachments')->latest()->limit(200)->get()->sortBy('created_at')->values();
         $conversation->markReadFor($user);
 
         return response()->json(MessageResource::collection($messages));
@@ -103,7 +108,8 @@ class ConversationController extends Controller
         $this->assertListingActive($conversation->listing);
         $this->spamGuard->assertCanSend($user, $conversation);
 
-        $message = $this->storeMessage($conversation, $user, $request->validated()['message']);
+        $body = trim((string) ($request->input('body') ?? $request->input('message')));
+        $message = $this->storeMessage($conversation, $user, $body, $request->file('attachments', []));
 
         return response()->json(new MessageResource($message), 201);
     }
@@ -111,7 +117,7 @@ class ConversationController extends Controller
     public function messages(Request $request, Conversation $conversation): JsonResponse
     {
         $user = $this->participantOrAbort($request, $conversation);
-        $messages = $conversation->messages()->latest()->limit(200)->get()->sortBy('created_at')->values();
+        $messages = $conversation->messages()->with('attachments')->latest()->limit(200)->get()->sortBy('created_at')->values();
         $conversation->markReadFor($user);
 
         return response()->json(MessageResource::collection($messages));
@@ -124,7 +130,7 @@ class ConversationController extends Controller
             'tenant:id,name',
             'landlord:id,name',
             'listing.images',
-            'messages' => fn ($query) => $query->latest()->limit(1),
+            'messages' => fn ($query) => $query->latest()->limit(1)->with('attachments'),
         ]);
         $conversation->unread_count = $conversation->unreadCountFor($user);
 
@@ -138,7 +144,8 @@ class ConversationController extends Controller
         $this->assertListingActive($conversation->listing);
         $this->spamGuard->assertCanSend($user, $conversation);
 
-        $message = $this->storeMessage($conversation, $user, $request->validated()['message']);
+        $body = trim((string) ($request->input('body') ?? $request->input('message')));
+        $message = $this->storeMessage($conversation, $user, $body, $request->file('attachments', []));
 
         return response()->json(new MessageResource($message), 201);
     }
@@ -151,14 +158,27 @@ class ConversationController extends Controller
         return response()->json(['message' => 'Read']);
     }
 
-    private function storeMessage(Conversation $conversation, User $sender, string $body): Message
+    private function storeMessage(Conversation $conversation, User $sender, ?string $body, array $attachments = []): Message
     {
+        $body = trim((string) $body);
         $message = $conversation->messages()->create([
             'sender_id' => $sender->id,
             'body' => $body,
         ]);
 
         $message = $message->fresh();
+
+        if (! empty($attachments)) {
+            foreach ($attachments as $file) {
+                if (! $file instanceof UploadedFile) {
+                    continue;
+                }
+                $stored = $this->storeAttachment($conversation, $message, $sender, $file);
+                if ($stored && $stored->kind === 'image') {
+                    ProcessChatAttachmentJob::dispatch($stored->id);
+                }
+            }
+        }
 
         event(new MessageCreated($message));
 
@@ -169,7 +189,36 @@ class ConversationController extends Controller
             'message_length' => mb_strlen($body),
         ]);
 
-        return $message;
+        return $message->loadMissing('attachments');
+    }
+
+    private function storeAttachment(Conversation $conversation, Message $message, User $sender, UploadedFile $file): ?ChatAttachment
+    {
+        $diskName = 'private';
+        $disk = Storage::disk($diskName);
+        $basePath = 'chat/'.$conversation->id;
+        $extension = strtolower($file->getClientOriginalExtension() ?: $file->guessExtension() ?: 'bin');
+        $filename = Str::uuid()->toString().'.'.$extension;
+        $path = $disk->putFileAs($basePath, $file, $filename);
+
+        if (! $path) {
+            return null;
+        }
+
+        $mime = $file->getClientMimeType() ?: $file->getMimeType() ?: 'application/octet-stream';
+        $kind = str_starts_with($mime, 'image/') ? 'image' : 'document';
+
+        return ChatAttachment::create([
+            'conversation_id' => $conversation->id,
+            'message_id' => $message->id,
+            'uploader_id' => $sender->id,
+            'kind' => $kind,
+            'original_name' => $file->getClientOriginalName(),
+            'mime_type' => $mime,
+            'size_bytes' => $file->getSize(),
+            'disk' => $diskName,
+            'path_original' => $path,
+        ]);
     }
 
     private function participantOrAbort(Request $request, Conversation $conversation): User

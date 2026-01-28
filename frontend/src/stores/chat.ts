@@ -50,21 +50,30 @@ export const useChatStore = defineStore('chat', {
         this.loading = false
       }
     },
-    async fetchMessages(conversationId: string) {
-      this.loading = true
-      this.error = ''
+    async fetchMessages(conversationId: string, options?: { silent?: boolean }) {
+      const silent = options?.silent ?? false
+      if (!silent) {
+        this.loading = true
+        this.error = ''
+      }
       try {
         const data = await getMessages(conversationId)
         this.messages[conversationId] = data
-        await markConversationRead(conversationId)
-        this.conversations = this.conversations.map((c) =>
-          c.id === conversationId ? { ...c, unreadCount: 0 } : c,
-        )
+        if (!silent) {
+          await markConversationRead(conversationId)
+          this.conversations = this.conversations.map((c) =>
+            c.id === conversationId ? { ...c, unreadCount: 0 } : c,
+          )
+        }
       } catch (error) {
-        this.error = (error as Error).message || 'Failed to load chat.'
-        this.messages[conversationId] = []
+        if (!silent) {
+          this.error = (error as Error).message || 'Failed to load chat.'
+          this.messages[conversationId] = []
+        }
       } finally {
-        this.loading = false
+        if (!silent) {
+          this.loading = false
+        }
       }
     },
     async fetchConversationForListing(listingId: string, seekerId?: string) {
@@ -130,14 +139,24 @@ export const useChatStore = defineStore('chat', {
         this.resolving = false
       }
     },
-    async sendMessage(conversationId: string, text: string) {
+    async sendMessage(
+      conversationId: string,
+      text: string,
+      attachments?: File[],
+      onProgress?: (progress: number) => void,
+    ) {
       this.error = ''
       try {
-        const message = await sendMessageToConversation(conversationId, text)
+        const message = await sendMessageToConversation(conversationId, text, attachments, onProgress)
         const thread = this.messages[conversationId] ?? []
         this.messages[conversationId] = [...thread, message]
+        const lastMessage = message.text?.trim()
+          ? message.text
+          : message.attachments?.length
+            ? 'Sent an attachment'
+            : ''
         this.conversations = this.conversations.map((c) =>
-          c.id === conversationId ? { ...c, lastMessage: message.text, time: message.time } : c,
+          c.id === conversationId ? { ...c, lastMessage, time: message.time } : c,
         )
         return message
       } catch (error) {
@@ -145,10 +164,15 @@ export const useChatStore = defineStore('chat', {
         throw error
       }
     },
-    async sendMessageForListing(listingId: string, text: string) {
+    async sendMessageForListing(
+      listingId: string,
+      text: string,
+      attachments?: File[],
+      onProgress?: (progress: number) => void,
+    ) {
       this.error = ''
       try {
-        const message = await sendMessageToListing(listingId, text)
+        const message = await sendMessageToListing(listingId, text, attachments, onProgress)
         const conversation = await this.fetchConversationForListing(listingId)
         const thread = this.messages[conversation.id] ?? []
         this.messages[conversation.id] = [...thread, message]

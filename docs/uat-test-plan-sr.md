@@ -47,12 +47,16 @@ Dokument vodi klijente, stakeholder-e i product owner-e kroz proveru prototipa (
   4. Otvorite karticu oglasa → Listing Detail.
   5. Kliknite “Send Inquiry” (plavo dugme na dnu). U modalu unesite datume (ili ostavite prazno), broj gostiju, kratku poruku (“Planiramo dolazak…”). Klik “Send Request”. ✅ Modal se zatvara, poruka o uspehu.
   6. Otvorite “My Booking” → tab “Requests”: vidite zahtev sa badge-om (pending/accepted/rejected/cancelled). ✅ Status se prikazuje.
-  7. Otvorite “Messages”: lista razgovora; uđite u chat, pošaljite poruku (plavo send dugme). ✅ Nova poruka vidljiva u balonu.
+  7. Otvorite “Messages”: lista razgovora; uđite u chat, pošaljite poruku + attachujte sliku ili PDF. ✅ Nova poruka i attachment vidljivi u balonu.
+  7a. Dok druga strana kuca poruku, proverite “is typing...” ispod headera. ✅ Typing indikator se pojavljuje.
+  7b. Proverite online badge za drugog učesnika (ako je prisutan). ✅ “Online” se prikazuje kada je aktivan.
   8. Logout iz “Profile”. ✅ Vraća u gost režim.
 - Očekivano:
   - ✅ Favoriti se ažuriraju odmah (srce menja boju).
   - ✅ Zahtev se pojavljuje u “Requests” sa status badge-om.
-  - ✅ Poruka se pojavljuje u chat bublu, istorija ostaje vidljiva.
+- ✅ Poruka i attachment se pojavljuju u chat bublu, istorija ostaje vidljiva.
+- ✅ Typing indikator se pojavljuje pri kucanju druge strane.
+- ✅ Online badge se prikazuje kada je druga strana aktivna.
 - PASS/FAIL: FAIL ako se inquiry ne pojavi ili ako chat ne prikazuje novu poruku.
 
 ### 3) Landlord tok – listings i booking requests
@@ -94,5 +98,6 @@ Dokument vodi klijente, stakeholder-e i product owner-e kroz proveru prototipa (
 - ✅ “Send Inquiry” kreira zahtev koji se vidi u “My Booking” → “Requests”.
 - ✅ Landlord vidi “My Listings”, može kreirati i izmeniti oglas.
 - ✅ Landlord može Accept/Reject pending request.
-- ✅ Messages lista i chat prikazuju i šalju poruke.
+- ✅ Messages lista i chat prikazuju i šalju poruke i attachmente.
+- ✅ Typing indikator i online badge rade u chatu.
 - ✅ Prazna stanja i poruke o greškama se prikazuju umesto praznih ekrana.

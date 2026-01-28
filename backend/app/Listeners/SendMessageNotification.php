@@ -14,7 +14,7 @@ class SendMessageNotification
 
     public function handle(MessageCreated $event): void
     {
-        $message = $event->message->loadMissing('conversation.listing', 'sender');
+        $message = $event->message->loadMissing('conversation.listing', 'sender', 'attachments');
         $conversation = $message->conversation;
 
         if (! $conversation) {
@@ -40,9 +40,14 @@ class SendMessageNotification
             return;
         }
 
+        $preview = trim((string) $message->body);
+        if ($preview === '' && $message->attachments->count() > 0) {
+            $preview = 'Sent an attachment';
+        }
+
         $this->notifications->createNotification($recipient, Notification::TYPE_MESSAGE_RECEIVED, [
             'title' => $listing ? sprintf('New message about "%s"', $listing->title) : 'New message received',
-            'body' => mb_strimwidth($message->body, 0, 120, '...'),
+            'body' => mb_strimwidth($preview, 0, 120, '...'),
             'data' => [
                 'conversation_id' => $conversation->id,
                 'listing_id' => $listing?->id,

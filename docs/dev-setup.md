@@ -23,6 +23,7 @@
 - Auditing/moderacija: migracije dodaju `audit_logs` i `reports` tabele; admin rute pod `/api/v1/admin/*` koriste `role:admin` middleware.
 - Za slike: postavite `APP_URL=http://localhost:8000` i pokrenite `php artisan storage:link` (potrebno za /storage URL-ove).
 - Image optimizacija (opciono, default uključeno): `IMAGE_OPTIMIZE=true`, `IMAGE_MAX_WIDTH=1600`, `IMAGE_WEBP_QUALITY=80`.
+- Chat attachments (privatni storage): `storage/app/private/chat/{conversation_id}`; tipovi `jpg/jpeg/png/webp/pdf`, max 10MB po fajlu (podesivo preko `CHAT_ATTACHMENT_*`).
 - Queue:
   - `QUEUE_CONNECTION=database`
   - Pokrenite worker: `php artisan queue:work`
@@ -33,7 +34,8 @@
   - `notifications:digest --frequency=weekly` - nedeljni digest notifikacije (ponedeljak 09:00)
   - `saved-searches:match` - matcher za saved searches i in-app alert notifikacije (na 15 min)
 - Rate limit pregledi: ključni limiters u `AppServiceProvider`:
-  - `chat_messages` 60/min po user/IP (slanje poruka)
+  - `chat_messages` 30/min po user/thread (slanje poruka)
+  - `chat_attachments` 10/10min po user/thread (upload attach-ova)
   - `applications` 10/h po user/IP (slanje prijava)
   - `listings_search` 60/min IP, `geocode_suggest` 40/min IP; landlord/viewing write limiti ostaju kao ranije
 - Observability: struktuisani JSON logovi u `storage/logs/structured-YYYY-MM-DD.log` preko `App\Services\StructuredLogger`.

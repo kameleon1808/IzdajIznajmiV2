@@ -1003,13 +1003,35 @@ export async function getMessagesForListing(listingId: string): Promise<Message[
   return getMessages(convo.id)
 }
 
-export async function sendMessageToListing(listingId: string, message: string): Promise<Message> {
+export async function sendMessageToListing(
+  listingId: string,
+  message: string,
+  attachments?: File[],
+): Promise<Message> {
   const convo = (await getConversationForListing(listingId)) as Conversation
-  return sendMessageToConversation(convo.id, message)
+  return sendMessageToConversation(convo.id, message, attachments)
 }
 
-export async function sendMessageToConversation(conversationId: string, message: string): Promise<Message> {
+export async function sendMessageToConversation(
+  conversationId: string,
+  message: string,
+  attachments?: File[],
+): Promise<Message> {
   await delay()
+  const mappedAttachments =
+    attachments?.map((file) => {
+      const isImage = file.type.startsWith('image/')
+      const kind: 'image' | 'document' = isImage ? 'image' : 'document'
+      return {
+        id: makeId(),
+        kind,
+        originalName: file.name,
+        mimeType: file.type,
+        sizeBytes: file.size,
+        url: URL.createObjectURL(file),
+        thumbUrl: isImage ? URL.createObjectURL(file) : null,
+      }
+    }) ?? []
   const msg: Message = {
     id: makeId(),
     conversationId,
@@ -1017,11 +1039,12 @@ export async function sendMessageToConversation(conversationId: string, message:
     from: 'me',
     text: message,
     time: new Date().toISOString(),
+    attachments: mappedAttachments,
   }
   messages[conversationId] = [...(messages[conversationId] ?? []), msg]
   const convo = conversations.find((c) => c.id === conversationId)
   if (convo) {
-    convo.lastMessage = message
+    convo.lastMessage = message?.trim() ? message : mappedAttachments.length ? 'Sent an attachment' : ''
     convo.time = msg.time
     convo.unreadCount = 0
   }
@@ -1415,4 +1438,26 @@ export async function deleteSavedSearch(id: string): Promise<void> {
   if (index >= 0) {
     savedSearches.splice(index, 1)
   }
+}
+
+export async function setTypingStatus(_conversationId: string, _isTyping: boolean): Promise<void> {
+  await delay()
+}
+
+export async function getTypingStatus(
+  _conversationId: string,
+): Promise<{ users: Array<{ id: string; name: string; expiresIn: number }>; ttlSeconds: number }> {
+  await delay()
+  return { users: [], ttlSeconds: 8 }
+}
+
+export async function pingPresence(): Promise<void> {
+  await delay()
+}
+
+export async function getUserPresence(
+  userId: string,
+): Promise<{ userId: string; online: boolean; expiresIn: number }> {
+  await delay()
+  return { userId, online: true, expiresIn: 60 }
 }
