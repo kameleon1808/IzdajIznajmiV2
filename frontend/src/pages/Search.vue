@@ -764,134 +764,7 @@ watch(
       <Button size="sm" variant="ghost" @click="clearSavedSearch">Clear</Button>
     </div>
 
-    <div v-if="viewMode === 'list'" :class="searchV2Enabled ? 'grid gap-6 md:grid-cols-[260px,1fr]' : 'space-y-5'">
-      <aside v-if="searchV2Enabled" class="space-y-4">
-        <div class="rounded-2xl border border-line bg-white p-4 shadow-soft">
-          <div class="flex items-center justify-between">
-            <p class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">City</p>
-            <button v-if="listingsStore.filters.city" class="text-xs font-semibold text-primary" @click="clearCityFacet">
-              Clear
-            </button>
-          </div>
-          <div class="mt-3 space-y-2">
-            <button
-              v-for="item in facetCityOptions"
-              :key="item.value"
-              :class="[
-                'flex w-full items-center justify-between rounded-xl border px-3 py-2 text-sm font-semibold transition',
-                listingsStore.filters.city === item.value ? 'border-primary/40 bg-primary/10 text-primary' : 'border-line text-slate-800',
-              ]"
-              @click="selectCityFacet(item.value)"
-            >
-              <span>{{ item.value }}</span>
-              <span class="text-xs text-muted">{{ item.count }}</span>
-            </button>
-            <p v-if="!facetCityOptions.length" class="text-xs text-muted">No city facets yet.</p>
-          </div>
-        </div>
-
-        <div v-if="facetPriceOptions.length" class="rounded-2xl border border-line bg-white p-4 shadow-soft">
-          <div class="flex items-center justify-between">
-            <p class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Price</p>
-            <button
-              v-if="listingsStore.filters.priceBucket"
-              class="text-xs font-semibold text-primary"
-              @click="clearPriceBucketFacet"
-            >
-              Clear
-            </button>
-          </div>
-          <div class="mt-3 space-y-2">
-            <button
-              v-for="item in facetPriceOptions"
-              :key="item.value"
-              :class="[
-                'flex w-full items-center justify-between rounded-xl border px-3 py-2 text-sm font-semibold transition',
-                listingsStore.filters.priceBucket === item.value ? 'border-primary/40 bg-primary/10 text-primary' : 'border-line text-slate-800',
-              ]"
-              @click="selectPriceBucketFacet(item.value)"
-            >
-              <span>{{ item.value }}</span>
-              <span class="text-xs text-muted">{{ item.count }}</span>
-            </button>
-          </div>
-        </div>
-
-        <div v-if="facetRoomsOptions.length" class="rounded-2xl border border-line bg-white p-4 shadow-soft">
-          <p class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Rooms</p>
-          <div class="mt-3 space-y-2">
-            <button
-              v-for="item in facetRoomsOptions"
-              :key="item.value"
-              :class="[
-                'flex w-full items-center justify-between rounded-xl border px-3 py-2 text-sm font-semibold transition',
-                Number(item.value) === listingsStore.filters.rooms ? 'border-primary/40 bg-primary/10 text-primary' : 'border-line text-slate-800',
-              ]"
-              @click="selectRoomsFacet(item.value)"
-            >
-              <span>{{ item.value }}+</span>
-              <span class="text-xs text-muted">{{ item.count }}</span>
-            </button>
-          </div>
-        </div>
-
-        <div v-if="facetAmenityOptions.length" class="rounded-2xl border border-line bg-white p-4 shadow-soft">
-          <p class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Amenities</p>
-          <div class="mt-3 space-y-2">
-            <button
-              v-for="item in facetAmenityOptions"
-              :key="item.value"
-              :class="[
-                'flex w-full items-center justify-between rounded-xl border px-3 py-2 text-sm font-semibold transition',
-                listingsStore.filters.amenities?.includes(item.value)
-                  ? 'border-primary/40 bg-primary/10 text-primary'
-                  : 'border-line text-slate-800',
-              ]"
-              @click="toggleAmenityFacet(item.value)"
-            >
-              <span>{{ item.value }}</span>
-              <span class="text-xs text-muted">{{ item.count }}</span>
-            </button>
-          </div>
-        </div>
-
-        <div v-if="facetAreaOptions.length" class="rounded-2xl border border-line bg-white p-4 shadow-soft">
-          <p class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Area</p>
-          <div class="mt-3 space-y-2">
-            <button
-              v-for="item in facetAreaOptions"
-              :key="item.value"
-              :class="[
-                'flex w-full items-center justify-between rounded-xl border px-3 py-2 text-sm font-semibold transition',
-                listingsStore.filters.areaBucket === item.value ? 'border-primary/40 bg-primary/10 text-primary' : 'border-line text-slate-800',
-              ]"
-              @click="selectAreaBucketFacet(item.value)"
-            >
-              <span>{{ item.value }}</span>
-              <span class="text-xs text-muted">{{ item.count }}</span>
-            </button>
-          </div>
-        </div>
-
-        <div v-if="facetStatusOptions.length" class="rounded-2xl border border-line bg-white p-4 shadow-soft">
-          <p class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Status</p>
-          <div class="mt-3 space-y-2">
-            <button
-              v-for="item in facetStatusOptions"
-              :key="item.value"
-              :class="[
-                'flex w-full items-center justify-between rounded-xl border px-3 py-2 text-sm font-semibold transition',
-                listingsStore.filters.status === item.value ? 'border-primary/40 bg-primary/10 text-primary' : 'border-line text-slate-800',
-              ]"
-              @click="selectStatusFacet(item.value)"
-            >
-              <span class="capitalize">{{ item.value }}</span>
-              <span class="text-xs text-muted">{{ item.count }}</span>
-            </button>
-          </div>
-        </div>
-      </aside>
-
+    <div v-if="viewMode === 'list'" class="space-y-5">
       <div class="space-y-5">
         <div class="flex items-center justify-between px-1">
           <h3 class="section-title">Recently viewed</h3>
@@ -1025,6 +898,136 @@ watch(
 
   <ModalSheet v-model="filterOpen" title="Filter by">
     <div class="space-y-4">
+      <div v-if="searchV2Enabled" class="space-y-3">
+        <p class="text-sm font-semibold text-slate-900">Search v2 facets</p>
+        <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+          <div class="rounded-2xl border border-line bg-white p-4 shadow-soft">
+            <div class="flex items-center justify-between">
+              <p class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">City</p>
+              <button v-if="listingsStore.filters.city" class="text-xs font-semibold text-primary" @click="clearCityFacet">
+                Clear
+              </button>
+            </div>
+            <div class="mt-3 space-y-2">
+              <button
+                v-for="item in facetCityOptions"
+                :key="item.value"
+                :class="[
+                  'flex w-full items-center justify-between rounded-xl border px-3 py-2 text-sm font-semibold transition',
+                  listingsStore.filters.city === item.value ? 'border-primary/40 bg-primary/10 text-primary' : 'border-line text-slate-800',
+                ]"
+                @click="selectCityFacet(item.value)"
+              >
+                <span>{{ item.value }}</span>
+                <span class="text-xs text-muted">{{ item.count }}</span>
+              </button>
+              <p v-if="!facetCityOptions.length" class="text-xs text-muted">No city facets yet.</p>
+            </div>
+          </div>
+
+          <div v-if="facetPriceOptions.length" class="rounded-2xl border border-line bg-white p-4 shadow-soft">
+            <div class="flex items-center justify-between">
+              <p class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Price</p>
+              <button
+                v-if="listingsStore.filters.priceBucket"
+                class="text-xs font-semibold text-primary"
+                @click="clearPriceBucketFacet"
+              >
+                Clear
+              </button>
+            </div>
+            <div class="mt-3 space-y-2">
+              <button
+                v-for="item in facetPriceOptions"
+                :key="item.value"
+                :class="[
+                  'flex w-full items-center justify-between rounded-xl border px-3 py-2 text-sm font-semibold transition',
+                  listingsStore.filters.priceBucket === item.value ? 'border-primary/40 bg-primary/10 text-primary' : 'border-line text-slate-800',
+                ]"
+                @click="selectPriceBucketFacet(item.value)"
+              >
+                <span>{{ item.value }}</span>
+                <span class="text-xs text-muted">{{ item.count }}</span>
+              </button>
+            </div>
+          </div>
+
+          <div v-if="facetRoomsOptions.length" class="rounded-2xl border border-line bg-white p-4 shadow-soft">
+            <p class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Rooms</p>
+            <div class="mt-3 space-y-2">
+              <button
+                v-for="item in facetRoomsOptions"
+                :key="item.value"
+                :class="[
+                  'flex w-full items-center justify-between rounded-xl border px-3 py-2 text-sm font-semibold transition',
+                  Number(item.value) === listingsStore.filters.rooms ? 'border-primary/40 bg-primary/10 text-primary' : 'border-line text-slate-800',
+                ]"
+                @click="selectRoomsFacet(item.value)"
+              >
+                <span>{{ item.value }}+</span>
+                <span class="text-xs text-muted">{{ item.count }}</span>
+              </button>
+            </div>
+          </div>
+
+          <div v-if="facetAmenityOptions.length" class="rounded-2xl border border-line bg-white p-4 shadow-soft">
+            <p class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Amenities</p>
+            <div class="mt-3 space-y-2">
+              <button
+                v-for="item in facetAmenityOptions"
+                :key="item.value"
+                :class="[
+                  'flex w-full items-center justify-between rounded-xl border px-3 py-2 text-sm font-semibold transition',
+                  listingsStore.filters.amenities?.includes(item.value)
+                    ? 'border-primary/40 bg-primary/10 text-primary'
+                    : 'border-line text-slate-800',
+                ]"
+                @click="toggleAmenityFacet(item.value)"
+              >
+                <span>{{ item.value }}</span>
+                <span class="text-xs text-muted">{{ item.count }}</span>
+              </button>
+            </div>
+          </div>
+
+          <div v-if="facetAreaOptions.length" class="rounded-2xl border border-line bg-white p-4 shadow-soft">
+            <p class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Area</p>
+            <div class="mt-3 space-y-2">
+              <button
+                v-for="item in facetAreaOptions"
+                :key="item.value"
+                :class="[
+                  'flex w-full items-center justify-between rounded-xl border px-3 py-2 text-sm font-semibold transition',
+                  listingsStore.filters.areaBucket === item.value ? 'border-primary/40 bg-primary/10 text-primary' : 'border-line text-slate-800',
+                ]"
+                @click="selectAreaBucketFacet(item.value)"
+              >
+                <span>{{ item.value }}</span>
+                <span class="text-xs text-muted">{{ item.count }}</span>
+              </button>
+            </div>
+          </div>
+
+          <div v-if="facetStatusOptions.length" class="rounded-2xl border border-line bg-white p-4 shadow-soft">
+            <p class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Status</p>
+            <div class="mt-3 space-y-2">
+              <button
+                v-for="item in facetStatusOptions"
+                :key="item.value"
+                :class="[
+                  'flex w-full items-center justify-between rounded-xl border px-3 py-2 text-sm font-semibold transition',
+                  listingsStore.filters.status === item.value ? 'border-primary/40 bg-primary/10 text-primary' : 'border-line text-slate-800',
+                ]"
+                @click="selectStatusFacet(item.value)"
+              >
+                <span class="capitalize">{{ item.value }}</span>
+                <span class="text-xs text-muted">{{ item.count }}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="space-y-2">
         <p class="font-semibold text-slate-900">Location</p>
         <label class="flex items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow-soft border border-white/70 mt-2">
