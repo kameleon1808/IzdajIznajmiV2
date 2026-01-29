@@ -12,6 +12,13 @@ services:
     environment:
       APP_ENV: local
       APP_DEBUG: "true"
+      BROADCAST_CONNECTION: reverb
+      REVERB_APP_ID: local
+      REVERB_APP_KEY: local
+      REVERB_APP_SECRET: local
+      REVERB_HOST: reverb
+      REVERB_PORT: 8080
+      REVERB_SCHEME: http
       SEARCH_DRIVER: meili
       MEILISEARCH_HOST: http://meilisearch:7700
       MEILISEARCH_KEY: K0PbmVca20iYH4ggtobpOYlCPcLNQm5380s7gnSGLHE
@@ -31,6 +38,14 @@ services:
     environment:
       APP_ENV: local
       APP_DEBUG: "true"
+      BROADCAST_CONNECTION: reverb
+      REVERB_APP_ID: local
+      REVERB_APP_KEY: local
+      REVERB_APP_SECRET: local
+      REVERB_HOST: reverb
+      REVERB_PORT: 8080
+      REVERB_SCHEME: http
+      SKIP_COMPOSER_INSTALL: "1"
       SEARCH_DRIVER: meili
       MEILISEARCH_HOST: http://meilisearch:7700
       MEILISEARCH_KEY: K0PbmVca20iYH4ggtobpOYlCPcLNQm5380s7gnSGLHE
@@ -50,12 +65,37 @@ services:
     environment:
       APP_ENV: local
       APP_DEBUG: "true"
+      SKIP_COMPOSER_INSTALL: "1"
       SEARCH_DRIVER: meili
       MEILISEARCH_HOST: http://meilisearch:7700
       MEILISEARCH_KEY: K0PbmVca20iYH4ggtobpOYlCPcLNQm5380s7gnSGLHE
     depends_on:
       - meilisearch
     command: ["php", "artisan", "schedule:work"]
+
+  reverb:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    working_dir: /app
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./backend:/app
+      - backend-vendor:/app/vendor
+      - backend-storage:/app/storage
+    environment:
+      APP_ENV: local
+      APP_DEBUG: "true"
+      REVERB_APP_ID: local
+      REVERB_APP_KEY: local
+      REVERB_APP_SECRET: local
+      REVERB_SERVER_HOST: 0.0.0.0
+      REVERB_SERVER_PORT: 8080
+      SKIP_COMPOSER_INSTALL: "1"
+    depends_on:
+      - backend
+    command: ["php", "artisan", "reverb:start", "--host=0.0.0.0", "--port=8080"]
 
   frontend:
     build:

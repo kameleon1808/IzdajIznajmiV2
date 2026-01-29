@@ -7,8 +7,10 @@ if [ ! -f .env ]; then
   cp .env.example .env
 fi
 
-if [ ! -f vendor/autoload.php ]; then
-  composer install --no-interaction
+if [ "${SKIP_COMPOSER_INSTALL:-}" != "1" ]; then
+  if [ ! -f vendor/autoload.php ] || [ -f composer.lock ] && [ composer.lock -nt vendor/autoload.php ]; then
+    composer install --no-interaction
+  fi
 fi
 
 if grep -q '^APP_KEY=$' .env; then

@@ -182,5 +182,41 @@ export const useChatStore = defineStore('chat', {
         throw error
       }
     },
+    receiveMessage(message: Message) {
+      const conversationId = message.conversationId
+      const thread = this.messages[conversationId] ?? []
+
+      if (thread.some((item) => item.id === message.id)) {
+        return
+      }
+
+      this.messages[conversationId] = [...thread, message]
+
+      const lastMessage = message.text?.trim()
+        ? message.text
+        : message.attachments?.length
+          ? 'Sent an attachment'
+          : ''
+
+      const isActive = this.activeConversationId === conversationId
+      if (isActive) {
+        markConversationRead(conversationId).catch(() => undefined)
+      }
+
+      this.conversations = this.conversations.map((c) =>
+        c.id === conversationId
+          ? {
+              ...c,
+              lastMessage,
+              time: message.time,
+              unreadCount: isActive ? 0 : Math.max(0, (c.unreadCount ?? 0) + 1),
+            }
+          : c,
+      )
+
+      if (!this.conversations.some((c) => c.id === conversationId)) {
+        this.fetchConversationById(conversationId).catch(() => undefined)
+      }
+    },
   },
 })

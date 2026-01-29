@@ -98,6 +98,37 @@ npm run dev -- --host --port=5173
 - Vite dev proxy forwards `/api` and `/sanctum` to the backend for cookie auth; withCredentials is enabled in the client.
 - Mock mode keeps role switch visible on Profile; real mode enforces login and role guards.
 
+### Realtime (Reverb)
+Reverb is enabled for local/dev only and uses the Pusher protocol.
+
+Backend env (see `backend/.env.example`):
+- `BROADCAST_CONNECTION=reverb`
+- `REVERB_APP_ID`, `REVERB_APP_KEY`, `REVERB_APP_SECRET`
+- `REVERB_HOST`, `REVERB_PORT`, `REVERB_SCHEME` (where Laravel sends events)
+- `REVERB_SERVER_HOST`, `REVERB_SERVER_PORT` (where the Reverb server listens)
+
+Frontend env (see `frontend/.env.example`):
+- `VITE_REVERB_APP_KEY`, `VITE_REVERB_HOST`, `VITE_REVERB_PORT`, `VITE_REVERB_SCHEME`
+
+Run locally (non-docker):
+```bash
+cd backend
+php artisan reverb:start --host=0.0.0.0 --port=8080
+php artisan queue:work
+```
+
+Run with Docker Compose:
+```bash
+docker compose up -d
+# or, if you prefer explicit services:
+docker compose up -d backend frontend queue reverb
+```
+
+Troubleshooting:
+- If `/broadcasting/auth` fails for SPA, ensure CORS includes `broadcasting/auth` and `SANCTUM_STATEFUL_DOMAINS` includes `localhost:5173`.
+- For Docker, set `REVERB_HOST=reverb` (service name) in the backend/queue containers; for local dev use `REVERB_HOST=localhost`.
+- If the browser console shows origin errors, add your dev origin to `config/reverb.php` (`allowed_origins`).
+
 ### Demo Accounts (password `password`)
 - Admin: `admin@example.com`
 - Landlords: `lana@demo.com`, `leo@demo.com`

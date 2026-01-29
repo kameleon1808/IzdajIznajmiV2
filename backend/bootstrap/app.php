@@ -34,6 +34,9 @@ return Application::configure(basePath: dirname(__DIR__))
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
     )
+    ->withBroadcasting(__DIR__.'/../routes/channels.php', [
+        'middleware' => ['web', 'auth:sanctum'],
+    ])
     ->withCommands([
         ExpireListingsCommand::class,
         \App\Console\Commands\SendNotificationDigestCommand::class,

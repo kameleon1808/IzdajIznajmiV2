@@ -11,6 +11,10 @@ import { useToastStore } from '../stores/toast'
 import Button from '../components/ui/Button.vue'
 import { getTypingStatus, getUserPresence, leaveRating, pingPresence, setTypingStatus } from '../services'
 import ErrorState from '../components/ui/ErrorState.vue'
+import { getEcho } from '../services/echo'
+import type { Message as ChatMessage } from '../types'
+
+type ReverbMessage = ChatMessage & { body?: string }
 
 const route = useRoute()
 const router = useRouter()
@@ -35,6 +39,9 @@ let typingStopTimer: number | null = null
 let attachmentPollTimer: number | null = null
 let attachmentPollAttempts = 0
 let lastTypingSentAt = 0
+let activeChannelName: string | null = null
+
+const echo = getEcho()
 
 const conversationId = computed(() => route.params.id as string | undefined)
 const loading = computed(() => chatStore.loading || chatStore.resolving)
@@ -207,6 +214,36 @@ const startPresencePing = () => {
   }, 25000)
 }
 
+const startRealtime = (id?: string) => {
+  if (!echo) return
+  if (activeChannelName) {
+    echo.leave(activeChannelName)
+    activeChannelName = null
+  }
+  if (!id) return
+  const channelName = `conversation.${id}`
+  activeChannelName = channelName
+  echo.private(channelName).listen('.message.sent', (payload: { message: ReverbMessage }) => {
+    const message = payload?.message
+    if (!message?.conversationId) return
+    const authId = auth.user?.id ? String(auth.user.id) : ''
+    const senderId = message.senderId ? String(message.senderId) : ''
+    if (authId && senderId && authId === senderId) return
+    chatStore.receiveMessage({
+      ...message,
+      conversationId: String(message.conversationId),
+      from: authId && senderId && authId === senderId ? 'me' : 'them',
+      text: message.text ?? message.body ?? '',
+    })
+  })
+}
+
+const stopRealtime = () => {
+  if (!echo || !activeChannelName) return
+  echo.leave(activeChannelName)
+  activeChannelName = null
+}
+
 const stopAttachmentPolling = () => {
   if (attachmentPollTimer) window.clearInterval(attachmentPollTimer)
   attachmentPollTimer = null
@@ -251,6 +288,7 @@ watch(
     startTypingPoll(id)
     startPresencePolling()
     startAttachmentPolling(id)
+    startRealtime(id)
   },
 )
 
@@ -276,6 +314,7 @@ onBeforeUnmount(() => {
   if (presencePingTimer) window.clearInterval(presencePingTimer)
   if (typingStopTimer) window.clearTimeout(typingStopTimer)
   stopAttachmentPolling()
+  stopRealtime()
   setTyping(false)
 })
 </script>
