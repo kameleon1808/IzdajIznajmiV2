@@ -5,6 +5,8 @@ import type {
   Application,
   Booking,
   Conversation,
+  KycDocument,
+  KycSubmission,
   Listing,
   ListingFilters,
   ListingSearchFacets,
@@ -53,6 +55,7 @@ const listings: Listing[] = [
     instantBook: true,
     facilities: ['Pool', 'Wi-Fi', 'Ocean View', 'Kitchen', 'Parking'],
     ownerId: 'landlord-1',
+    landlord: { id: 'landlord-1', fullName: 'Lana Landlord', verificationStatus: 'approved', verifiedAt: '2025-12-01T00:00:00Z' },
     createdAt: '2025-11-20T10:00:00Z',
   },
   {
@@ -83,6 +86,7 @@ const listings: Listing[] = [
     instantBook: true,
     facilities: ['Breakfast', 'Wi-Fi', 'Gym', 'Spa', 'Parking'],
     ownerId: 'landlord-2',
+    landlord: { id: 'landlord-2', fullName: 'Luka Landlord', verificationStatus: 'pending', verifiedAt: null },
     createdAt: '2025-10-11T14:20:00Z',
   },
   {
@@ -113,6 +117,7 @@ const listings: Listing[] = [
     instantBook: false,
     facilities: ['Wi-Fi', 'City View', 'Kitchen', 'Workspace'],
     ownerId: 'landlord-1',
+    landlord: { id: 'landlord-1', fullName: 'Lana Landlord', verificationStatus: 'approved', verifiedAt: '2025-12-01T00:00:00Z' },
     createdAt: '2025-09-02T09:15:00Z',
   },
   {
@@ -143,6 +148,7 @@ const listings: Listing[] = [
     instantBook: true,
     facilities: ['Pool', 'Spa', 'Breakfast', 'Wi-Fi', 'Bar'],
     ownerId: 'landlord-3',
+    landlord: { id: 'landlord-3', fullName: 'Liam Landlord', verificationStatus: 'rejected', verifiedAt: null },
     createdAt: '2025-12-05T08:00:00Z',
   },
   {
@@ -173,6 +179,7 @@ const listings: Listing[] = [
     instantBook: true,
     facilities: ['Mountain View', 'Fireplace', 'Wi-Fi', 'Parking'],
     ownerId: 'landlord-2',
+    landlord: { id: 'landlord-2', fullName: 'Luka Landlord', verificationStatus: 'pending', verifiedAt: null },
     createdAt: '2025-08-15T17:45:00Z',
   },
   {
@@ -203,11 +210,14 @@ const listings: Listing[] = [
     instantBook: false,
     facilities: ['Canal View', 'Wi-Fi', 'Bike Rental'],
     ownerId: 'landlord-3',
+    landlord: { id: 'landlord-3', fullName: 'Liam Landlord', verificationStatus: 'approved', verifiedAt: '2025-10-10T00:00:00Z' },
     createdAt: '2025-07-01T12:30:00Z',
   },
 ]
 
 const savedSearches: SavedSearch[] = []
+
+const kycSubmissions: KycSubmission[] = []
 
 listings.forEach((item) => {
   if (!item.coverImage && item.images?.length) {
@@ -1089,6 +1099,7 @@ export async function getPublicProfile(userId: string): Promise<PublicProfile> {
     fullName: `Landlord ${userId}`,
     joinedAt: new Date().toISOString(),
     verifications: { email: true, phone: false, address: false },
+    landlordVerification: { status: 'approved', verifiedAt: new Date().toISOString() },
     ratingStats: { average: 0, total: 0, breakdown: {} },
     recentRatings: [],
   }
@@ -1460,4 +1471,105 @@ export async function getUserPresence(
 ): Promise<{ userId: string; online: boolean; expiresIn: number }> {
   await delay()
   return { userId, online: true, expiresIn: 60 }
+}
+
+const toMockDoc = (file: File | null, docType: KycDocument['docType']): KycDocument | null => {
+  if (!file) return null
+  const downloadUrl = typeof URL !== 'undefined' && file instanceof File ? URL.createObjectURL(file) : null
+  return {
+    id: makeId(),
+    docType,
+    originalName: file.name || docType,
+    mimeType: file.type || 'application/octet-stream',
+    sizeBytes: file.size || 0,
+    createdAt: new Date().toISOString(),
+    downloadUrl,
+  }
+}
+
+export async function submitKycSubmission(formData: FormData): Promise<KycSubmission> {
+  await delay()
+  if (kycSubmissions.some((s) => s.status === 'pending')) {
+    throw new Error('You already have a pending submission.')
+  }
+  const idFront = formData.get('id_front') as File | null
+  const idBack = formData.get('id_back') as File | null
+  const selfie = formData.get('selfie') as File | null
+  const proof = formData.get('proof_of_address') as File | null
+
+  const docs = [
+    toMockDoc(idFront, 'id_front'),
+    toMockDoc(idBack, 'id_back'),
+    toMockDoc(selfie, 'selfie'),
+    toMockDoc(proof, 'proof_of_address'),
+  ].filter(Boolean) as KycDocument[]
+
+  const submission: KycSubmission = {
+    id: makeId(),
+    status: 'pending',
+    submittedAt: new Date().toISOString(),
+    reviewedAt: null,
+    reviewerNote: null,
+    documents: docs,
+  }
+  kycSubmissions.unshift(submission)
+  return JSON.parse(JSON.stringify(submission))
+}
+
+export async function getMyKycSubmission(): Promise<KycSubmission | null> {
+  await delay()
+  return kycSubmissions.length ? JSON.parse(JSON.stringify(kycSubmissions[0])) : null
+}
+
+export async function withdrawKycSubmission(submissionId: string | number): Promise<KycSubmission> {
+  await delay()
+  const submission = kycSubmissions.find((item) => item.id === String(submissionId))
+  if (!submission) throw new Error('Not found')
+  submission.status = 'withdrawn'
+  submission.reviewedAt = new Date().toISOString()
+  return JSON.parse(JSON.stringify(submission))
+}
+
+export async function getAdminKycSubmissions(params?: { status?: string }): Promise<KycSubmission[]> {
+  await delay()
+  const list = params?.status ? kycSubmissions.filter((s) => s.status === params.status) : kycSubmissions
+  return JSON.parse(JSON.stringify(list))
+}
+
+export async function getAdminKycSubmission(id: string | number): Promise<KycSubmission> {
+  await delay()
+  const submission = kycSubmissions.find((item) => item.id === String(id))
+  if (!submission) throw new Error('Not found')
+  return JSON.parse(JSON.stringify(submission))
+}
+
+export async function approveAdminKycSubmission(id: string | number, note?: string): Promise<KycSubmission> {
+  await delay()
+  const submission = kycSubmissions.find((item) => item.id === String(id))
+  if (!submission) throw new Error('Not found')
+  submission.status = 'approved'
+  submission.reviewerNote = note ?? null
+  submission.reviewedAt = new Date().toISOString()
+  return JSON.parse(JSON.stringify(submission))
+}
+
+export async function rejectAdminKycSubmission(id: string | number, note?: string): Promise<KycSubmission> {
+  await delay()
+  const submission = kycSubmissions.find((item) => item.id === String(id))
+  if (!submission) throw new Error('Not found')
+  submission.status = 'rejected'
+  submission.reviewerNote = note ?? null
+  submission.reviewedAt = new Date().toISOString()
+  return JSON.parse(JSON.stringify(submission))
+}
+
+export async function redactAdminKycSubmission(id: string | number, note?: string): Promise<KycSubmission> {
+  await delay()
+  const submission = kycSubmissions.find((item) => item.id === String(id))
+  if (!submission) throw new Error('Not found')
+  submission.status = 'withdrawn'
+  submission.reviewerNote = note ?? 'Redacted by admin'
+  submission.documents = []
+  submission.reviewedAt = new Date().toISOString()
+  return JSON.parse(JSON.stringify(submission))
 }

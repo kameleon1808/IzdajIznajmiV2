@@ -923,7 +923,12 @@ const deleteViewingSlot = async (slotId: string) => {
         <div class="flex items-center justify-between gap-3">
           <div>
             <p class="text-xs text-muted">Published by</p>
-            <p class="text-base font-semibold text-slate-900">{{ landlordName }}</p>
+            <div class="flex flex-wrap items-center gap-2">
+              <p class="text-base font-semibold text-slate-900">{{ landlordName }}</p>
+              <Badge v-if="listing?.landlord?.verificationStatus === 'approved'" variant="accepted">
+                Verified landlord
+              </Badge>
+            </div>
           </div>
           <Button variant="secondary" size="md" @click="viewProfile">View profile</Button>
         </div>

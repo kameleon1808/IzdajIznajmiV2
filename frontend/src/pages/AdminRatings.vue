@@ -53,6 +53,7 @@ const flagSuspicious = async (userId: string | number, isSuspicious: boolean) =>
       <router-link to="/admin" class="opacity-80 hover:opacity-100">Dashboard</router-link>
       <router-link to="/admin/moderation" class="opacity-80 hover:opacity-100">Moderacija</router-link>
       <router-link to="/admin/ratings">Ocene</router-link>
+      <router-link to="/admin/kyc" class="opacity-80 hover:opacity-100">KYC</router-link>
     </div>
 
     <div class="flex items-center gap-3">

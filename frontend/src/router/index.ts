@@ -15,6 +15,7 @@ import PublicProfile from '../pages/PublicProfile.vue'
 import AdminRatings from '../pages/AdminRatings.vue'
 import AdminDashboard from '../pages/AdminDashboard.vue'
 import AdminModeration from '../pages/AdminModeration.vue'
+import AdminKyc from '../pages/AdminKyc.vue'
 import Reviews from '../pages/Reviews.vue'
 import Search from '../pages/Search.vue'
 import SavedSearches from '../pages/SavedSearches.vue'
@@ -27,6 +28,7 @@ import { useAuthStore, type Role } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
 import Login from '../pages/Login.vue'
 import Register from '../pages/Register.vue'
+import KycVerification from '../pages/KycVerification.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -112,6 +114,12 @@ const router = createRouter({
     },
     { path: '/profile', name: 'profile', component: Profile, meta: { topBar: { type: 'title', title: 'Profile' }, showTabs: true } },
     {
+      path: '/profile/verification',
+      name: 'profile-verification',
+      component: KycVerification,
+      meta: { topBar: { type: 'back', title: 'Verification' }, showTabs: false, roles: ['landlord', 'admin'] },
+    },
+    {
       path: '/users/:id',
       name: 'public-profile',
       component: PublicProfile,
@@ -182,6 +190,12 @@ const router = createRouter({
       name: 'admin-moderation',
       component: AdminModeration,
       meta: { topBar: { type: 'title', title: 'Moderation' }, showTabs: false, roles: ['admin'] },
+    },
+    {
+      path: '/admin/kyc',
+      name: 'admin-kyc',
+      component: AdminKyc,
+      meta: { topBar: { type: 'title', title: 'KYC Review' }, showTabs: false, roles: ['admin'] },
     },
     {
       path: '/admin/moderation/reports/:id',

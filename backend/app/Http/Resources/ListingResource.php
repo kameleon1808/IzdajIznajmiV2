@@ -54,9 +54,12 @@ class ListingResource extends JsonResource
             'facilities' => $this->whenLoaded('facilities', fn () => $this->facilities->pluck('name')),
             'ownerId' => $this->owner_id,
             'landlord' => $this->whenLoaded('owner', function () {
+                $status = $this->owner?->landlord_verification_status ?? 'none';
                 return [
                     'id' => $this->owner?->id,
                     'fullName' => $this->owner?->full_name ?? $this->owner?->name,
+                    'verificationStatus' => $status,
+                    'verifiedAt' => optional($this->owner?->landlord_verified_at)->toISOString(),
                 ];
             }),
             'createdAt' => optional($this->created_at)->toISOString(),

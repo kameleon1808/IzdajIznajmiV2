@@ -81,4 +81,13 @@ export const createSavedSearch = pick('createSavedSearch')
 export const updateSavedSearch = pick('updateSavedSearch')
 export const deleteSavedSearch = pick('deleteSavedSearch')
 
+export const submitKycSubmission = pick('submitKycSubmission')
+export const getMyKycSubmission = pick('getMyKycSubmission')
+export const withdrawKycSubmission = pick('withdrawKycSubmission')
+export const getAdminKycSubmissions = pick('getAdminKycSubmissions')
+export const getAdminKycSubmission = pick('getAdminKycSubmission')
+export const approveAdminKycSubmission = pick('approveAdminKycSubmission')
+export const rejectAdminKycSubmission = pick('rejectAdminKycSubmission')
+export const redactAdminKycSubmission = pick('redactAdminKycSubmission')
+
 export const isMockApi = useMock

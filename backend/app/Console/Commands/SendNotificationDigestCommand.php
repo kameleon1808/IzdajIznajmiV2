@@ -78,6 +78,9 @@ class SendNotificationDigestCommand extends Command
                 Notification::TYPE_MESSAGE_RECEIVED => 'Messages',
                 Notification::TYPE_RATING_RECEIVED => 'Ratings',
                 Notification::TYPE_REPORT_UPDATE => 'Report Updates',
+                Notification::TYPE_KYC_SUBMISSION_RECEIVED => 'KYC Submissions',
+                Notification::TYPE_KYC_APPROVED => 'KYC Approved',
+                Notification::TYPE_KYC_REJECTED => 'KYC Rejected',
             ];
 
             $summaryParts = [];

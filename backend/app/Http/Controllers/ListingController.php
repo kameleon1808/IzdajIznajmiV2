@@ -90,7 +90,7 @@ class ListingController extends Controller
                 $q->orderBy('sort_order');
             },
             'facilities',
-            'owner:id,full_name,name',
+            'owner:id,full_name,name,landlord_verification_status,landlord_verified_at',
         ]);
         if ($listing->status !== ListingStatusService::STATUS_ACTIVE && !($user && ($isAdmin || $user->id === $listing->owner_id))) {
             abort(404);

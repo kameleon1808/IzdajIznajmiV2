@@ -38,6 +38,9 @@ class User extends Authenticatable
         'phone_verified',
         'address_verified',
         'is_suspicious',
+        'landlord_verification_status',
+        'landlord_verified_at',
+        'landlord_verification_notes',
     ];
 
     /**
@@ -65,6 +68,7 @@ class User extends Authenticatable
             'phone_verified' => 'boolean',
             'address_verified' => 'boolean',
             'is_suspicious' => 'boolean',
+            'landlord_verified_at' => 'datetime',
         ];
     }
 
@@ -126,5 +130,10 @@ class User extends Authenticatable
     public function viewingRequestsAsLandlord()
     {
         return $this->hasMany(ViewingRequest::class, 'landlord_id');
+    }
+
+    public function kycSubmissions()
+    {
+        return $this->hasMany(KycSubmission::class);
     }
 }

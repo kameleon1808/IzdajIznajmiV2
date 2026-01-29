@@ -28,6 +28,9 @@ const typeLabels: Record<string, string> = {
   'rating.received': 'New Ratings',
   'report.update': 'Report Updates',
   'admin.notice': 'Admin Notices',
+  'kyc.submission_received': 'KYC Submission Received',
+  'kyc.approved': 'KYC Approved',
+  'kyc.rejected': 'KYC Rejected',
 }
 
 const isDirty = computed(() => {

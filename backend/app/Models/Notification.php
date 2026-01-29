@@ -19,6 +19,9 @@ class Notification extends Model
     public const TYPE_VIEWING_REQUESTED = 'viewing.requested';
     public const TYPE_VIEWING_CONFIRMED = 'viewing.confirmed';
     public const TYPE_VIEWING_CANCELLED = 'viewing.cancelled';
+    public const TYPE_KYC_SUBMISSION_RECEIVED = 'kyc.submission_received';
+    public const TYPE_KYC_APPROVED = 'kyc.approved';
+    public const TYPE_KYC_REJECTED = 'kyc.rejected';
 
     protected $fillable = [
         'user_id',

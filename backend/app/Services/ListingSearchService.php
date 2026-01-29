@@ -36,7 +36,7 @@ class ListingSearchService
                 $q->where('processing_status', 'done')->orderBy('sort_order');
             },
             'facilities',
-            'owner:id,full_name,name',
+            'owner:id,full_name,name,landlord_verification_status,landlord_verified_at',
         ]);
     }
 

@@ -55,6 +55,16 @@
 | LL-03 | Landlord B token, listing A vlasništvo | 1) PUT /api/v1/landlord/listings/{A-id} | 403 | policy |
 | LL-04 | Landlord token | 1) GET /api/v1/landlord/listings | 200, samo njegove + facilities/images | owner filter |
 
+### KYC / Verified landlord
+| ID | Precondition | Koraci | Očekivano | Napomena |
+| --- | --- | --- | --- | --- |
+| KYC-01 | Landlord session | 1) POST /api/v1/kyc/submissions (id_front, selfie, proof_of_address) | 201, status pending | submit |
+| KYC-02 | KYC-01 pending | 1) POST /api/v1/kyc/submissions (ponovo) | 409 Conflict | block duplicate |
+| KYC-03 | Admin session | 1) GET /api/v1/admin/kyc/submissions?status=pending | 200, lista pending | admin queue |
+| KYC-04 | Admin session | 1) PATCH /api/v1/admin/kyc/submissions/{id}/approve | 200, user landlord_verification_status=approved | approve |
+| KYC-05 | Admin session | 1) PATCH /api/v1/admin/kyc/submissions/{id}/reject sa note | 200, status rejected + note | reject |
+| KYC-06 | Non-owner session | 1) GET /api/v1/kyc/documents/{id} | 403 | access control |
+
 ### Saved searches & alerts
 | ID | Precondition | Koraci | Očekivano | Napomena |
 | --- | --- | --- | --- | --- |

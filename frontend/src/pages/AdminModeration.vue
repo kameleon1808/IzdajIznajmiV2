@@ -97,6 +97,7 @@ const flagReporter = async () => {
       <router-link to="/admin" class="opacity-80 hover:opacity-100">Dashboard</router-link>
       <router-link to="/admin/moderation">Moderacija</router-link>
       <router-link to="/admin/ratings" class="opacity-80 hover:opacity-100">Ocene</router-link>
+      <router-link to="/admin/kyc" class="opacity-80 hover:opacity-100">KYC</router-link>
     </div>
 
     <div class="flex flex-wrap gap-2">

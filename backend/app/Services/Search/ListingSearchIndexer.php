@@ -14,7 +14,7 @@ class ListingSearchIndexer
     public function indexListingById(int $listingId): void
     {
         $listing = Listing::query()
-            ->with(['facilities'])
+            ->with(['facilities', 'owner:id,landlord_verification_status,landlord_verified_at'])
             ->find($listingId);
 
         if (!$listing) {

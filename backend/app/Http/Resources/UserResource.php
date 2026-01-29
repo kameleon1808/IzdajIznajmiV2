@@ -27,6 +27,9 @@ class UserResource extends JsonResource
             'phoneVerified' => (bool) $this->phone_verified,
             'addressVerified' => (bool) $this->address_verified,
             'isSuspicious' => (bool) $this->is_suspicious,
+            'landlordVerificationStatus' => $this->landlord_verification_status ?? 'none',
+            'landlordVerifiedAt' => optional($this->landlord_verified_at)->toISOString(),
+            'landlordVerificationNotes' => $this->landlord_verification_notes,
         ];
     }
 }

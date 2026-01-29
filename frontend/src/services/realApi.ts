@@ -7,6 +7,8 @@ import type {
   Application,
   ChatAttachment,
   Conversation,
+  KycDocument,
+  KycSubmission,
   Listing,
   ListingFilters,
   Message,
@@ -33,6 +35,22 @@ const mapListing = (data: any): Listing => {
   imagesDetailed.sort((a, b) => a.sortOrder - b.sortOrder)
   const imagesSimple = imagesDetailed.map((i) => i.url).filter(Boolean)
   const coverFromDetailed = imagesDetailed.find((i) => i.isCover)?.url ?? imagesSimple[0] ?? ''
+
+  const landlordPayload = data.landlord
+    ? {
+        id: data.landlord.id ?? data.landlordId,
+        fullName: data.landlord.fullName ?? data.landlord.full_name ?? data.landlord.name,
+        verificationStatus: data.landlord.verificationStatus ?? data.landlord.verification_status,
+        verifiedAt: data.landlord.verifiedAt ?? data.landlord.verified_at,
+      }
+    : data.landlord_verification_status || data.landlord_verified_at
+    ? {
+        id: data.ownerId ?? data.owner_id ?? data.landlordId ?? data.landlord_id,
+        fullName: data.landlord_name ?? data.owner_name,
+        verificationStatus: data.landlord_verification_status ?? data.landlordVerificationStatus,
+        verifiedAt: data.landlord_verified_at ?? data.landlordVerifiedAt ?? null,
+      }
+    : undefined
 
   return {
     id: String(data.id),
@@ -66,12 +84,7 @@ const mapListing = (data: any): Listing => {
     data.facilities ??
       [],
   ownerId: data.ownerId ?? data.owner_id,
-  landlord: data.landlord
-    ? {
-        id: data.landlord.id ?? data.landlordId,
-        fullName: data.landlord.fullName ?? data.landlord.full_name ?? data.landlord.name,
-      }
-    : undefined,
+  landlord: landlordPayload,
   createdAt: data.createdAt ?? data.created_at,
   status: data.status,
   publishedAt: data.publishedAt ?? data.published_at,
@@ -629,6 +642,17 @@ const mapProfile = (data: any): PublicProfile => ({
     phone: Boolean(data.verifications?.phone),
     address: Boolean(data.verifications?.address),
   },
+  landlordVerification: data.landlordVerification
+    ? {
+        status: data.landlordVerification.status ?? data.landlord_verification_status ?? 'none',
+        verifiedAt: data.landlordVerification.verifiedAt ?? data.landlord_verified_at ?? null,
+      }
+    : data.landlord_verification_status
+    ? {
+        status: data.landlord_verification_status ?? 'none',
+        verifiedAt: data.landlord_verified_at ?? null,
+      }
+    : undefined,
   ratingStats: {
     average: Number(data.ratingStats?.average ?? 0),
     total: Number(data.ratingStats?.total ?? 0),
@@ -642,6 +666,39 @@ const mapProfile = (data: any): PublicProfile => ({
       createdAt: r.createdAt ?? r.created_at,
       listingTitle: r.listingTitle ?? r.listing_title,
     })) ?? [],
+})
+
+const mapKycDocument = (data: any): KycDocument => ({
+  id: String(data.id),
+  docType: data.docType ?? data.doc_type,
+  originalName: data.originalName ?? data.original_name ?? 'Document',
+  mimeType: data.mimeType ?? data.mime_type ?? 'application/octet-stream',
+  sizeBytes: Number(data.sizeBytes ?? data.size_bytes ?? 0),
+  createdAt: data.createdAt ?? data.created_at,
+  downloadUrl: data.downloadUrl ?? data.download_url ?? null,
+})
+
+const mapKycSubmission = (data: any): KycSubmission => ({
+  id: String(data.id),
+  userId: data.userId ?? data.user_id,
+  status: data.status,
+  submittedAt: data.submittedAt ?? data.submitted_at,
+  reviewedAt: data.reviewedAt ?? data.reviewed_at ?? null,
+  reviewerId: data.reviewerId ?? data.reviewer_id ?? null,
+  reviewerNote: data.reviewerNote ?? data.reviewer_note ?? null,
+  user: data.user
+    ? {
+        id: data.user.id,
+        fullName: data.user.fullName ?? data.user.full_name ?? data.user.name,
+        email: data.user.email,
+      }
+    : undefined,
+  reviewer: data.reviewer
+    ? { id: data.reviewer.id, fullName: data.reviewer.fullName ?? data.reviewer.full_name ?? data.reviewer.name }
+    : undefined,
+  documents: data.documents ? data.documents.map(mapKycDocument) : [],
+  createdAt: data.createdAt ?? data.created_at,
+  updatedAt: data.updatedAt ?? data.updated_at,
 })
 
 export const getPublicProfile = async (userId: string): Promise<PublicProfile> => {
@@ -888,4 +945,48 @@ export const cancelViewingRequest = async (id: string): Promise<ViewingRequest> 
 export const downloadViewingRequestIcs = async (id: string): Promise<Blob> => {
   const { data } = await apiClient.get(`/viewing-requests/${id}/ics`, { responseType: 'blob' })
   return data as Blob
+}
+
+export const submitKycSubmission = async (formData: FormData): Promise<KycSubmission> => {
+  const { data } = await apiClient.post('/kyc/submissions', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  })
+  return mapKycSubmission(data.data ?? data)
+}
+
+export const getMyKycSubmission = async (): Promise<KycSubmission | null> => {
+  const { data } = await apiClient.get('/kyc/submissions/me')
+  if (!data) return null
+  return mapKycSubmission(data.data ?? data)
+}
+
+export const withdrawKycSubmission = async (submissionId: string | number): Promise<KycSubmission> => {
+  const { data } = await apiClient.post(`/kyc/submissions/${submissionId}/withdraw`)
+  return mapKycSubmission(data.data ?? data)
+}
+
+export const getAdminKycSubmissions = async (params?: { status?: string }): Promise<KycSubmission[]> => {
+  const { data } = await apiClient.get('/admin/kyc/submissions', { params })
+  const list = (data.data ?? data) as any[]
+  return list.map(mapKycSubmission)
+}
+
+export const getAdminKycSubmission = async (id: string | number): Promise<KycSubmission> => {
+  const { data } = await apiClient.get(`/admin/kyc/submissions/${id}`)
+  return mapKycSubmission(data.data ?? data)
+}
+
+export const approveAdminKycSubmission = async (id: string | number, note?: string): Promise<KycSubmission> => {
+  const { data } = await apiClient.patch(`/admin/kyc/submissions/${id}/approve`, { note })
+  return mapKycSubmission(data.data ?? data)
+}
+
+export const rejectAdminKycSubmission = async (id: string | number, note?: string): Promise<KycSubmission> => {
+  const { data } = await apiClient.patch(`/admin/kyc/submissions/${id}/reject`, { note })
+  return mapKycSubmission(data.data ?? data)
+}
+
+export const redactAdminKycSubmission = async (id: string | number, note?: string): Promise<KycSubmission> => {
+  const { data } = await apiClient.delete(`/admin/kyc/submissions/${id}/redact`, { data: { note } })
+  return mapKycSubmission(data.data ?? data)
 }

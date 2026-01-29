@@ -26,7 +26,11 @@ const baseItems = [
 const menuItems = computed(() => {
   const extras = []
   if (auth.hasRole('landlord')) {
+    extras.push({ label: 'Verification', icon: Shield, action: () => router.push('/profile/verification') })
     extras.push({ label: 'My Listings', icon: Store, action: () => router.push('/landlord/listings') })
+  }
+  if (auth.hasRole('admin')) {
+    extras.push({ label: 'KYC Review', icon: Shield, action: () => router.push('/admin/kyc') })
   }
   if (auth.hasRole('seeker')) {
     extras.push({ label: 'Saved Searches', icon: Bookmark, action: () => router.push('/saved-searches') })
@@ -71,6 +75,9 @@ const handleLogout = async () => {
         <p class="text-lg font-semibold text-slate-900">{{ auth.user.name }}</p>
         <p class="text-sm text-muted">@{{ auth.user.id }}</p>
         <Badge variant="pending" class="mt-1 inline-block capitalize">{{ auth.primaryRole }}</Badge>
+      </div>
+      <div class="ml-auto">
+        <Button variant="secondary" size="sm" @click="router.push(`/users/${auth.user.id}`)">View profile</Button>
       </div>
     </div>
 

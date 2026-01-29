@@ -351,6 +351,8 @@ class MeiliSearchDriver implements SearchDriver
             'amenities',
             'status',
             'owner_id',
+            'landlord_verification_status',
+            'landlord_verified_at',
             'rating',
             'rating_avg',
             'baths',

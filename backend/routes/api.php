@@ -26,6 +26,9 @@ use App\Http\Controllers\ViewingRequestController;
 use App\Http\Controllers\ViewingSlotController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\SearchController;
+use App\Http\Controllers\KycSubmissionController;
+use App\Http\Controllers\KycDocumentController;
+use App\Http\Controllers\Admin\KycSubmissionAdminController;
 use Illuminate\Support\Facades\Route;
 
 $authRoutes = function () {
@@ -125,9 +128,19 @@ $apiRoutes = function () use ($authRoutes) {
         Route::put('/saved-searches/{savedSearch}', [SavedSearchController::class, 'update']);
         Route::delete('/saved-searches/{savedSearch}', [SavedSearchController::class, 'destroy']);
 
+        Route::post('/kyc/submissions', [KycSubmissionController::class, 'store']);
+        Route::get('/kyc/submissions/me', [KycSubmissionController::class, 'me']);
+        Route::post('/kyc/submissions/{submission}/withdraw', [KycSubmissionController::class, 'withdraw']);
+        Route::get('/kyc/documents/{document}', [KycDocumentController::class, 'show'])->name('kyc.documents.show');
+
         Route::prefix('admin')->group(function () {
             Route::post('/impersonate/stop', [ImpersonationController::class, 'stop']);
             Route::middleware('role:admin')->group(function () {
+                Route::get('/kyc/submissions', [KycSubmissionAdminController::class, 'index']);
+                Route::get('/kyc/submissions/{submission}', [KycSubmissionAdminController::class, 'show']);
+                Route::patch('/kyc/submissions/{submission}/approve', [KycSubmissionAdminController::class, 'approve']);
+                Route::patch('/kyc/submissions/{submission}/reject', [KycSubmissionAdminController::class, 'reject']);
+                Route::delete('/kyc/submissions/{submission}/redact', [KycSubmissionAdminController::class, 'redact']);
                 Route::get('/ratings', [RatingAdminController::class, 'index']);
                 Route::get('/ratings/{rating}', [RatingAdminController::class, 'show']);
                 Route::delete('/ratings/{rating}', [RatingAdminController::class, 'destroy']);

@@ -93,6 +93,15 @@ const openReport = (rating: Rating) => {
               Address
             </span>
           </Badge>
+          <Badge
+            v-if="profile.landlordVerification?.status === 'approved'"
+            variant="accepted"
+          >
+            <span class="inline-flex items-center gap-1">
+              <ShieldCheck class="h-4 w-4" />
+              Verified landlord {{ profile.landlordVerification.verifiedAt ? `· ${formatDate(profile.landlordVerification.verifiedAt)}` : '' }}
+            </span>
+          </Badge>
         </div>
       </div>
 

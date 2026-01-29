@@ -16,6 +16,7 @@ class ListingSearchDocument
             ? $listing->facilities->pluck('name')->filter()->values()->all()
             : $listing->facilities()->pluck('name')->filter()->values()->all();
 
+        $owner = $listing->relationLoaded('owner') ? $listing->owner : null;
         $city = $listing->city ?? '';
 
         return [
@@ -34,6 +35,8 @@ class ListingSearchDocument
             'status' => $listing->status,
             'owner_id' => $listing->owner_id,
             'landlord_id' => $listing->owner_id,
+            'landlord_verification_status' => $owner?->landlord_verification_status,
+            'landlord_verified_at' => optional($owner?->landlord_verified_at)->toISOString(),
             'rating' => $listing->rating,
             'rating_avg' => $listing->rating,
             'beds' => $listing->beds,

@@ -46,6 +46,7 @@ const trendMax = (key: keyof AdminTrendPoint) =>
       <router-link to="/admin">Dashboard</router-link>
       <router-link to="/admin/moderation" class="opacity-80 hover:opacity-100">Moderacija</router-link>
       <router-link to="/admin/ratings" class="opacity-80 hover:opacity-100">Ocene</router-link>
+      <router-link to="/admin/kyc" class="opacity-80 hover:opacity-100">KYC</router-link>
     </div>
 
     <ErrorBanner v-if="error" :message="error" />

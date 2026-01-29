@@ -32,6 +32,8 @@ export interface Listing {
   landlord?: {
     id: string | number
     fullName?: string
+    verificationStatus?: 'none' | 'pending' | 'approved' | 'rejected'
+    verifiedAt?: string | null
   }
   createdAt?: string
   status?: 'draft' | 'active' | 'paused' | 'archived' | 'rented' | 'expired'
@@ -180,6 +182,10 @@ export interface PublicProfile {
     phone: boolean
     address: boolean
   }
+  landlordVerification?: {
+    status: 'none' | 'pending' | 'approved' | 'rejected'
+    verifiedAt?: string | null
+  }
   ratingStats: {
     average: number
     total: number
@@ -264,6 +270,33 @@ export interface ListingFilters {
   centerLat?: number | null
   centerLng?: number | null
   radiusKm?: number | null
+}
+
+export type KycStatus = 'none' | 'pending' | 'approved' | 'rejected' | 'withdrawn'
+
+export interface KycDocument {
+  id: string
+  docType: 'id_front' | 'id_back' | 'selfie' | 'proof_of_address'
+  originalName: string
+  mimeType: string
+  sizeBytes: number
+  createdAt?: string
+  downloadUrl?: string | null
+}
+
+export interface KycSubmission {
+  id: string
+  userId?: string | number
+  status: KycStatus
+  submittedAt?: string
+  reviewedAt?: string | null
+  reviewerId?: string | number | null
+  reviewerNote?: string | null
+  user?: { id: string | number; fullName?: string; email?: string }
+  reviewer?: { id: string | number; fullName?: string }
+  documents?: KycDocument[]
+  createdAt?: string
+  updatedAt?: string
 }
 
 export interface FacetOption {

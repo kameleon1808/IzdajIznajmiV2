@@ -66,6 +66,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->throttleApi();
 
         $middleware->alias([
+            'auth' => \App\Http\Middleware\Authenticate::class,
             'role' => RoleMiddleware::class,
             'permission' => PermissionMiddleware::class,
             'role_or_permission' => RoleOrPermissionMiddleware::class,
@@ -73,6 +74,14 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        $exceptions->render(function (AuthenticationException $e, $request) {
+            if ($request->expectsJson() || $request->is('api/*')) {
+                return response()->json(['message' => 'Unauthenticated.'], 401);
+            }
+
+            return response()->json(['message' => 'Unauthenticated.'], 401);
+        });
+
         $exceptions->report(function (Throwable $e) {
             if ($e instanceof ValidationException
                 || $e instanceof AuthenticationException

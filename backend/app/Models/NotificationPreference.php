@@ -40,6 +40,9 @@ class NotificationPreference extends Model
             Notification::TYPE_VIEWING_REQUESTED => true,
             Notification::TYPE_VIEWING_CONFIRMED => true,
             Notification::TYPE_VIEWING_CANCELLED => true,
+            Notification::TYPE_KYC_SUBMISSION_RECEIVED => true,
+            Notification::TYPE_KYC_APPROVED => true,
+            Notification::TYPE_KYC_REJECTED => true,
         ];
     }
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Heart, MapPin, Star } from 'lucide-vue-next'
+import { Heart, MapPin, ShieldCheck, Star } from 'lucide-vue-next'
 import type { Listing } from '../../types'
 
 defineProps<{ listing: Listing }>()
@@ -33,6 +33,13 @@ const toggle = (e: Event, id: string) => {
           <div class="flex items-center gap-1 text-xs text-muted">
             <MapPin class="h-4 w-4 text-primary" />
             <span>{{ listing.city }}, {{ listing.country }}</span>
+          </div>
+          <div
+            v-if="listing.landlord?.verificationStatus === 'approved'"
+            class="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700"
+          >
+            <ShieldCheck class="h-3 w-3" />
+            Verified landlord
           </div>
         </div>
         <div class="flex items-center gap-1 text-sm font-semibold text-slate-900">

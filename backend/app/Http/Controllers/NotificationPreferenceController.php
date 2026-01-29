@@ -22,6 +22,13 @@ class NotificationPreferenceController extends Controller
             ]
         );
 
+        $defaults = NotificationPreference::defaultTypeSettings();
+        $merged = array_merge($defaults, $preferences->type_settings ?? []);
+        if ($merged !== ($preferences->type_settings ?? [])) {
+            $preferences->type_settings = $merged;
+            $preferences->save();
+        }
+
         return response()->json($preferences);
     }
 

@@ -27,6 +27,10 @@ class PublicUserResource extends JsonResource
                 'phone' => (bool) $this->phone_verified,
                 'address' => (bool) $this->address_verified,
             ],
+            'landlordVerification' => [
+                'status' => $this->landlord_verification_status ?? 'none',
+                'verifiedAt' => optional($this->landlord_verified_at)->toISOString(),
+            ],
             'ratingStats' => [
                 'average' => $stats?->avg_rating ? round((float) $stats->avg_rating, 1) : 0,
                 'total' => (int) ($stats?->total ?? 0),
