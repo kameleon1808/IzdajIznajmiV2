@@ -386,3 +386,34 @@ export interface SearchSuggestion {
   type: 'query' | 'city' | 'amenity'
   value: string
 }
+
+export interface SecuritySession {
+  id: string
+  sessionId?: string
+  deviceLabel?: string | null
+  ipTruncated?: string | null
+  userAgent?: string | null
+  lastActiveAt?: string | null
+  createdAt?: string | null
+  isCurrent?: boolean
+}
+
+export interface FraudSignal {
+  id: string
+  signalKey: string
+  weight: number
+  meta?: Record<string, any> | null
+  createdAt?: string | null
+}
+
+export interface FraudScore {
+  score: number
+  lastCalculatedAt?: string | null
+}
+
+export interface AdminUserSecurityPayload {
+  user: any
+  fraudScore: FraudScore
+  fraudSignals: FraudSignal[]
+  sessions: SecuritySession[]
+}

@@ -10,6 +10,10 @@ interface User {
   email?: string
   role: Role
   roles: Role[]
+  mfaEnabled?: boolean
+  mfaConfirmedAt?: string | null
+  mfaRequired?: boolean
+  isSuspicious?: boolean
 }
 
 interface PersistedState {
@@ -45,6 +49,8 @@ export const useAuthStore = defineStore('auth', {
     impersonating: storedState.impersonating ?? false,
     impersonator: storedState.impersonator ?? null,
     isMockMode: (import.meta.env.VITE_USE_MOCK_API ?? 'true') !== 'false',
+    mfaRequired: false,
+    mfaChallengeId: null as string | null,
   }),
   getters: {
     primaryRole: (state): Role => state.user.roles[0] ?? state.user.role ?? 'guest',
@@ -62,6 +68,10 @@ export const useAuthStore = defineStore('auth', {
         email: user?.email,
         role: primary,
         roles: normalizedRoles,
+        mfaEnabled: Boolean(user?.mfaEnabled ?? user?.mfa_enabled ?? false),
+        mfaConfirmedAt: user?.mfaConfirmedAt ?? user?.mfa_confirmed_at ?? null,
+        mfaRequired: Boolean(user?.mfaRequired ?? user?.mfa_required ?? false),
+        isSuspicious: Boolean(user?.isSuspicious ?? user?.is_suspicious ?? false),
       }
     },
     setSession(payload: { user?: any; impersonating?: boolean; impersonator?: any }) {
@@ -70,6 +80,7 @@ export const useAuthStore = defineStore('auth', {
       this.isAuthenticated = nextUser.role !== 'guest'
       this.impersonating = Boolean(payload.impersonating) && nextUser.role !== 'guest'
       this.impersonator = payload.impersonator ? this.mapUser(payload.impersonator) : null
+      this.clearMfaChallenge()
       this.persist()
     },
     setUser(user: any) {
@@ -137,25 +148,52 @@ export const useAuthStore = defineStore('auth', {
     async login(email: string, password: string) {
       if (this.isMockMode) {
         this.loginAs('seeker')
-        return
+        return { mfaRequired: false }
       }
+      this.clearMfaChallenge()
       this.loading = true
       try {
         await ensureCsrfCookie()
-        const { data } = await apiClient.post('/auth/login', { email, password })
+        const response = await apiClient.post('/auth/login', { email, password })
+        const data = response.data
+        if (data?.mfa_required) {
+          this.setMfaChallenge(data.challenge_id)
+          return { mfaRequired: true, challengeId: data.challenge_id }
+        }
         this.setUser(data.user)
+        return { mfaRequired: false }
       } finally {
         this.loading = false
       }
     },
     async fetchMe() {
       if (this.isMockMode) return
-      const { data } = await apiClient.get('/auth/me')
+      const response = await apiClient.get('/auth/me')
+      const data = response.data
+      if (data?.mfa_required) {
+        this.setMfaChallenge(data.challenge_id)
+        return
+      }
       this.setSession({
         user: data.user,
         impersonating: data.impersonating,
         impersonator: data.impersonator,
       })
+    },
+    async verifyMfa(payload: { challengeId: string; code?: string; recoveryCode?: string; rememberDevice?: boolean }) {
+      if (this.isMockMode) {
+        this.loginAs('seeker')
+        this.clearMfaChallenge()
+        return
+      }
+      const { data } = await apiClient.post('/security/mfa/verify', {
+        challenge_id: payload.challengeId,
+        code: payload.code,
+        recovery_code: payload.recoveryCode,
+        remember_device: payload.rememberDevice,
+      })
+      this.setUser(data.user)
+      this.clearMfaChallenge()
     },
     async logout() {
       try {
@@ -221,7 +259,18 @@ export const useAuthStore = defineStore('auth', {
       this.isAuthenticated = false
       this.impersonating = false
       this.impersonator = null
+      this.clearMfaChallenge()
       this.persist()
+    },
+    setMfaChallenge(challengeId: string) {
+      this.mfaRequired = true
+      this.mfaChallengeId = challengeId
+      this.isAuthenticated = false
+      this.user = { ...defaultUser }
+    },
+    clearMfaChallenge() {
+      this.mfaRequired = false
+      this.mfaChallengeId = null
     },
     async handleUnauthorized() {
       this.clearSession()

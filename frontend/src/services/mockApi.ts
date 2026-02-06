@@ -1767,3 +1767,86 @@ export async function redactAdminKycSubmission(id: string | number, note?: strin
   submission.reviewedAt = new Date().toISOString()
   return JSON.parse(JSON.stringify(submission))
 }
+
+export async function setupMfa() {
+  await delay()
+  return {
+    secret: 'MOCKSECRET123',
+    otpauth_url: 'otpauth://totp/IzdajIznajmi:mock?secret=MOCKSECRET123&issuer=IzdajIznajmi',
+    qr_svg: '',
+    recovery_codes: ['ABCD1-EFGH2', 'IJKL3-MNOP4', 'QRST5-UVWX6', 'YZ01A-BC23D'],
+  }
+}
+
+export async function confirmMfaSetup(_code: string) {
+  await delay()
+  return { message: 'MFA confirmed' }
+}
+
+export async function regenerateMfaRecoveryCodes(_code: string) {
+  await delay()
+  return { recovery_codes: ['NEWC1-ODE02', 'NEWC3-ODE04', 'NEWC5-ODE06'] }
+}
+
+export async function disableMfa(_payload: { password: string; code?: string; recoveryCode?: string }) {
+  await delay()
+  return { message: 'MFA disabled' }
+}
+
+export async function getSecuritySessions() {
+  await delay()
+  return {
+    sessions: [
+      {
+        id: '1',
+        sessionId: 'mock-session-1',
+        deviceLabel: 'Chrome on macOS',
+        ipTruncated: '192.168.1.0/24',
+        userAgent: 'MockAgent',
+        lastActiveAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        isCurrent: true,
+      },
+    ],
+  }
+}
+
+export async function revokeSecuritySession(_sessionId: string | number) {
+  await delay()
+  return { message: 'Session revoked' }
+}
+
+export async function revokeOtherSessions() {
+  await delay()
+  return { revoked: 0 }
+}
+
+export async function getAdminUserSecurity(userId: string | number) {
+  await delay()
+  return {
+    user: { id: String(userId), name: 'Mock User', email: 'mock@example.com', mfaEnabled: true, isSuspicious: false },
+    fraudScore: { score: 10, lastCalculatedAt: new Date().toISOString() },
+    fraudSignals: [],
+    sessions: [
+      {
+        id: '1',
+        sessionId: 'mock-session-1',
+        deviceLabel: 'Chrome on macOS',
+        ipTruncated: '192.168.1.0/24',
+        userAgent: 'MockAgent',
+        lastActiveAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+      },
+    ],
+  }
+}
+
+export async function revokeAdminUserSessions(_userId: string | number) {
+  await delay()
+  return { message: 'Sessions revoked' }
+}
+
+export async function clearUserSuspicion(_userId: string | number) {
+  await delay()
+  return { message: 'Suspicion cleared', isSuspicious: false }
+}

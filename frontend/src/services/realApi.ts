@@ -23,6 +23,8 @@ import type {
   ViewingSlot,
   SavedSearch,
   SearchSuggestion,
+  SecuritySession,
+  AdminUserSecurityPayload,
 } from '../types'
 import { useAuthStore } from '../stores/auth'
 
@@ -1132,4 +1134,76 @@ export const rejectAdminKycSubmission = async (id: string | number, note?: strin
 export const redactAdminKycSubmission = async (id: string | number, note?: string): Promise<KycSubmission> => {
   const { data } = await apiClient.delete(`/admin/kyc/submissions/${id}/redact`, { data: { note } })
   return mapKycSubmission(data.data ?? data)
+}
+
+const mapSecuritySession = (data: any): SecuritySession => ({
+  id: String(data.id),
+  sessionId: data.sessionId ?? data.session_id,
+  deviceLabel: data.deviceLabel ?? data.device_label ?? null,
+  ipTruncated: data.ipTruncated ?? data.ip_truncated ?? null,
+  userAgent: data.userAgent ?? data.user_agent ?? null,
+  lastActiveAt: data.lastActiveAt ?? data.last_active_at ?? null,
+  createdAt: data.createdAt ?? data.created_at ?? null,
+  isCurrent: Boolean(data.isCurrent ?? false),
+})
+
+export const setupMfa = async () => {
+  const { data } = await apiClient.post('/security/mfa/setup')
+  return data
+}
+
+export const confirmMfaSetup = async (code: string) => {
+  const { data } = await apiClient.post('/security/mfa/confirm', { code })
+  return data
+}
+
+export const regenerateMfaRecoveryCodes = async (code: string) => {
+  const { data } = await apiClient.post('/security/mfa/recovery-codes', { code })
+  return data
+}
+
+export const disableMfa = async (payload: { password: string; code?: string; recoveryCode?: string }) => {
+  const { data } = await apiClient.post('/security/mfa/disable', {
+    password: payload.password,
+    code: payload.code,
+    recovery_code: payload.recoveryCode,
+  })
+  return data
+}
+
+export const getSecuritySessions = async (): Promise<{ sessions: SecuritySession[] }> => {
+  const { data } = await apiClient.get('/security/sessions')
+  return {
+    sessions: Array.isArray(data.sessions) ? data.sessions.map(mapSecuritySession) : [],
+  }
+}
+
+export const revokeSecuritySession = async (sessionId: string | number) => {
+  const { data } = await apiClient.post(`/security/sessions/${sessionId}/revoke`)
+  return data
+}
+
+export const revokeOtherSessions = async () => {
+  const { data } = await apiClient.post('/security/sessions/revoke-others')
+  return data
+}
+
+export const getAdminUserSecurity = async (userId: string | number): Promise<AdminUserSecurityPayload> => {
+  const { data } = await apiClient.get(`/admin/users/${userId}/security`)
+  return {
+    user: data.user,
+    fraudScore: data.fraudScore ?? { score: 0 },
+    fraudSignals: data.fraudSignals ?? [],
+    sessions: Array.isArray(data.sessions) ? data.sessions.map(mapSecuritySession) : [],
+  }
+}
+
+export const revokeAdminUserSessions = async (userId: string | number) => {
+  const { data } = await apiClient.post(`/admin/users/${userId}/sessions/revoke-all`)
+  return data
+}
+
+export const clearUserSuspicion = async (userId: string | number) => {
+  const { data } = await apiClient.post(`/admin/users/${userId}/fraud/clear`)
+  return data
 }

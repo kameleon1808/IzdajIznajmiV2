@@ -104,3 +104,13 @@ export const rejectAdminKycSubmission = pick('rejectAdminKycSubmission')
 export const redactAdminKycSubmission = pick('redactAdminKycSubmission')
 
 export const isMockApi = useMock
+export const setupMfa = pick('setupMfa')
+export const confirmMfaSetup = pick('confirmMfaSetup')
+export const regenerateMfaRecoveryCodes = pick('regenerateMfaRecoveryCodes')
+export const disableMfa = pick('disableMfa')
+export const getSecuritySessions = pick('getSecuritySessions')
+export const revokeSecuritySession = pick('revokeSecuritySession')
+export const revokeOtherSessions = pick('revokeOtherSessions')
+export const getAdminUserSecurity = pick('getAdminUserSecurity')
+export const revokeAdminUserSessions = pick('revokeAdminUserSessions')
+export const clearUserSuspicion = pick('clearUserSuspicion')
