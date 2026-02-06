@@ -40,6 +40,15 @@
 | LST-02 | Seed podaci | 1) GET /api/v1/listings?category=villa&priceMin=100&priceMax=300&rating=4.5 | 200, svi rezultati po filteru | filter |
 | LST-03 | Seed podaci | 1) GET /api/v1/listings/{id} | 200, uključuje images[], facilities[] | detail |
 
+### Recommendations & badges
+| ID | Precondition | Koraci | Očekivano | Napomena |
+| --- | --- | --- | --- | --- |
+| REC-01 | Seeker session | 1) GET /api/v1/listings/{id} 2) ponovi u 12h | 1 view event u `listing_events` | dedupe |
+| REC-02 | Seeker session + aktivni listing | 1) GET /api/v1/listings/{id}/similar | 200, bez self/inactive | similar |
+| REC-03 | Seeker session + view/saved search | 1) GET /api/v1/recommendations | 200, aktivni listings + optional reasons | feed |
+| BADGE-01 | Admin session | 1) GET /api/v1/admin/users/{landlord}/security | vraća `landlordMetrics` + `landlordBadges` | admin |
+| BADGE-02 | Admin session | 1) PATCH /api/v1/admin/users/{landlord}/badges topLandlord=false | badge override sačuvan | override |
+
 ### Search v2 (Meili)
 | ID | Precondition | Koraci | Očekivano | Napomena |
 | --- | --- | --- | --- | --- |
