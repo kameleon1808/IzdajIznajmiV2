@@ -13,6 +13,7 @@ use App\Models\Message;
 use App\Models\User;
 use App\Jobs\ProcessChatAttachmentJob;
 use App\Services\ChatSpamGuardService;
+use App\Services\FraudSignalService;
 use App\Services\ListingStatusService;
 use App\Services\StructuredLogger;
 use App\Events\MessageCreated;
@@ -26,7 +27,8 @@ class ConversationController extends Controller
 {
     public function __construct(
         private ChatSpamGuardService $spamGuard,
-        private StructuredLogger $log
+        private StructuredLogger $log,
+        private FraudSignalService $fraudSignals
     )
     {
     }
@@ -110,6 +112,7 @@ class ConversationController extends Controller
 
         $body = trim((string) ($request->input('body') ?? $request->input('message')));
         $message = $this->storeMessage($conversation, $user, $body, $request->file('attachments', []));
+        $this->recordRapidMessages($user);
 
         return response()->json(new MessageResource($message), 201);
     }
@@ -146,6 +149,7 @@ class ConversationController extends Controller
 
         $body = trim((string) ($request->input('body') ?? $request->input('message')));
         $message = $this->storeMessage($conversation, $user, $body, $request->file('attachments', []));
+        $this->recordRapidMessages($user);
 
         return response()->json(new MessageResource($message), 201);
     }
@@ -190,6 +194,28 @@ class ConversationController extends Controller
         ]);
 
         return $message->loadMissing('attachments');
+    }
+
+    private function recordRapidMessages(User $user): void
+    {
+        $settings = config('security.fraud.signals.rapid_messages', []);
+        $threshold = (int) ($settings['threshold'] ?? 12);
+        $windowMinutes = (int) ($settings['window_minutes'] ?? 5);
+        $weight = (int) ($settings['weight'] ?? 5);
+
+        $count = Message::where('sender_id', $user->id)
+            ->where('created_at', '>=', now()->subMinutes($windowMinutes))
+            ->count();
+
+        if ($count >= $threshold) {
+            $this->fraudSignals->recordSignal(
+                $user,
+                'rapid_messages',
+                $weight,
+                ['count' => $count],
+                $windowMinutes
+            );
+        }
     }
 
     private function storeAttachment(Conversation $conversation, Message $message, User $sender, UploadedFile $file): ?ChatAttachment

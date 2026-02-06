@@ -30,6 +30,9 @@ use App\Http\Controllers\ContractSignatureController;
 use App\Http\Controllers\ContractPdfController;
 use App\Http\Controllers\TransactionPaymentController;
 use App\Http\Controllers\StripeWebhookController;
+use App\Http\Controllers\Security\MfaController;
+use App\Http\Controllers\Security\SessionController;
+use App\Http\Controllers\Admin\UserSecurityController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\KycSubmissionController;
@@ -42,7 +45,7 @@ $authRoutes = function () {
     Route::post('register', [AuthController::class, 'register'])->middleware('throttle:auth');
     Route::post('login', [AuthController::class, 'login'])->middleware('throttle:auth');
 
-    Route::middleware('auth:sanctum')->group(function () {
+    Route::middleware(['auth:sanctum', 'session_activity'])->group(function () {
         Route::post('logout', [AuthController::class, 'logout']);
         Route::get('me', [AuthController::class, 'me']);
     });
@@ -66,8 +69,21 @@ $apiRoutes = function () use ($authRoutes) {
     Route::get('/geocode', [GeocodingController::class, 'lookup'])->middleware('throttle:listings_search');
     Route::get('/geocode/suggest', [GeocodeSuggestController::class, 'suggest'])->middleware('throttle:geocode_suggest');
 
-    Route::middleware('auth:sanctum')->group(function () {
-        Route::get('/landlord/listings', [LandlordListingController::class, 'index']);
+    Route::middleware(['auth:sanctum', 'session_activity'])->group(function () {
+        Route::prefix('security')->group(function () {
+            Route::post('/mfa/setup', [MfaController::class, 'setup'])->middleware('throttle:mfa_sensitive');
+            Route::post('/mfa/confirm', [MfaController::class, 'confirm'])->middleware('throttle:mfa_sensitive');
+            Route::post('/mfa/verify', [MfaController::class, 'verify'])->middleware('throttle:mfa_verify');
+            Route::post('/mfa/disable', [MfaController::class, 'disable'])->middleware('throttle:mfa_sensitive');
+            Route::post('/mfa/recovery-codes', [MfaController::class, 'regenerateRecoveryCodes'])->middleware('throttle:mfa_sensitive');
+
+            Route::get('/sessions', [SessionController::class, 'index']);
+            Route::post('/sessions/{session}/revoke', [SessionController::class, 'revoke']);
+            Route::post('/sessions/revoke-others', [SessionController::class, 'revokeOthers']);
+        });
+
+        Route::middleware('mfa')->group(function () {
+            Route::get('/landlord/listings', [LandlordListingController::class, 'index']);
         Route::post('/landlord/listings', [LandlordListingController::class, 'store'])->middleware('throttle:landlord_write');
         Route::put('/landlord/listings/{listing}', [LandlordListingController::class, 'update'])->middleware('throttle:landlord_write');
         Route::patch('/landlord/listings/{listing}/publish', [LandlordListingController::class, 'publish'])->middleware('throttle:landlord_write');
@@ -152,7 +168,7 @@ $apiRoutes = function () use ($authRoutes) {
 
         Route::prefix('admin')->group(function () {
             Route::post('/impersonate/stop', [ImpersonationController::class, 'stop']);
-            Route::middleware('role:admin')->group(function () {
+            Route::middleware(['role:admin', 'admin_mfa'])->group(function () {
                 Route::get('/kyc/submissions', [KycSubmissionAdminController::class, 'index']);
                 Route::get('/kyc/submissions/{submission}', [KycSubmissionAdminController::class, 'show']);
                 Route::patch('/kyc/submissions/{submission}/approve', [KycSubmissionAdminController::class, 'approve']);
@@ -162,6 +178,10 @@ $apiRoutes = function () use ($authRoutes) {
                 Route::get('/ratings/{rating}', [RatingAdminController::class, 'show']);
                 Route::delete('/ratings/{rating}', [RatingAdminController::class, 'destroy']);
                 Route::patch('/users/{user}/flag-suspicious', [RatingAdminController::class, 'flagUser']);
+                Route::get('/users/{user}/security', [UserSecurityController::class, 'overview']);
+                Route::get('/users/{user}/sessions', [UserSecurityController::class, 'sessions']);
+                Route::post('/users/{user}/sessions/revoke-all', [UserSecurityController::class, 'revokeAllSessions']);
+                Route::post('/users/{user}/fraud/clear', [UserSecurityController::class, 'clearSuspicion']);
                 Route::get('/moderation/queue', [ModerationController::class, 'queue']);
                 Route::get('/moderation/reports/{report}', [ModerationController::class, 'show']);
                 Route::patch('/moderation/reports/{report}', [ModerationController::class, 'update']);
@@ -175,6 +195,7 @@ $apiRoutes = function () use ($authRoutes) {
                 Route::patch('/transactions/{transaction}/cancel', [TransactionAdminController::class, 'cancel']);
                 Route::post('/transactions/{transaction}/payout', [TransactionAdminController::class, 'payout']);
             });
+        });
         });
     });
 };
