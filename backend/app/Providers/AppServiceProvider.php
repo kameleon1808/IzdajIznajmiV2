@@ -171,5 +171,19 @@ class AppServiceProvider extends ServiceProvider
                     return response()->json(['message' => 'Chat limit reached. Please slow down.'], 429);
                 });
         });
+
+        RateLimiter::for('mfa_verify', function (Request $request) {
+            $key = sprintf('mfa_verify:%s:%s', $request->user()?->id ?? 'guest', $request->ip());
+            return Limit::perMinute(5)
+                ->by($key)
+                ->response(function () {
+                    return response()->json(['message' => 'Too many MFA attempts. Please wait a minute.'], 429);
+                });
+        });
+
+        RateLimiter::for('mfa_sensitive', function (Request $request) {
+            $key = sprintf('mfa_sensitive:%s:%s', $request->user()?->id ?? 'guest', $request->ip());
+            return Limit::perMinute(5)->by($key);
+        });
     }
 }

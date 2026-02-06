@@ -71,6 +71,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'permission' => PermissionMiddleware::class,
             'role_or_permission' => RoleOrPermissionMiddleware::class,
             'chat_attachments' => ChatAttachmentRateLimit::class,
+            'mfa' => \App\Http\Middleware\EnsureMfaVerified::class,
+            'admin_mfa' => \App\Http\Middleware\RequireMfaForAdmin::class,
+            'session_activity' => \App\Http\Middleware\SessionActivity::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
