@@ -22,6 +22,11 @@ class Notification extends Model
     public const TYPE_KYC_SUBMISSION_RECEIVED = 'kyc.submission_received';
     public const TYPE_KYC_APPROVED = 'kyc.approved';
     public const TYPE_KYC_REJECTED = 'kyc.rejected';
+    public const TYPE_TRANSACTION_CONTRACT_READY = 'transaction.contract_ready';
+    public const TYPE_TRANSACTION_SIGNED_BY_OTHER_PARTY = 'transaction.signed_by_other_party';
+    public const TYPE_TRANSACTION_FULLY_SIGNED = 'transaction.fully_signed';
+    public const TYPE_TRANSACTION_DEPOSIT_PAID = 'transaction.deposit_paid';
+    public const TYPE_TRANSACTION_MOVE_IN_CONFIRMED = 'transaction.move_in_confirmed';
 
     protected $fillable = [
         'user_id',

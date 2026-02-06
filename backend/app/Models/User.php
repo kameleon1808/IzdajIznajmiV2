@@ -136,4 +136,14 @@ class User extends Authenticatable
     {
         return $this->hasMany(KycSubmission::class);
     }
+
+    public function rentalTransactionsAsLandlord()
+    {
+        return $this->hasMany(RentalTransaction::class, 'landlord_id');
+    }
+
+    public function rentalTransactionsAsSeeker()
+    {
+        return $this->hasMany(RentalTransaction::class, 'seeker_id');
+    }
 }

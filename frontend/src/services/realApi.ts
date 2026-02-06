@@ -14,6 +14,10 @@ import type {
   Message,
   PublicProfile,
   Rating,
+  RentalTransaction,
+  Contract as ContractType,
+  ContractSignature,
+  Payment as PaymentType,
   Report,
   ViewingRequest,
   ViewingSlot,
@@ -201,6 +205,69 @@ const mapViewingRequest = (data: any): ViewingRequest => ({
     seekerId: String(data.participants?.seekerId ?? data.seekerId ?? data.seeker_id ?? ''),
     landlordId: String(data.participants?.landlordId ?? data.landlordId ?? data.landlord_id ?? ''),
   },
+})
+
+const mapContractSignature = (data: any): ContractSignature => ({
+  id: String(data.id),
+  userId: String(data.userId ?? data.user_id ?? ''),
+  role: data.role,
+  signedAt: data.signedAt ?? data.signed_at ?? null,
+  signatureMethod: data.signatureMethod ?? data.signature_method ?? undefined,
+  signatureData: data.signatureData ?? data.signature_data ?? undefined,
+})
+
+const mapContract = (data: any): ContractType => ({
+  id: String(data.id),
+  version: Number(data.version ?? 0),
+  templateKey: data.templateKey ?? data.template_key ?? '',
+  status: data.status,
+  contractHash: data.contractHash ?? data.contract_hash ?? undefined,
+  pdfUrl: data.pdfUrl ?? data.pdf_url ?? undefined,
+  createdAt: data.createdAt ?? data.created_at ?? undefined,
+  signatures: Array.isArray(data.signatures?.data ?? data.signatures)
+    ? (data.signatures?.data ?? data.signatures).map(mapContractSignature)
+    : [],
+})
+
+const mapPayment = (data: any): PaymentType => ({
+  id: String(data.id),
+  provider: data.provider ?? 'stripe',
+  type: data.type ?? 'deposit',
+  amount: Number(data.amount ?? 0),
+  currency: data.currency ?? 'EUR',
+  status: data.status ?? 'pending',
+  receiptUrl: data.receiptUrl ?? data.receipt_url ?? null,
+  createdAt: data.createdAt ?? data.created_at ?? undefined,
+})
+
+const mapTransaction = (data: any): RentalTransaction => ({
+  id: String(data.id),
+  status: data.status,
+  depositAmount: data.depositAmount != null ? Number(data.depositAmount) : data.deposit_amount != null ? Number(data.deposit_amount) : null,
+  rentAmount: data.rentAmount != null ? Number(data.rentAmount) : data.rent_amount != null ? Number(data.rent_amount) : null,
+  currency: data.currency ?? 'EUR',
+  startedAt: data.startedAt ?? data.started_at ?? null,
+  completedAt: data.completedAt ?? data.completed_at ?? null,
+  createdAt: data.createdAt ?? data.created_at ?? null,
+  updatedAt: data.updatedAt ?? data.updated_at ?? null,
+  listing: data.listing
+    ? {
+        id: String(data.listing.id ?? data.listingId ?? data.listing_id ?? ''),
+        title: data.listing.title ?? data.listingTitle,
+        address: data.listing.address ?? data.listingAddress,
+        city: data.listing.city,
+        coverImage: data.listing.coverImage ?? data.listing.cover_image,
+        status: data.listing.status,
+      }
+    : null,
+  participants: {
+    landlordId: String(data.participants?.landlordId ?? data.landlordId ?? data.landlord_id ?? ''),
+    seekerId: String(data.participants?.seekerId ?? data.seekerId ?? data.seeker_id ?? ''),
+  },
+  contract: data.contract ? mapContract(data.contract) : null,
+  payments: Array.isArray(data.payments?.data ?? data.payments)
+    ? (data.payments?.data ?? data.payments).map(mapPayment)
+    : [],
 })
 
 const mapSavedSearch = (data: any): SavedSearch => ({
@@ -945,6 +1012,82 @@ export const cancelViewingRequest = async (id: string): Promise<ViewingRequest> 
 export const downloadViewingRequestIcs = async (id: string): Promise<Blob> => {
   const { data } = await apiClient.get(`/viewing-requests/${id}/ics`, { responseType: 'blob' })
   return data as Blob
+}
+
+export const createTransaction = async (payload: {
+  listingId: string
+  seekerId: string
+  depositAmount?: number | null
+  rentAmount?: number | null
+  currency?: string
+}): Promise<RentalTransaction> => {
+  const { data } = await apiClient.post('/transactions', payload)
+  return mapTransaction(data.data ?? data)
+}
+
+export const getTransaction = async (id: string): Promise<RentalTransaction> => {
+  const { data } = await apiClient.get(`/transactions/${id}`)
+  return mapTransaction(data.data ?? data)
+}
+
+export const generateTransactionContract = async (
+  transactionId: string,
+  payload: { startDate: string; terms?: string },
+): Promise<ContractType> => {
+  const { data } = await apiClient.post(`/transactions/${transactionId}/contracts`, payload)
+  return mapContract(data.data ?? data)
+}
+
+export const getLatestTransactionContract = async (transactionId: string): Promise<ContractType> => {
+  const { data } = await apiClient.get(`/transactions/${transactionId}/contracts/latest`)
+  return mapContract(data.data ?? data)
+}
+
+export const signTransactionContract = async (
+  contractId: string,
+  payload: { typedName: string; consent: boolean },
+): Promise<ContractType> => {
+  const { data } = await apiClient.post(`/contracts/${contractId}/sign`, payload)
+  return mapContract(data.data ?? data)
+}
+
+export const createDepositSession = async (transactionId: string): Promise<{ checkoutUrl: string; payment: PaymentType }> => {
+  const { data } = await apiClient.post(`/transactions/${transactionId}/payments/deposit/session`)
+  return {
+    checkoutUrl: data.checkoutUrl,
+    payment: mapPayment(data.payment ?? data.data?.payment ?? data.payment_data ?? data.paymentPayload ?? {}),
+  }
+}
+
+export const confirmMoveIn = async (transactionId: string): Promise<RentalTransaction> => {
+  const { data } = await apiClient.post(`/transactions/${transactionId}/move-in/confirm`)
+  return mapTransaction(data.data ?? data)
+}
+
+export const getAdminTransactions = async (params?: { status?: string }): Promise<RentalTransaction[]> => {
+  const { data } = await apiClient.get('/admin/transactions', { params })
+  const list = (data.data ?? data) as any[]
+  return list.map(mapTransaction)
+}
+
+export const getAdminTransaction = async (id: string): Promise<RentalTransaction> => {
+  const { data } = await apiClient.get(`/admin/transactions/${id}`)
+  return mapTransaction(data.data ?? data)
+}
+
+export const markAdminTransactionDisputed = async (id: string): Promise<RentalTransaction> => {
+  const { data } = await apiClient.patch(`/admin/transactions/${id}/mark-disputed`)
+  return mapTransaction(data.data ?? data)
+}
+
+export const cancelAdminTransaction = async (id: string): Promise<RentalTransaction> => {
+  const { data } = await apiClient.patch(`/admin/transactions/${id}/cancel`)
+  return mapTransaction(data.data ?? data)
+}
+
+export const payoutAdminTransaction = async (id: string): Promise<RentalTransaction> => {
+  const { data } = await apiClient.post(`/admin/transactions/${id}/payout`)
+  return mapTransaction(data.data ?? data)
 }
 
 export const submitKycSubmission = async (formData: FormData): Promise<KycSubmission> => {

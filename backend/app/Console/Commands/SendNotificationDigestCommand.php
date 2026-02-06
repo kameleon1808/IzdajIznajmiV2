@@ -81,6 +81,11 @@ class SendNotificationDigestCommand extends Command
                 Notification::TYPE_KYC_SUBMISSION_RECEIVED => 'KYC Submissions',
                 Notification::TYPE_KYC_APPROVED => 'KYC Approved',
                 Notification::TYPE_KYC_REJECTED => 'KYC Rejected',
+                Notification::TYPE_TRANSACTION_CONTRACT_READY => 'Contracts Ready',
+                Notification::TYPE_TRANSACTION_SIGNED_BY_OTHER_PARTY => 'Contract Signatures',
+                Notification::TYPE_TRANSACTION_FULLY_SIGNED => 'Contracts Completed',
+                Notification::TYPE_TRANSACTION_DEPOSIT_PAID => 'Deposits Paid',
+                Notification::TYPE_TRANSACTION_MOVE_IN_CONFIRMED => 'Move-ins Confirmed',
             ];
 
             $summaryParts = [];

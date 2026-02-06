@@ -200,6 +200,74 @@ export interface PublicProfile {
   }>
 }
 
+export type TransactionStatus =
+  | 'initiated'
+  | 'contract_generated'
+  | 'seeker_signed'
+  | 'landlord_signed'
+  | 'deposit_paid'
+  | 'move_in_confirmed'
+  | 'completed'
+  | 'cancelled'
+  | 'disputed'
+
+export interface ContractSignature {
+  id: string
+  userId: string
+  role: 'seeker' | 'landlord'
+  signedAt?: string | null
+  signatureMethod?: string
+  signatureData?: Record<string, any>
+}
+
+export interface Contract {
+  id: string
+  version: number
+  templateKey: string
+  status: 'draft' | 'final'
+  contractHash?: string
+  pdfUrl?: string
+  createdAt?: string
+  signatures: ContractSignature[]
+}
+
+export interface Payment {
+  id: string
+  provider: string
+  type: 'deposit' | 'rent'
+  amount: number
+  currency: string
+  status: 'pending' | 'succeeded' | 'failed' | 'refunded' | 'cancelled'
+  receiptUrl?: string | null
+  createdAt?: string
+}
+
+export interface RentalTransaction {
+  id: string
+  status: TransactionStatus
+  depositAmount?: number | null
+  rentAmount?: number | null
+  currency: string
+  startedAt?: string | null
+  completedAt?: string | null
+  createdAt?: string
+  updatedAt?: string
+  listing: {
+    id: string
+    title?: string
+    address?: string
+    city?: string
+    coverImage?: string
+    status?: Listing['status']
+  } | null
+  participants: {
+    landlordId: string
+    seekerId: string
+  }
+  contract: Contract | null
+  payments: Payment[]
+}
+
 export interface Rating {
   id: string
   listingId: string

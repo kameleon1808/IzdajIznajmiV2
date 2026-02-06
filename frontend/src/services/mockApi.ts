@@ -5,16 +5,20 @@ import type {
   Application,
   Booking,
   Conversation,
+  Contract,
+  ContractSignature,
   KycDocument,
   KycSubmission,
   Listing,
   ListingFilters,
   ListingSearchFacets,
   Message,
+  Payment,
   PublicProfile,
   Rating,
   Report,
   Review,
+  RentalTransaction,
   SavedSearch,
   SearchSuggestion,
   ViewingRequest,
@@ -351,6 +355,18 @@ const toAppListing = (listingId: string) => {
   }
 }
 
+const toTransactionListing = (listingId: string) => {
+  const listing = listings.find((l) => l.id === listingId)
+  return {
+    id: listingId,
+    title: listing?.title ?? 'Listing',
+    address: listing?.address,
+    city: listing?.city,
+    coverImage: listing?.coverImage ?? listing?.images?.[0],
+    status: (listing as any)?.status ?? 'active',
+  }
+}
+
 const applications: Application[] = [
   {
     id: 'app1',
@@ -375,6 +391,28 @@ const applications: Application[] = [
     createdAt: '2026-01-10T09:20:00Z',
     listing: toAppListing('3'),
     participants: { seekerId: 'tenant-2', landlordId: 'landlord-1' },
+  },
+]
+
+const transactions: RentalTransaction[] = [
+  {
+    id: 'tx-1',
+    status: 'contract_generated',
+    depositAmount: 600,
+    rentAmount: 1200,
+    currency: 'EUR',
+    startedAt: '2026-01-15T10:00:00Z',
+    listing: toTransactionListing('2'),
+    participants: { landlordId: 'landlord-2', seekerId: 'tenant-1' },
+    contract: {
+      id: 'ctr-1',
+      version: 1,
+      templateKey: 'standard_v1',
+      status: 'draft',
+      pdfUrl: '/api/v1/contracts/ctr-1/pdf',
+      signatures: [],
+    },
+    payments: [],
   },
 ]
 
@@ -967,6 +1005,162 @@ DTEND:${req?.slot?.endsAt ?? ''}
 END:VEVENT
 END:VCALENDAR`
   return simulate(new Blob([text], { type: 'text/calendar' }))
+}
+
+export async function createTransaction(payload: {
+  listingId: string
+  seekerId: string
+  depositAmount?: number | null
+  rentAmount?: number | null
+  currency?: string
+}): Promise<RentalTransaction> {
+  await delay()
+  const now = new Date().toISOString()
+  const listing = toTransactionListing(payload.listingId)
+  const listingOwner = listings.find((l) => l.id === payload.listingId)?.ownerId ?? 'landlord-1'
+  const created: RentalTransaction = {
+    id: makeId(),
+    status: 'initiated',
+    depositAmount: payload.depositAmount ?? null,
+    rentAmount: payload.rentAmount ?? null,
+    currency: payload.currency ?? 'EUR',
+    startedAt: now,
+    createdAt: now,
+    listing,
+    participants: { landlordId: String(listingOwner), seekerId: payload.seekerId },
+    contract: null,
+    payments: [],
+  }
+  transactions.unshift(created)
+  return JSON.parse(JSON.stringify(created))
+}
+
+export async function getTransaction(id: string): Promise<RentalTransaction> {
+  await delay()
+  const tx = transactions.find((t) => t.id === id)
+  if (!tx) throw new Error('Transaction not found')
+  return JSON.parse(JSON.stringify(tx))
+}
+
+export async function generateTransactionContract(
+  transactionId: string,
+  _payload: { startDate: string; terms?: string },
+): Promise<Contract> {
+  await delay()
+  const tx = transactions.find((t) => t.id === transactionId)
+  if (!tx) throw new Error('Transaction not found')
+  const contract: Contract = {
+    id: tx.contract?.id ?? makeId(),
+    version: tx.contract?.version ?? 1,
+    templateKey: 'standard_v1',
+    status: 'draft',
+    pdfUrl: '/api/v1/contracts/mock.pdf',
+    signatures: [],
+  }
+  tx.contract = contract
+  tx.status = 'contract_generated'
+  return JSON.parse(JSON.stringify(contract))
+}
+
+export async function getLatestTransactionContract(transactionId: string): Promise<Contract> {
+  await delay()
+  const tx = transactions.find((t) => t.id === transactionId)
+  if (!tx?.contract) throw new Error('Contract not found')
+  return JSON.parse(JSON.stringify(tx.contract))
+}
+
+export async function signTransactionContract(
+  contractId: string,
+  payload: { typedName: string; consent: boolean },
+): Promise<Contract> {
+  await delay()
+  const tx = transactions.find((t) => t.contract?.id === contractId)
+  if (!tx || !tx.contract) throw new Error('Contract not found')
+
+  const role: ContractSignature['role'] = tx.contract.signatures.find((s) => s.role === 'seeker') ? 'landlord' : 'seeker'
+  tx.contract.signatures.push({
+    id: makeId(),
+    userId: role === 'seeker' ? tx.participants.seekerId : tx.participants.landlordId,
+    role,
+    signedAt: new Date().toISOString(),
+    signatureMethod: 'typed_name',
+    signatureData: { typed_name: payload.typedName, consent: payload.consent },
+  })
+
+  const hasSeeker = tx.contract.signatures.some((s) => s.role === 'seeker')
+  const hasLandlord = tx.contract.signatures.some((s) => s.role === 'landlord')
+
+  if (hasSeeker && hasLandlord) {
+    tx.contract.status = 'final'
+    tx.status = 'landlord_signed'
+  } else {
+    tx.status = role === 'seeker' ? 'seeker_signed' : 'landlord_signed'
+  }
+
+  return JSON.parse(JSON.stringify(tx.contract))
+}
+
+export async function createDepositSession(transactionId: string): Promise<{ checkoutUrl: string; payment: Payment }> {
+  await delay()
+  const tx = transactions.find((t) => t.id === transactionId)
+  if (!tx) throw new Error('Transaction not found')
+  const payment: Payment = {
+    id: makeId(),
+    provider: 'stripe',
+    type: 'deposit',
+    amount: Number(tx.depositAmount ?? 0),
+    currency: tx.currency,
+    status: 'pending',
+    receiptUrl: null,
+    createdAt: new Date().toISOString(),
+  }
+  tx.payments.push(payment)
+  return { checkoutUrl: 'https://checkout.stripe.test/session', payment }
+}
+
+export async function confirmMoveIn(transactionId: string): Promise<RentalTransaction> {
+  await delay()
+  const tx = transactions.find((t) => t.id === transactionId)
+  if (!tx) throw new Error('Transaction not found')
+  tx.status = 'move_in_confirmed'
+  return JSON.parse(JSON.stringify(tx))
+}
+
+export async function getAdminTransactions(params?: { status?: string }): Promise<RentalTransaction[]> {
+  await delay()
+  if (params?.status) {
+    return JSON.parse(JSON.stringify(transactions.filter((t) => t.status === params.status)))
+  }
+  return JSON.parse(JSON.stringify(transactions))
+}
+
+export async function getAdminTransaction(id: string): Promise<RentalTransaction> {
+  return getTransaction(id)
+}
+
+export async function markAdminTransactionDisputed(id: string): Promise<RentalTransaction> {
+  await delay()
+  const tx = transactions.find((t) => t.id === id)
+  if (!tx) throw new Error('Transaction not found')
+  tx.status = 'disputed'
+  return JSON.parse(JSON.stringify(tx))
+}
+
+export async function cancelAdminTransaction(id: string): Promise<RentalTransaction> {
+  await delay()
+  const tx = transactions.find((t) => t.id === id)
+  if (!tx) throw new Error('Transaction not found')
+  tx.status = 'cancelled'
+  return JSON.parse(JSON.stringify(tx))
+}
+
+export async function payoutAdminTransaction(id: string): Promise<RentalTransaction> {
+  await delay()
+  const tx = transactions.find((t) => t.id === id)
+  if (!tx) throw new Error('Transaction not found')
+  tx.status = 'completed'
+  tx.completedAt = new Date().toISOString()
+  return JSON.parse(JSON.stringify(tx))
 }
 
 export async function getConversations(): Promise<Conversation[]> {

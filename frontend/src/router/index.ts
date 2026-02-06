@@ -16,6 +16,8 @@ import AdminRatings from '../pages/AdminRatings.vue'
 import AdminDashboard from '../pages/AdminDashboard.vue'
 import AdminModeration from '../pages/AdminModeration.vue'
 import AdminKyc from '../pages/AdminKyc.vue'
+import AdminTransactions from '../pages/AdminTransactions.vue'
+import AdminTransactionDetail from '../pages/AdminTransactionDetail.vue'
 import Reviews from '../pages/Reviews.vue'
 import Search from '../pages/Search.vue'
 import SavedSearches from '../pages/SavedSearches.vue'
@@ -29,6 +31,7 @@ import { useToastStore } from '../stores/toast'
 import Login from '../pages/Login.vue'
 import Register from '../pages/Register.vue'
 import KycVerification from '../pages/KycVerification.vue'
+import TransactionDetail from '../pages/TransactionDetail.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -111,6 +114,12 @@ const router = createRouter({
     {
       path: '/messages/:id',
       redirect: (to) => ({ path: `/chat/${to.params.id}`, query: to.query }),
+    },
+    {
+      path: '/transactions/:id',
+      name: 'transaction-detail',
+      component: TransactionDetail,
+      meta: { topBar: { type: 'back', title: 'Transaction' }, showTabs: false, roles: ['seeker', 'landlord', 'admin'] },
     },
     { path: '/profile', name: 'profile', component: Profile, meta: { topBar: { type: 'title', title: 'Profile' }, showTabs: true } },
     {
@@ -196,6 +205,18 @@ const router = createRouter({
       name: 'admin-kyc',
       component: AdminKyc,
       meta: { topBar: { type: 'title', title: 'KYC Review' }, showTabs: false, roles: ['admin'] },
+    },
+    {
+      path: '/admin/transactions',
+      name: 'admin-transactions',
+      component: AdminTransactions,
+      meta: { topBar: { type: 'title', title: 'Transactions' }, showTabs: false, roles: ['admin'] },
+    },
+    {
+      path: '/admin/transactions/:id',
+      name: 'admin-transaction-detail',
+      component: AdminTransactionDetail,
+      meta: { topBar: { type: 'back', title: 'Transaction Detail' }, showTabs: false, roles: ['admin'] },
     },
     {
       path: '/admin/moderation/reports/:id',

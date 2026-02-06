@@ -24,11 +24,18 @@ use App\Http\Controllers\SavedSearchController;
 use App\Http\Controllers\ListingLocationController;
 use App\Http\Controllers\ViewingRequestController;
 use App\Http\Controllers\ViewingSlotController;
+use App\Http\Controllers\RentalTransactionController;
+use App\Http\Controllers\TransactionContractController;
+use App\Http\Controllers\ContractSignatureController;
+use App\Http\Controllers\ContractPdfController;
+use App\Http\Controllers\TransactionPaymentController;
+use App\Http\Controllers\StripeWebhookController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\KycSubmissionController;
 use App\Http\Controllers\KycDocumentController;
 use App\Http\Controllers\Admin\KycSubmissionAdminController;
+use App\Http\Controllers\Admin\TransactionAdminController;
 use Illuminate\Support\Facades\Route;
 
 $authRoutes = function () {
@@ -46,6 +53,7 @@ $apiRoutes = function () use ($authRoutes) {
 
     Route::get('/health', [HealthController::class, 'liveness']);
     Route::get('/health/ready', [HealthController::class, 'readiness']);
+    Route::post('/webhooks/stripe', [StripeWebhookController::class, 'handle']);
 
     Route::get('/listings', [ListingController::class, 'index'])->middleware('throttle:listings_search');
     Route::get('/listings/{listing}', [ListingController::class, 'show']);
@@ -128,6 +136,15 @@ $apiRoutes = function () use ($authRoutes) {
         Route::put('/saved-searches/{savedSearch}', [SavedSearchController::class, 'update']);
         Route::delete('/saved-searches/{savedSearch}', [SavedSearchController::class, 'destroy']);
 
+        Route::post('/transactions', [RentalTransactionController::class, 'store']);
+        Route::get('/transactions/{transaction}', [RentalTransactionController::class, 'show']);
+        Route::post('/transactions/{transaction}/contracts', [TransactionContractController::class, 'store']);
+        Route::get('/transactions/{transaction}/contracts/latest', [TransactionContractController::class, 'latest']);
+        Route::post('/contracts/{contract}/sign', [ContractSignatureController::class, 'sign']);
+        Route::get('/contracts/{contract}/pdf', [ContractPdfController::class, 'show'])->name('contracts.pdf');
+        Route::post('/transactions/{transaction}/payments/deposit/session', [TransactionPaymentController::class, 'createDepositSession']);
+        Route::post('/transactions/{transaction}/move-in/confirm', [TransactionPaymentController::class, 'confirmMoveIn']);
+
         Route::post('/kyc/submissions', [KycSubmissionController::class, 'store']);
         Route::get('/kyc/submissions/me', [KycSubmissionController::class, 'me']);
         Route::post('/kyc/submissions/{submission}/withdraw', [KycSubmissionController::class, 'withdraw']);
@@ -152,6 +169,11 @@ $apiRoutes = function () use ($authRoutes) {
                 Route::get('/kpi/conversion', [KpiController::class, 'conversion']);
                 Route::get('/kpi/trends', [KpiController::class, 'trends']);
                 Route::post('/impersonate/{user}', [ImpersonationController::class, 'start'])->whereNumber('user');
+                Route::get('/transactions', [TransactionAdminController::class, 'index']);
+                Route::get('/transactions/{transaction}', [TransactionAdminController::class, 'show']);
+                Route::patch('/transactions/{transaction}/mark-disputed', [TransactionAdminController::class, 'markDisputed']);
+                Route::patch('/transactions/{transaction}/cancel', [TransactionAdminController::class, 'cancel']);
+                Route::post('/transactions/{transaction}/payout', [TransactionAdminController::class, 'payout']);
             });
         });
     });

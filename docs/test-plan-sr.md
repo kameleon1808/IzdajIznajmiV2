@@ -65,6 +65,17 @@
 | KYC-05 | Admin session | 1) PATCH /api/v1/admin/kyc/submissions/{id}/reject sa note | 200, status rejected + note | reject |
 | KYC-06 | Non-owner session | 1) GET /api/v1/kyc/documents/{id} | 403 | access control |
 
+### Transactions (ugovor, e-potpis, depozit)
+| ID | Precondition | Koraci | Očekivano | Napomena |
+| --- | --- | --- | --- | --- |
+| TX-01 | Landlord session, postoji listing + accepted aplikacija | 1) POST /api/v1/transactions (listingId, seekerId, depositAmount, rentAmount) | 201, status initiated | start |
+| TX-02 | TX-01 | 1) POST /api/v1/transactions/{id}/contracts (startDate) | 201, generisan PDF u private storage | contract |
+| TX-03 | TX-02 | 1) POST /api/v1/contracts/{contract}/sign (seeker) 2) POST /api/v1/contracts/{contract}/sign (landlord) | contract final, status landlord_signed | signing |
+| TX-04 | TX-03 + Stripe CLI | 1) POST /api/v1/transactions/{id}/payments/deposit/session 2) webhook checkout.session.completed | status deposit_paid | payment |
+| TX-05 | TX-04 | 1) POST /api/v1/transactions/{id}/move-in/confirm (landlord) | status move_in_confirmed | move-in |
+| TX-06 | Admin session | 1) POST /api/v1/admin/transactions/{id}/payout | status completed | payout |
+| TX-07 | Non-participant session | 1) GET /api/v1/transactions/{id} | 403 | authz |
+
 ### Saved searches & alerts
 | ID | Precondition | Koraci | Očekivano | Napomena |
 | --- | --- | --- | --- | --- |

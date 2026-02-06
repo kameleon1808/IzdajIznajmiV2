@@ -8,11 +8,13 @@ use App\Models\Listing;
 use App\Models\SavedSearch;
 use App\Observers\ListingObserver;
 use App\Models\Rating;
+use App\Models\RentalTransaction;
 use App\Models\ViewingRequest;
 use App\Models\ViewingSlot;
 use App\Policies\BookingRequestPolicy;
 use App\Policies\ApplicationPolicy;
 use App\Policies\ListingPolicy;
+use App\Policies\RentalTransactionPolicy;
 use App\Policies\SavedSearchPolicy;
 use App\Policies\ViewingRequestPolicy;
 use App\Policies\ViewingSlotPolicy;
@@ -110,6 +112,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Application::class, ApplicationPolicy::class);
         Gate::policy(ViewingSlot::class, ViewingSlotPolicy::class);
         Gate::policy(ViewingRequest::class, ViewingRequestPolicy::class);
+        Gate::policy(RentalTransaction::class, RentalTransactionPolicy::class);
 
         RateLimiter::for('api', function (Request $request) {
             return Limit::perMinute(60)->by($request->user()?->id ?? $request->ip());

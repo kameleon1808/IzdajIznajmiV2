@@ -7,12 +7,15 @@ import Button from '../components/ui/Button.vue'
 import EmptyState from '../components/ui/EmptyState.vue'
 import ListSkeleton from '../components/ui/ListSkeleton.vue'
 import ErrorState from '../components/ui/ErrorState.vue'
+import ModalSheet from '../components/ui/ModalSheet.vue'
+import Input from '../components/ui/Input.vue'
 import { useAuthStore } from '../stores/auth'
 import { useChatStore } from '../stores/chat'
 import { useBookingsStore } from '../stores/bookings'
 import { useListingsStore } from '../stores/listings'
 import { useRequestsStore } from '../stores/requests'
 import { useViewingsStore } from '../stores/viewings'
+import { useTransactionsStore } from '../stores/transactions'
 import { useToastStore } from '../stores/toast'
 import type { Application, ViewingRequest } from '../types'
 import { resolveBookingsTabs } from '../utils/viewings'
@@ -21,6 +24,7 @@ const bookingsStore = useBookingsStore()
 const requestsStore = useRequestsStore()
 const viewingsStore = useViewingsStore()
 const listingsStore = useListingsStore()
+const transactionsStore = useTransactionsStore()
 const auth = useAuthStore()
 const toast = useToastStore()
 const route = useRoute()
@@ -33,6 +37,11 @@ const highlightedApplicationId = computed(() => route.query.applicationId as str
 const highlightedViewingRequestId = computed(() => route.query.viewingRequestId as string | undefined)
 const viewingRefs = ref<Record<string, HTMLElement | null>>({})
 const selectedListingFilter = ref<string>('')
+const showContractSheet = ref(false)
+const contractDeposit = ref('')
+const contractRent = ref('')
+const contractLoading = ref(false)
+const pendingContractRequest = ref<Application | null>(null)
 
 const reservationTabs = computed<string[]>(() => {
   if (auth.hasRole('seeker')) return ['booked', 'history', 'requests']
@@ -228,6 +237,42 @@ const updateStatus = async (id: string, status: Application['status']) => {
   } catch (error) {
     toast.push({ title: 'Update failed', message: (error as Error).message, type: 'error' })
   }
+}
+
+const openStartContract = (request: Application) => {
+  if (!request.listing?.id) return
+  pendingContractRequest.value = request
+  const baseAmount = request.listing.pricePerNight ? String(request.listing.pricePerNight) : ''
+  contractRent.value = baseAmount
+  contractDeposit.value = baseAmount
+  showContractSheet.value = true
+}
+
+const startContract = async () => {
+  if (!pendingContractRequest.value?.listing?.id) return
+  contractLoading.value = true
+  try {
+    const depositValue = contractDeposit.value ? Number(contractDeposit.value) : null
+    const rentValue = contractRent.value ? Number(contractRent.value) : null
+    const tx = await transactionsStore.startTransaction({
+      listingId: pendingContractRequest.value.listing.id,
+      seekerId: pendingContractRequest.value.participants.seekerId,
+      depositAmount: Number.isFinite(depositValue) ? depositValue : null,
+      rentAmount: Number.isFinite(rentValue) ? rentValue : null,
+    })
+    showContractSheet.value = false
+    pendingContractRequest.value = null
+    router.push(`/transactions/${tx.id}`)
+  } catch (error) {
+    toast.push({ title: 'Failed to start contract', message: (error as Error).message, type: 'error' })
+  } finally {
+    contractLoading.value = false
+  }
+}
+
+const closeContractSheet = () => {
+  showContractSheet.value = false
+  pendingContractRequest.value = null
 }
 
 const confirmViewing = async (id: string) => {
@@ -440,6 +485,9 @@ const scrollToHighlightedViewing = () => {
             <div class="flex justify-end" v-else-if="auth.hasRole('seeker') && request.status === 'submitted'">
               <Button variant="secondary" size="md" @click="updateStatus(request.id, 'withdrawn')">Withdraw</Button>
             </div>
+            <div class="flex justify-end" v-else-if="auth.hasRole('landlord') && request.status === 'accepted'">
+              <Button variant="primary" size="md" @click="openStartContract(request)">Start contract</Button>
+            </div>
             <div class="flex justify-end gap-2">
               <Button v-if="auth.hasRole('landlord')" variant="primary" size="md" @click="openMessage(request.id)">
                 Message
@@ -631,6 +679,29 @@ const scrollToHighlightedViewing = () => {
       </div>
     </template>
   </div>
+
+  <ModalSheet v-model="showContractSheet" title="Start contract">
+    <div class="space-y-4">
+      <div class="rounded-2xl border border-line bg-surface p-3 text-sm text-slate-700">
+        <p class="font-semibold text-slate-900">{{ pendingContractRequest?.listing?.title ?? 'Listing' }}</p>
+        <p class="text-xs text-muted">Set deposit and rent before creating the transaction.</p>
+      </div>
+      <div class="space-y-2">
+        <label class="text-xs font-semibold text-muted">Deposit amount</label>
+        <Input v-model="contractDeposit" type="number" placeholder="Deposit amount" />
+      </div>
+      <div class="space-y-2">
+        <label class="text-xs font-semibold text-muted">Rent amount</label>
+        <Input v-model="contractRent" type="number" placeholder="Rent amount" />
+      </div>
+      <div class="flex gap-2">
+        <Button variant="secondary" class="flex-1" @click="closeContractSheet">Cancel</Button>
+        <Button variant="primary" class="flex-1" :disabled="contractLoading" @click="startContract">
+          {{ contractLoading ? 'Creating...' : 'Create transaction' }}
+        </Button>
+      </div>
+    </div>
+  </ModalSheet>
 </template>
 
 <style scoped>
