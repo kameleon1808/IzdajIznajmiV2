@@ -60,6 +60,7 @@ $apiRoutes = function () use ($authRoutes) {
 
     Route::get('/listings', [ListingController::class, 'index'])->middleware('throttle:listings_search');
     Route::get('/listings/{listing}', [ListingController::class, 'show']);
+    Route::get('/listings/{listing}/similar', [\App\Http\Controllers\SimilarListingsController::class, 'index']);
     Route::prefix('search')->group(function () {
         Route::get('/listings', [SearchController::class, 'listings'])->middleware('throttle:listings_search');
         Route::get('/suggest', [SearchController::class, 'suggest'])->middleware('throttle:listings_search');
@@ -152,6 +153,8 @@ $apiRoutes = function () use ($authRoutes) {
         Route::put('/saved-searches/{savedSearch}', [SavedSearchController::class, 'update']);
         Route::delete('/saved-searches/{savedSearch}', [SavedSearchController::class, 'destroy']);
 
+        Route::get('/recommendations', [\App\Http\Controllers\RecommendationsController::class, 'index']);
+
         Route::post('/transactions', [RentalTransactionController::class, 'store']);
         Route::get('/transactions/{transaction}', [RentalTransactionController::class, 'show']);
         Route::post('/transactions/{transaction}/contracts', [TransactionContractController::class, 'store']);
@@ -182,6 +185,7 @@ $apiRoutes = function () use ($authRoutes) {
                 Route::get('/users/{user}/sessions', [UserSecurityController::class, 'sessions']);
                 Route::post('/users/{user}/sessions/revoke-all', [UserSecurityController::class, 'revokeAllSessions']);
                 Route::post('/users/{user}/fraud/clear', [UserSecurityController::class, 'clearSuspicion']);
+                Route::patch('/users/{user}/badges', [UserSecurityController::class, 'updateBadgeOverride']);
                 Route::get('/moderation/queue', [ModerationController::class, 'queue']);
                 Route::get('/moderation/reports/{report}', [ModerationController::class, 'show']);
                 Route::patch('/moderation/reports/{report}', [ModerationController::class, 'update']);

@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\UserResource;
 use App\Models\FraudSignal;
+use App\Models\LandlordMetric;
 use App\Models\User;
 use App\Models\UserSession;
+use App\Services\BadgeService;
 use App\Services\FraudSignalService;
 use App\Services\SecuritySessionService;
 use Illuminate\Http\JsonResponse;
@@ -48,6 +50,26 @@ class UserSecurityController extends Controller
             'createdAt' => optional($session->created_at)->toISOString(),
         ]);
 
+        $landlordMetrics = null;
+        $landlordBadges = null;
+        if ($this->isLandlord($user)) {
+            $metrics = LandlordMetric::where('landlord_id', $user->id)->first();
+            $landlordMetrics = $metrics ? [
+                'avgRating30d' => $metrics->avg_rating_30d !== null ? (float) $metrics->avg_rating_30d : null,
+                'allTimeAvgRating' => $metrics->all_time_avg_rating !== null ? (float) $metrics->all_time_avg_rating : null,
+                'ratingsCount' => $metrics->ratings_count,
+                'medianResponseTimeMinutes' => $metrics->median_response_time_minutes,
+                'completedTransactionsCount' => $metrics->completed_transactions_count,
+                'updatedAt' => optional($metrics->updated_at)->toISOString(),
+            ] : null;
+
+            $landlordBadges = [
+                'badges' => app(BadgeService::class)->badgesFor($user, $metrics),
+                'override' => $user->badge_override_json,
+                'suppressed' => (bool) $user->is_suspicious,
+            ];
+        }
+
         return response()->json([
             'user' => new UserResource($user->loadMissing('roles')),
             'fraudScore' => [
@@ -56,6 +78,8 @@ class UserSecurityController extends Controller
             ],
             'fraudSignals' => $signals,
             'sessions' => $sessions,
+            'landlordMetrics' => $landlordMetrics,
+            'landlordBadges' => $landlordBadges,
         ]);
     }
 
@@ -99,6 +123,32 @@ class UserSecurityController extends Controller
         return response()->json(['message' => 'Suspicion cleared.', 'isSuspicious' => false]);
     }
 
+    public function updateBadgeOverride(Request $request, User $user): JsonResponse
+    {
+        $this->authorizeAdmin($request);
+        abort_unless($this->isLandlord($user), 422, 'User is not a landlord.');
+
+        $data = $request->validate([
+            'topLandlord' => ['nullable', 'boolean'],
+        ]);
+
+        if (array_key_exists('topLandlord', $data) && $data['topLandlord'] !== null) {
+            $user->badge_override_json = [BadgeService::BADGE_TOP_LANDLORD => (bool) $data['topLandlord']];
+        } else {
+            $user->badge_override_json = null;
+        }
+
+        $user->save();
+
+        $metrics = LandlordMetric::where('landlord_id', $user->id)->first();
+
+        return response()->json([
+            'badges' => app(BadgeService::class)->badgesFor($user, $metrics),
+            'override' => $user->badge_override_json,
+            'suppressed' => (bool) $user->is_suspicious,
+        ]);
+    }
+
     private function authorizeAdmin(Request $request): User
     {
         $user = $request->user();
@@ -106,5 +156,10 @@ class UserSecurityController extends Controller
         abort_unless($user->hasRole('admin') || $user->role === 'admin', 403, 'Forbidden');
 
         return $user;
+    }
+
+    private function isLandlord(User $user): bool
+    {
+        return (method_exists($user, 'hasRole') && $user->hasRole('landlord')) || $user->role === 'landlord';
     }
 }

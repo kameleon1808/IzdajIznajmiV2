@@ -4,8 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Http\Resources\ListingResource;
 use App\Models\Listing;
+use App\Services\ListingEventService;
 use App\Services\ListingSearchService;
 use App\Services\ListingStatusService;
+use App\Services\SavedSearchNormalizer;
+use App\Services\SearchFilterSnapshotService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -15,7 +18,7 @@ class ListingController extends Controller
     {
     }
 
-    public function index(Request $request): JsonResponse
+    public function index(Request $request, SearchFilterSnapshotService $snapshots, SavedSearchNormalizer $normalizer): JsonResponse
     {
         $perPage = (int) $request->input('perPage', 10);
         $perPage = min(max($perPage, 1), 50);
@@ -49,6 +52,14 @@ class ListingController extends Controller
             return response()->json(['message' => 'Map view requires centerLat and centerLng'], 422);
         }
 
+        if ($request->boolean('recordSearch', false)) {
+            $user = $request->user();
+            if ($user) {
+                $normalized = $normalizer->normalize($filters);
+                $snapshots->record($user, $normalized);
+            }
+        }
+
         $listings = $this->searchService->search($filters, $perPage);
 
         if ($mapMode) {
@@ -76,7 +87,7 @@ class ListingController extends Controller
         return ListingResource::collection($listings)->response();
     }
 
-    public function show(Listing $listing): JsonResponse
+    public function show(Listing $listing, ListingEventService $events): JsonResponse
     {
         $user = request()->user();
         $isAdmin = $user && ((method_exists($user, 'hasRole') && $user->hasRole('admin')) || $user->role === 'admin');
@@ -90,11 +101,17 @@ class ListingController extends Controller
                 $q->orderBy('sort_order');
             },
             'facilities',
-            'owner:id,full_name,name,landlord_verification_status,landlord_verified_at',
+            'owner:id,full_name,name,landlord_verification_status,landlord_verified_at,is_suspicious,badge_override_json',
+            'owner.landlordMetric:landlord_id,avg_rating_30d,all_time_avg_rating,ratings_count,median_response_time_minutes,completed_transactions_count,updated_at',
         ]);
         if ($listing->status !== ListingStatusService::STATUS_ACTIVE && !($user && ($isAdmin || $user->id === $listing->owner_id))) {
             abort(404);
         }
+
+        if ($user) {
+            $events->recordView($user, $listing);
+        }
+
         return response()->json(new ListingResource($listing));
     }
 }

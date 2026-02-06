@@ -7,6 +7,7 @@ use App\Models\BookingRequest;
 use App\Models\Application;
 use App\Models\Conversation;
 use App\Models\Listing;
+use App\Models\LandlordMetric;
 use App\Models\Rating;
 use App\Models\ViewingRequest;
 use App\Models\ViewingSlot;
@@ -41,6 +42,7 @@ class User extends Authenticatable
         'landlord_verification_status',
         'landlord_verified_at',
         'landlord_verification_notes',
+        'badge_override_json',
     ];
 
     /**
@@ -72,6 +74,7 @@ class User extends Authenticatable
             'mfa_enabled' => 'boolean',
             'mfa_confirmed_at' => 'datetime',
             'landlord_verified_at' => 'datetime',
+            'badge_override_json' => 'array',
         ];
     }
 
@@ -173,5 +176,10 @@ class User extends Authenticatable
     public function fraudScore()
     {
         return $this->hasOne(FraudScore::class);
+    }
+
+    public function landlordMetric()
+    {
+        return $this->hasOne(LandlordMetric::class, 'landlord_id');
     }
 }

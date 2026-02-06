@@ -14,6 +14,7 @@ use Illuminate\Console\Scheduling\Schedule;
 use App\Http\Middleware\ChatAttachmentRateLimit;
 use App\Console\Commands\ExpireListingsCommand;
 use App\Console\Commands\GeocodeListingsCommand;
+use App\Console\Commands\RecomputeBadgesCommand;
 use App\Console\Commands\SavedSearchMatchCommand;
 use App\Console\Commands\SearchListingsReindexCommand;
 use App\Console\Commands\SearchListingsSyncMissingCommand;
@@ -41,12 +42,14 @@ return Application::configure(basePath: dirname(__DIR__))
         ExpireListingsCommand::class,
         \App\Console\Commands\SendNotificationDigestCommand::class,
         GeocodeListingsCommand::class,
+        RecomputeBadgesCommand::class,
         SavedSearchMatchCommand::class,
         SearchListingsReindexCommand::class,
         SearchListingsSyncMissingCommand::class,
     ])
     ->withSchedule(function (Schedule $schedule) {
         $schedule->command('listings:expire')->dailyAt('02:00');
+        $schedule->command('badges:recompute')->dailyAt('03:00');
         $schedule->command('notifications:digest --frequency=daily')->dailyAt('09:00');
         $schedule->command('notifications:digest --frequency=weekly')->weeklyOn(1, '09:00'); // Monday
         $schedule->command('saved-searches:match')->everyFifteenMinutes(); //

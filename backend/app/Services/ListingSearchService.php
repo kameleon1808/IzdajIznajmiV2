@@ -36,7 +36,8 @@ class ListingSearchService
                 $q->where('processing_status', 'done')->orderBy('sort_order');
             },
             'facilities',
-            'owner:id,full_name,name,landlord_verification_status,landlord_verified_at',
+            'owner:id,full_name,name,landlord_verification_status,landlord_verified_at,is_suspicious,badge_override_json',
+            'owner.landlordMetric:landlord_id,avg_rating_30d,all_time_avg_rating,ratings_count,median_response_time_minutes,completed_transactions_count,updated_at',
         ]);
     }
 
