@@ -93,13 +93,14 @@ const retryHome = async () => {
 
     <div class="space-y-3">
       <ListSkeleton v-if="loading && !recommended.length" :count="3" />
-      <ListingCardHorizontal
-        v-for="item in recommended"
-        :key="item.id"
-        :listing="item"
-        @toggle="listingsStore.toggleFavorite"
-        @click="openListing(item.id)"
-      />
+      <div v-for="item in recommended" :key="item.id" class="space-y-1">
+        <ListingCardHorizontal
+          :listing="item"
+          @toggle="listingsStore.toggleFavorite"
+          @click="openListing(item.id)"
+        />
+        <p v-if="item.why?.length" class="px-2 text-xs text-muted">Why this? {{ item.why.join(' - ') }}</p>
+      </div>
       <EmptyState v-if="!loading && !recommended.length && !error" title="No stays yet" subtitle="Try adjusting filters" />
     </div>
   </section>

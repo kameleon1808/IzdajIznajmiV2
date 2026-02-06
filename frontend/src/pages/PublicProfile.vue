@@ -102,6 +102,12 @@ const openReport = (rating: Rating) => {
               Verified landlord {{ profile.landlordVerification.verifiedAt ? `· ${formatDate(profile.landlordVerification.verifiedAt)}` : '' }}
             </span>
           </Badge>
+          <Badge v-if="profile.badges?.includes('top_landlord')" variant="info">
+            <span class="inline-flex items-center gap-1">
+              <ShieldCheck class="h-4 w-4" />
+              Top landlord
+            </span>
+          </Badge>
         </div>
       </div>
 

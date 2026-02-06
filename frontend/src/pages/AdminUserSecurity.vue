@@ -4,7 +4,13 @@ import { useRoute } from 'vue-router'
 import Button from '../components/ui/Button.vue'
 import ErrorBanner from '../components/ui/ErrorBanner.vue'
 import Badge from '../components/ui/Badge.vue'
-import { clearUserSuspicion, flagUserSuspicious, getAdminUserSecurity, revokeAdminUserSessions } from '../services'
+import {
+  clearUserSuspicion,
+  flagUserSuspicious,
+  getAdminUserSecurity,
+  revokeAdminUserSessions,
+  updateAdminUserBadges,
+} from '../services'
 
 const route = useRoute()
 const userId = computed(() => String(route.params.id ?? ''))
@@ -12,6 +18,7 @@ const userId = computed(() => String(route.params.id ?? ''))
 const loading = ref(false)
 const error = ref('')
 const payload = ref<any>(null)
+const badgeUpdating = ref(false)
 
 const load = async () => {
   if (!userId.value) return
@@ -56,6 +63,28 @@ const revokeSessions = async () => {
   }
 }
 
+const setTopLandlordOverride = async (value: boolean | null) => {
+  if (!userId.value) return
+  badgeUpdating.value = true
+  error.value = ''
+  try {
+    const result = await updateAdminUserBadges(userId.value, { topLandlord: value })
+    payload.value = {
+      ...payload.value,
+      landlordBadges: {
+        ...(payload.value?.landlordBadges ?? {}),
+        badges: result.badges ?? [],
+        override: result.override ?? null,
+        suppressed: result.suppressed ?? false,
+      },
+    }
+  } catch (err: any) {
+    error.value = err.message ?? 'Neuspešno ažuriranje oznake.'
+  } finally {
+    badgeUpdating.value = false
+  }
+}
+
 onMounted(load)
 </script>
 
@@ -79,6 +108,68 @@ onMounted(load)
             {{ payload.user?.isSuspicious ? 'Suspicious' : 'Normal' }}
           </Badge>
         </div>
+      </div>
+    </div>
+
+    <div
+      v-if="payload?.landlordMetrics"
+      class="rounded-2xl bg-white p-4 shadow-soft border border-white/60 space-y-3"
+    >
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-lg font-semibold">Landlord metrics</h2>
+          <p class="text-xs text-muted">Updated: {{ payload.landlordMetrics.updatedAt ?? '—' }}</p>
+        </div>
+        <div class="flex flex-col items-end gap-1">
+          <Badge v-if="payload.landlordBadges?.badges?.includes('top_landlord')" variant="accepted">
+            Top landlord
+          </Badge>
+          <Badge v-else variant="pending">No badge</Badge>
+          <Badge v-if="payload.landlordBadges?.suppressed" variant="rejected">Suppressed</Badge>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3 text-sm">
+        <div class="rounded-xl border border-line bg-surface px-3 py-2">
+          <p class="text-xs text-muted">Avg rating (30d)</p>
+          <p class="text-base font-semibold">{{ payload.landlordMetrics.avgRating30d ?? '—' }}</p>
+        </div>
+        <div class="rounded-xl border border-line bg-surface px-3 py-2">
+          <p class="text-xs text-muted">All-time avg</p>
+          <p class="text-base font-semibold">{{ payload.landlordMetrics.allTimeAvgRating ?? '—' }}</p>
+        </div>
+        <div class="rounded-xl border border-line bg-surface px-3 py-2">
+          <p class="text-xs text-muted">Ratings count</p>
+          <p class="text-base font-semibold">{{ payload.landlordMetrics.ratingsCount ?? 0 }}</p>
+        </div>
+        <div class="rounded-xl border border-line bg-surface px-3 py-2">
+          <p class="text-xs text-muted">Median response</p>
+          <p class="text-base font-semibold">
+            {{ payload.landlordMetrics.medianResponseTimeMinutes != null ? `${payload.landlordMetrics.medianResponseTimeMinutes} min` : '—' }}
+          </p>
+        </div>
+        <div class="rounded-xl border border-line bg-surface px-3 py-2">
+          <p class="text-xs text-muted">Completed rentals</p>
+          <p class="text-base font-semibold">{{ payload.landlordMetrics.completedTransactionsCount ?? 0 }}</p>
+        </div>
+      </div>
+
+      <div class="space-y-2">
+        <p class="text-sm font-semibold">Badge override</p>
+        <div class="flex flex-wrap gap-2">
+          <Button size="sm" variant="secondary" :loading="badgeUpdating" @click="setTopLandlordOverride(true)">
+            Force show
+          </Button>
+          <Button size="sm" variant="secondary" :loading="badgeUpdating" @click="setTopLandlordOverride(false)">
+            Force hide
+          </Button>
+          <Button size="sm" variant="ghost" :loading="badgeUpdating" @click="setTopLandlordOverride(null)">
+            Clear override
+          </Button>
+        </div>
+        <p v-if="payload.landlordBadges?.suppressed" class="text-xs text-rose-500">
+          Badge display suppressed because the landlord is marked suspicious.
+        </p>
       </div>
     </div>
 

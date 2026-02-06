@@ -48,6 +48,7 @@ const mapListing = (data: any): Listing => {
         fullName: data.landlord.fullName ?? data.landlord.full_name ?? data.landlord.name,
         verificationStatus: data.landlord.verificationStatus ?? data.landlord.verification_status,
         verifiedAt: data.landlord.verifiedAt ?? data.landlord.verified_at,
+        badges: data.landlord.badges ?? data.landlordBadges ?? [],
       }
     : data.landlord_verification_status || data.landlord_verified_at
     ? {
@@ -55,6 +56,7 @@ const mapListing = (data: any): Listing => {
         fullName: data.landlord_name ?? data.owner_name,
         verificationStatus: data.landlord_verification_status ?? data.landlordVerificationStatus,
         verifiedAt: data.landlord_verified_at ?? data.landlordVerifiedAt ?? null,
+        badges: data.landlord_badges ?? [],
       }
     : undefined
 
@@ -97,6 +99,7 @@ const mapListing = (data: any): Listing => {
   archivedAt: data.archivedAt ?? data.archived_at,
   expiredAt: data.expiredAt ?? data.expired_at,
     warnings: data.warnings ?? [],
+    why: data.why ?? undefined,
   }
 }
 
@@ -350,8 +353,11 @@ export const getPopularListings = async (filters?: ListingFilters, page = 1, per
   return mapPaginated(data)
 }
 
-export const getRecommendedListings = async (filters?: ListingFilters, page = 1, perPage = 10) =>
-  getPopularListings(filters, page, perPage)
+export const getRecommendedListings = async (filters?: ListingFilters, page = 1, perPage = 10) => {
+  const params = { ...applyListingFilters(filters), page, perPage }
+  const { data } = await apiClient.get('/recommendations', { params })
+  return mapPaginated(data)
+}
 
 export const searchListings = async (
   query: string,
@@ -360,7 +366,13 @@ export const searchListings = async (
   perPage = 10,
   options: { mapMode?: boolean } = {},
 ) => {
-  const params: Record<string, any> = { ...applyListingFilters(filters), location: query || filters?.location, page, perPage }
+  const params: Record<string, any> = {
+    ...applyListingFilters(filters),
+    location: query || filters?.location,
+    page,
+    perPage,
+    recordSearch: true,
+  }
   if (options.mapMode) params.mapMode = true
   const { data } = await apiClient.get('/listings', { params })
   return mapPaginated(data)
@@ -372,7 +384,13 @@ export const searchListingsV2 = async (
   page = 1,
   perPage = 10,
 ): Promise<{ items: Listing[]; meta: any; facets: any }> => {
-  const params: Record<string, any> = { ...applySearchV2Filters(filters), q: query || filters?.location, page, perPage }
+  const params: Record<string, any> = {
+    ...applySearchV2Filters(filters),
+    q: query || filters?.location,
+    page,
+    perPage,
+    recordSearch: true,
+  }
   const { data } = await apiClient.get('/search/listings', { params })
   return {
     items: (data.data ?? []).map(mapListing),
@@ -402,6 +420,12 @@ export const getListingById = async (id: string): Promise<Listing | null> => {
   const { data } = await apiClient.get(`/listings/${id}`)
   const item = (data.data ?? data) as any
   return item ? mapListing(item) : null
+}
+
+export const getSimilarListings = async (id: string, limit = 8): Promise<Listing[]> => {
+  const { data } = await apiClient.get(`/listings/${id}/similar`, { params: { limit } })
+  const list = (data.data ?? data) as any[]
+  return list.map(mapListing)
 }
 
 export const getListingFacilities = async (id: string): Promise<{ group: string; items: string[] }[]> => {
@@ -706,6 +730,7 @@ const mapProfile = (data: any): PublicProfile => ({
   id: String(data.id),
   fullName: data.fullName ?? data.full_name ?? data.name ?? '',
   joinedAt: data.joinedAt ?? data.joined_at ?? data.created_at,
+  badges: data.badges ?? [],
   verifications: {
     email: Boolean(data.verifications?.email),
     phone: Boolean(data.verifications?.phone),
@@ -1195,6 +1220,8 @@ export const getAdminUserSecurity = async (userId: string | number): Promise<Adm
     fraudScore: data.fraudScore ?? { score: 0 },
     fraudSignals: data.fraudSignals ?? [],
     sessions: Array.isArray(data.sessions) ? data.sessions.map(mapSecuritySession) : [],
+    landlordMetrics: data.landlordMetrics ?? null,
+    landlordBadges: data.landlordBadges ?? null,
   }
 }
 
@@ -1205,5 +1232,13 @@ export const revokeAdminUserSessions = async (userId: string | number) => {
 
 export const clearUserSuspicion = async (userId: string | number) => {
   const { data } = await apiClient.post(`/admin/users/${userId}/fraud/clear`)
+  return data
+}
+
+export const updateAdminUserBadges = async (
+  userId: string | number,
+  payload: { topLandlord?: boolean | null },
+): Promise<{ badges: string[]; override?: Record<string, boolean> | null; suppressed?: boolean }> => {
+  const { data } = await apiClient.patch(`/admin/users/${userId}/badges`, payload)
   return data
 }

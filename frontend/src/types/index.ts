@@ -34,6 +34,7 @@ export interface Listing {
     fullName?: string
     verificationStatus?: 'none' | 'pending' | 'approved' | 'rejected'
     verifiedAt?: string | null
+    badges?: string[]
   }
   createdAt?: string
   status?: 'draft' | 'active' | 'paused' | 'archived' | 'rented' | 'expired'
@@ -41,6 +42,7 @@ export interface Listing {
   archivedAt?: string | null
   expiredAt?: string | null
   warnings?: string[]
+  why?: string[]
 }
 
 export type SavedSearchFrequency = 'instant' | 'daily' | 'weekly'
@@ -177,6 +179,7 @@ export interface PublicProfile {
   id: string
   fullName: string
   joinedAt?: string
+  badges?: string[]
   verifications: {
     email: boolean
     phone: boolean
@@ -416,4 +419,17 @@ export interface AdminUserSecurityPayload {
   fraudScore: FraudScore
   fraudSignals: FraudSignal[]
   sessions: SecuritySession[]
+  landlordMetrics?: {
+    avgRating30d?: number | null
+    allTimeAvgRating?: number | null
+    ratingsCount?: number
+    medianResponseTimeMinutes?: number | null
+    completedTransactionsCount?: number
+    updatedAt?: string | null
+  } | null
+  landlordBadges?: {
+    badges: string[]
+    override?: Record<string, boolean> | null
+    suppressed?: boolean
+  } | null
 }

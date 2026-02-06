@@ -700,6 +700,19 @@ export async function getRecommendedListings(filters?: Partial<ListingFilters>):
   return simulate(applyFilters(listings, filters))
 }
 
+export async function getSimilarListings(id: string, limit = 8): Promise<Listing[]> {
+  const base = listings.find((item) => String(item.id) === String(id))
+  if (!base) return simulate([])
+  const filtered = listings
+    .filter((item) => item.id !== base.id && item.city === base.city)
+    .slice(0, limit)
+    .map((item) => ({
+      ...item,
+      why: ['Same city', 'Similar price'],
+    }))
+  return simulate(filtered)
+}
+
 export async function searchListings(query: string, filters?: Partial<ListingFilters>): Promise<Listing[]> {
   const filtered = applyFilters(listings, filters)
   return simulate(filtered.filter((item) => item.title.toLowerCase().includes(query.toLowerCase())))
@@ -1838,6 +1851,19 @@ export async function getAdminUserSecurity(userId: string | number) {
         createdAt: new Date().toISOString(),
       },
     ],
+    landlordMetrics: {
+      avgRating30d: 4.7,
+      allTimeAvgRating: 4.8,
+      ratingsCount: 12,
+      medianResponseTimeMinutes: 90,
+      completedTransactionsCount: 5,
+      updatedAt: new Date().toISOString(),
+    },
+    landlordBadges: {
+      badges: ['top_landlord'],
+      override: null,
+      suppressed: false,
+    },
   }
 }
 
@@ -1849,4 +1875,9 @@ export async function revokeAdminUserSessions(_userId: string | number) {
 export async function clearUserSuspicion(_userId: string | number) {
   await delay()
   return { message: 'Suspicion cleared', isSuspicious: false }
+}
+
+export async function updateAdminUserBadges(_userId: string | number, _payload: any) {
+  await delay()
+  return { badges: _payload?.topLandlord ? ['top_landlord'] : [], override: _payload ?? null, suppressed: false }
 }
