@@ -7,6 +7,7 @@ use App\Models\BookingRequest;
 use App\Models\Application;
 use App\Models\Conversation;
 use App\Models\Listing;
+use App\Models\LandlordMetric;
 use App\Models\Rating;
 use App\Models\ViewingRequest;
 use App\Models\ViewingSlot;
@@ -41,6 +42,7 @@ class User extends Authenticatable
         'landlord_verification_status',
         'landlord_verified_at',
         'landlord_verification_notes',
+        'badge_override_json',
     ];
 
     /**
@@ -51,6 +53,7 @@ class User extends Authenticatable
     protected $hidden = [
         'password',
         'remember_token',
+        'mfa_totp_secret',
     ];
 
     /**
@@ -68,7 +71,10 @@ class User extends Authenticatable
             'phone_verified' => 'boolean',
             'address_verified' => 'boolean',
             'is_suspicious' => 'boolean',
+            'mfa_enabled' => 'boolean',
+            'mfa_confirmed_at' => 'datetime',
             'landlord_verified_at' => 'datetime',
+            'badge_override_json' => 'array',
         ];
     }
 
@@ -135,5 +141,45 @@ class User extends Authenticatable
     public function kycSubmissions()
     {
         return $this->hasMany(KycSubmission::class);
+    }
+
+    public function rentalTransactionsAsLandlord()
+    {
+        return $this->hasMany(RentalTransaction::class, 'landlord_id');
+    }
+
+    public function rentalTransactionsAsSeeker()
+    {
+        return $this->hasMany(RentalTransaction::class, 'seeker_id');
+    }
+
+    public function mfaRecoveryCodes()
+    {
+        return $this->hasMany(MfaRecoveryCode::class);
+    }
+
+    public function trustedDevices()
+    {
+        return $this->hasMany(TrustedDevice::class);
+    }
+
+    public function userSessions()
+    {
+        return $this->hasMany(UserSession::class);
+    }
+
+    public function fraudSignals()
+    {
+        return $this->hasMany(FraudSignal::class);
+    }
+
+    public function fraudScore()
+    {
+        return $this->hasOne(FraudScore::class);
+    }
+
+    public function landlordMetric()
+    {
+        return $this->hasOne(LandlordMetric::class, 'landlord_id');
     }
 }

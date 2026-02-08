@@ -7,13 +7,17 @@
     "license": "MIT",
     "require": {
         "php": "^8.2",
+        "barryvdh/laravel-dompdf": "^3.1",
         "intervention/image": "^3.11",
         "laravel/framework": "^12.0",
         "laravel/reverb": "^1.0",
         "laravel/sanctum": "^4.2",
         "laravel/tinker": "^2.10.1",
         "meilisearch/meilisearch-php": "^0.27.0",
-        "spatie/laravel-permission": "^6.24"
+        "endroid/qr-code": "^5.0",
+        "spomky-labs/otphp": "^11.3",
+        "spatie/laravel-permission": "^6.24",
+        "stripe/stripe-php": "^19.3"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",

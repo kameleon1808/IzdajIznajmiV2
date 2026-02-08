@@ -3,6 +3,7 @@ import { computed, defineAsyncComponent, onMounted, reactive, ref, watch } from 
 import { useRoute, useRouter } from 'vue-router'
 import { CalendarClock, Heart, MapPin, Share2 } from 'lucide-vue-next'
 import FacilityPill from '../components/listing/FacilityPill.vue'
+import ListingCard from '../components/listing/ListingCard.vue'
 import Badge from '../components/ui/Badge.vue'
 import Button from '../components/ui/Button.vue'
 import EmptyState from '../components/ui/EmptyState.vue'
@@ -22,6 +23,7 @@ import {
   getListingById,
   getListingFacilities,
   getListingReviews,
+  getSimilarListings,
   resetListingLocation,
   updateListingLocation,
 } from '../services'
@@ -42,11 +44,14 @@ const ListingMap = defineAsyncComponent(() => import('../components/listing/List
 const listing = ref<Listing | null>(null)
 const facilities = ref<{ title: string; items: string[] }[]>([])
 const reviews = ref<Review[]>([])
+const similarListings = ref<Listing[]>([])
 const showShare = ref(false)
 const requestSheet = ref(false)
 const expanded = ref(false)
 const loading = ref(true)
 const error = ref('')
+const similarLoading = ref(false)
+const similarError = ref('')
 const submitting = ref(false)
 const chatLoading = ref(false)
 const viewingError = ref('')
@@ -130,6 +135,8 @@ const showDevCoords = computed(() => import.meta.env.DEV)
 const loadData = async () => {
   loading.value = true
   error.value = ''
+  similarListings.value = []
+  similarError.value = ''
   try {
     const id = route.params.id as string
     listing.value = (await getListingById(id)) || null
@@ -146,6 +153,9 @@ const loadData = async () => {
       requestsStore.fetchTenantRequests()
     }
     await loadViewingSlots()
+    setTimeout(() => {
+      void loadSimilar()
+    }, 0)
   } catch (err) {
     error.value = (err as Error).message || 'Failed to load listing.'
   } finally {
@@ -182,6 +192,19 @@ const loadViewingSlots = async () => {
     seedViewingDefaults()
   } catch (err) {
     viewingError.value = (err as Error).message || 'Failed to load viewing slots.'
+  }
+}
+
+const loadSimilar = async () => {
+  if (!listing.value) return
+  similarLoading.value = true
+  similarError.value = ''
+  try {
+    similarListings.value = await getSimilarListings(String(listing.value.id), 8)
+  } catch (err) {
+    similarError.value = (err as Error).message || 'Failed to load similar listings.'
+  } finally {
+    similarLoading.value = false
   }
 }
 
@@ -928,10 +951,32 @@ const deleteViewingSlot = async (slotId: string) => {
               <Badge v-if="listing?.landlord?.verificationStatus === 'approved'" variant="accepted">
                 Verified landlord
               </Badge>
+              <Badge v-if="listing?.landlord?.badges?.includes('top_landlord')" variant="info">
+                Top landlord
+              </Badge>
             </div>
           </div>
           <Button variant="secondary" size="md" @click="viewProfile">View profile</Button>
         </div>
+      </div>
+
+      <div class="space-y-3">
+        <div class="flex items-center justify-between px-1">
+          <h2 class="section-title">Similar listings</h2>
+        </div>
+        <ErrorBanner v-if="similarError" :message="similarError" />
+        <ListSkeleton v-if="similarLoading && !similarListings.length" :count="3" />
+        <div v-else class="flex gap-4 overflow-x-auto pb-2">
+          <ListingCard
+            v-for="item in similarListings"
+            :key="item.id"
+            class="w-72 shrink-0"
+            :listing="item"
+            @toggle="listingsStore.toggleFavorite"
+            @click="router.push(`/listing/${item.id}`)"
+          />
+        </div>
+        <EmptyState v-if="!similarLoading && !similarListings.length && !similarError" title="No similar stays yet" subtitle="Check back after new listings appear" />
       </div>
     </div>
 

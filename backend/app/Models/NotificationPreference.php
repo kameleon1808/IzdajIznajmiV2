@@ -43,6 +43,11 @@ class NotificationPreference extends Model
             Notification::TYPE_KYC_SUBMISSION_RECEIVED => true,
             Notification::TYPE_KYC_APPROVED => true,
             Notification::TYPE_KYC_REJECTED => true,
+            Notification::TYPE_TRANSACTION_CONTRACT_READY => true,
+            Notification::TYPE_TRANSACTION_SIGNED_BY_OTHER_PARTY => true,
+            Notification::TYPE_TRANSACTION_FULLY_SIGNED => true,
+            Notification::TYPE_TRANSACTION_DEPOSIT_PAID => true,
+            Notification::TYPE_TRANSACTION_MOVE_IN_CONFIRMED => true,
         ];
     }
 

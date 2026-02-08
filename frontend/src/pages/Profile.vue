@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Bell, Bookmark, ChevronRight, CreditCard, HelpCircle, Languages, LogOut, Shield, Store } from 'lucide-vue-next'
+import { Bell, Bookmark, ChevronRight, CreditCard, HelpCircle, Languages, LogOut, Shield, Store, FileText } from 'lucide-vue-next'
 import Badge from '../components/ui/Badge.vue'
 import Button from '../components/ui/Button.vue'
 import ModalSheet from '../components/ui/ModalSheet.vue'
@@ -17,7 +17,7 @@ const showRoleSwitch = computed(() => auth.isMockMode)
 
 const baseItems = [
   { label: 'Your Card', icon: CreditCard, action: () => {} },
-  { label: 'Security', icon: Shield, action: () => {} },
+  { label: 'Security', icon: Shield, action: () => router.push('/settings/security') },
   { label: 'Notification', icon: Bell, action: () => router.push('/settings/notifications') },
   { label: 'Languages', icon: Languages, action: () => router.push('/settings/language') },
   { label: 'Help & Support', icon: HelpCircle, action: () => router.push('/settings/legal') },
@@ -28,12 +28,16 @@ const menuItems = computed(() => {
   if (auth.hasRole('landlord')) {
     extras.push({ label: 'Verification', icon: Shield, action: () => router.push('/profile/verification') })
     extras.push({ label: 'My Listings', icon: Store, action: () => router.push('/landlord/listings') })
+    extras.push({ label: 'Transactions', icon: FileText, action: () => router.push('/transactions') })
   }
   if (auth.hasRole('admin')) {
     extras.push({ label: 'KYC Review', icon: Shield, action: () => router.push('/admin/kyc') })
+    extras.push({ label: 'Transactions', icon: FileText, action: () => router.push('/admin/transactions') })
+    extras.push({ label: 'Users', icon: FileText, action: () => router.push('/admin/users') })
   }
   if (auth.hasRole('seeker')) {
     extras.push({ label: 'Saved Searches', icon: Bookmark, action: () => router.push('/saved-searches') })
+    extras.push({ label: 'Transactions', icon: FileText, action: () => router.push('/transactions') })
   }
   return [...extras, ...baseItems]
 })

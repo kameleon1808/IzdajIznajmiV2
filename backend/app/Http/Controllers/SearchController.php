@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\SavedSearchNormalizer;
 use App\Services\Search\SearchDriver;
+use App\Services\SearchFilterSnapshotService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -12,7 +14,7 @@ class SearchController extends Controller
     {
     }
 
-    public function listings(Request $request): JsonResponse
+    public function listings(Request $request, SearchFilterSnapshotService $snapshots, SavedSearchNormalizer $normalizer): JsonResponse
     {
         $perPage = (int) $request->input('perPage', 10);
         $perPage = min(max($perPage, 1), (int) config('search.max_per_page', 50));
@@ -37,6 +39,14 @@ class SearchController extends Controller
             'instantBook' => $request->boolean('instantBook'),
             'rating' => $request->input('rating'),
         ];
+
+        if ($request->boolean('recordSearch', false)) {
+            $user = $request->user();
+            if ($user) {
+                $normalized = $normalizer->normalize($filters);
+                $snapshots->record($user, $normalized);
+            }
+        }
 
         $result = $this->driver->searchListings($filters, $page, $perPage);
 

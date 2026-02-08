@@ -14,11 +14,17 @@ import type {
   Message,
   PublicProfile,
   Rating,
+  RentalTransaction,
+  Contract as ContractType,
+  ContractSignature,
+  Payment as PaymentType,
   Report,
   ViewingRequest,
   ViewingSlot,
   SavedSearch,
   SearchSuggestion,
+  SecuritySession,
+  AdminUserSecurityPayload,
 } from '../types'
 import { useAuthStore } from '../stores/auth'
 
@@ -42,6 +48,7 @@ const mapListing = (data: any): Listing => {
         fullName: data.landlord.fullName ?? data.landlord.full_name ?? data.landlord.name,
         verificationStatus: data.landlord.verificationStatus ?? data.landlord.verification_status,
         verifiedAt: data.landlord.verifiedAt ?? data.landlord.verified_at,
+        badges: data.landlord.badges ?? data.landlordBadges ?? [],
       }
     : data.landlord_verification_status || data.landlord_verified_at
     ? {
@@ -49,6 +56,7 @@ const mapListing = (data: any): Listing => {
         fullName: data.landlord_name ?? data.owner_name,
         verificationStatus: data.landlord_verification_status ?? data.landlordVerificationStatus,
         verifiedAt: data.landlord_verified_at ?? data.landlordVerifiedAt ?? null,
+        badges: data.landlord_badges ?? [],
       }
     : undefined
 
@@ -91,6 +99,7 @@ const mapListing = (data: any): Listing => {
   archivedAt: data.archivedAt ?? data.archived_at,
   expiredAt: data.expiredAt ?? data.expired_at,
     warnings: data.warnings ?? [],
+    why: data.why ?? undefined,
   }
 }
 
@@ -203,6 +212,69 @@ const mapViewingRequest = (data: any): ViewingRequest => ({
   },
 })
 
+const mapContractSignature = (data: any): ContractSignature => ({
+  id: String(data.id),
+  userId: String(data.userId ?? data.user_id ?? ''),
+  role: data.role,
+  signedAt: data.signedAt ?? data.signed_at ?? null,
+  signatureMethod: data.signatureMethod ?? data.signature_method ?? undefined,
+  signatureData: data.signatureData ?? data.signature_data ?? undefined,
+})
+
+const mapContract = (data: any): ContractType => ({
+  id: String(data.id),
+  version: Number(data.version ?? 0),
+  templateKey: data.templateKey ?? data.template_key ?? '',
+  status: data.status,
+  contractHash: data.contractHash ?? data.contract_hash ?? undefined,
+  pdfUrl: data.pdfUrl ?? data.pdf_url ?? undefined,
+  createdAt: data.createdAt ?? data.created_at ?? undefined,
+  signatures: Array.isArray(data.signatures?.data ?? data.signatures)
+    ? (data.signatures?.data ?? data.signatures).map(mapContractSignature)
+    : [],
+})
+
+const mapPayment = (data: any): PaymentType => ({
+  id: String(data.id),
+  provider: data.provider ?? 'stripe',
+  type: data.type ?? 'deposit',
+  amount: Number(data.amount ?? 0),
+  currency: data.currency ?? 'EUR',
+  status: data.status ?? 'pending',
+  receiptUrl: data.receiptUrl ?? data.receipt_url ?? null,
+  createdAt: data.createdAt ?? data.created_at ?? undefined,
+})
+
+const mapTransaction = (data: any): RentalTransaction => ({
+  id: String(data.id),
+  status: data.status,
+  depositAmount: data.depositAmount != null ? Number(data.depositAmount) : data.deposit_amount != null ? Number(data.deposit_amount) : null,
+  rentAmount: data.rentAmount != null ? Number(data.rentAmount) : data.rent_amount != null ? Number(data.rent_amount) : null,
+  currency: data.currency ?? 'EUR',
+  startedAt: data.startedAt ?? data.started_at ?? null,
+  completedAt: data.completedAt ?? data.completed_at ?? null,
+  createdAt: data.createdAt ?? data.created_at ?? null,
+  updatedAt: data.updatedAt ?? data.updated_at ?? null,
+  listing: data.listing
+    ? {
+        id: String(data.listing.id ?? data.listingId ?? data.listing_id ?? ''),
+        title: data.listing.title ?? data.listingTitle,
+        address: data.listing.address ?? data.listingAddress,
+        city: data.listing.city,
+        coverImage: data.listing.coverImage ?? data.listing.cover_image,
+        status: data.listing.status,
+      }
+    : null,
+  participants: {
+    landlordId: String(data.participants?.landlordId ?? data.landlordId ?? data.landlord_id ?? ''),
+    seekerId: String(data.participants?.seekerId ?? data.seekerId ?? data.seeker_id ?? ''),
+  },
+  contract: data.contract ? mapContract(data.contract) : null,
+  payments: Array.isArray(data.payments?.data ?? data.payments)
+    ? (data.payments?.data ?? data.payments).map(mapPayment)
+    : [],
+})
+
 const mapSavedSearch = (data: any): SavedSearch => ({
   id: String(data.id),
   name: data.name ?? null,
@@ -281,8 +353,11 @@ export const getPopularListings = async (filters?: ListingFilters, page = 1, per
   return mapPaginated(data)
 }
 
-export const getRecommendedListings = async (filters?: ListingFilters, page = 1, perPage = 10) =>
-  getPopularListings(filters, page, perPage)
+export const getRecommendedListings = async (filters?: ListingFilters, page = 1, perPage = 10) => {
+  const params = { ...applyListingFilters(filters), page, perPage }
+  const { data } = await apiClient.get('/recommendations', { params })
+  return mapPaginated(data)
+}
 
 export const searchListings = async (
   query: string,
@@ -291,7 +366,13 @@ export const searchListings = async (
   perPage = 10,
   options: { mapMode?: boolean } = {},
 ) => {
-  const params: Record<string, any> = { ...applyListingFilters(filters), location: query || filters?.location, page, perPage }
+  const params: Record<string, any> = {
+    ...applyListingFilters(filters),
+    location: query || filters?.location,
+    page,
+    perPage,
+    recordSearch: true,
+  }
   if (options.mapMode) params.mapMode = true
   const { data } = await apiClient.get('/listings', { params })
   return mapPaginated(data)
@@ -303,7 +384,13 @@ export const searchListingsV2 = async (
   page = 1,
   perPage = 10,
 ): Promise<{ items: Listing[]; meta: any; facets: any }> => {
-  const params: Record<string, any> = { ...applySearchV2Filters(filters), q: query || filters?.location, page, perPage }
+  const params: Record<string, any> = {
+    ...applySearchV2Filters(filters),
+    q: query || filters?.location,
+    page,
+    perPage,
+    recordSearch: true,
+  }
   const { data } = await apiClient.get('/search/listings', { params })
   return {
     items: (data.data ?? []).map(mapListing),
@@ -333,6 +420,12 @@ export const getListingById = async (id: string): Promise<Listing | null> => {
   const { data } = await apiClient.get(`/listings/${id}`)
   const item = (data.data ?? data) as any
   return item ? mapListing(item) : null
+}
+
+export const getSimilarListings = async (id: string, limit = 8): Promise<Listing[]> => {
+  const { data } = await apiClient.get(`/listings/${id}/similar`, { params: { limit } })
+  const list = (data.data ?? data) as any[]
+  return list.map(mapListing)
 }
 
 export const getListingFacilities = async (id: string): Promise<{ group: string; items: string[] }[]> => {
@@ -637,6 +730,7 @@ const mapProfile = (data: any): PublicProfile => ({
   id: String(data.id),
   fullName: data.fullName ?? data.full_name ?? data.name ?? '',
   joinedAt: data.joinedAt ?? data.joined_at ?? data.created_at,
+  badges: data.badges ?? [],
   verifications: {
     email: Boolean(data.verifications?.email),
     phone: Boolean(data.verifications?.phone),
@@ -785,6 +879,11 @@ export const deleteAdminRating = async (ratingId: string) => {
 export const flagUserSuspicious = async (userId: string | number, isSuspicious: boolean) => {
   const { data } = await apiClient.patch(`/admin/users/${userId}/flag-suspicious`, { is_suspicious: isSuspicious })
   return data
+}
+
+export const getAdminUsers = async (params?: { q?: string; role?: string; suspicious?: boolean }): Promise<any[]> => {
+  const { data } = await apiClient.get('/admin/users', { params })
+  return (data.data ?? data) as any[]
 }
 
 export const getAdminReports = async (params?: {
@@ -947,6 +1046,112 @@ export const downloadViewingRequestIcs = async (id: string): Promise<Blob> => {
   return data as Blob
 }
 
+export const createTransaction = async (payload: {
+  listingId: string
+  seekerId: string
+  depositAmount?: number | null
+  rentAmount?: number | null
+  currency?: string
+}): Promise<RentalTransaction> => {
+  const { data } = await apiClient.post('/transactions', payload)
+  return mapTransaction(data.data ?? data)
+}
+
+export const getTransactions = async (params?: { status?: string }): Promise<RentalTransaction[]> => {
+  const { data } = await apiClient.get('/transactions', { params })
+  const list = (data.data ?? data) as any[]
+  return list.map(mapTransaction)
+}
+
+export const getTransaction = async (id: string): Promise<RentalTransaction> => {
+  const { data } = await apiClient.get(`/transactions/${id}`)
+  return mapTransaction(data.data ?? data)
+}
+
+export const generateTransactionContract = async (
+  transactionId: string,
+  payload: { startDate: string; terms?: string },
+): Promise<ContractType> => {
+  const { data } = await apiClient.post(`/transactions/${transactionId}/contracts`, payload)
+  return mapContract(data.data ?? data)
+}
+
+export const getLatestTransactionContract = async (transactionId: string): Promise<ContractType> => {
+  const { data } = await apiClient.get(`/transactions/${transactionId}/contracts/latest`)
+  return mapContract(data.data ?? data)
+}
+
+export const signTransactionContract = async (
+  contractId: string,
+  payload: { typedName: string; consent: boolean },
+): Promise<ContractType> => {
+  const { data } = await apiClient.post(`/contracts/${contractId}/sign`, payload)
+  return mapContract(data.data ?? data)
+}
+
+export const createDepositSession = async (transactionId: string): Promise<{ checkoutUrl: string; payment: PaymentType }> => {
+  const { data } = await apiClient.post(`/transactions/${transactionId}/payments/deposit/session`)
+  return {
+    checkoutUrl: data.checkoutUrl,
+    payment: mapPayment(data.payment ?? data.data?.payment ?? data.payment_data ?? data.paymentPayload ?? {}),
+  }
+}
+
+export const markDepositPaidCash = async (transactionId: string): Promise<{ transaction: RentalTransaction; payment: PaymentType }> => {
+  const { data } = await apiClient.post(`/transactions/${transactionId}/payments/deposit/cash`)
+  return {
+    transaction: mapTransaction(data.transaction ?? data.data?.transaction ?? data),
+    payment: mapPayment(data.payment ?? data.data?.payment ?? data.paymentPayload ?? {}),
+  }
+}
+
+export const completeTransaction = async (transactionId: string): Promise<RentalTransaction> => {
+  const { data } = await apiClient.post(`/transactions/${transactionId}/complete`)
+  return mapTransaction(data.data ?? data)
+}
+
+export const confirmMoveIn = async (transactionId: string): Promise<RentalTransaction> => {
+  const { data } = await apiClient.post(`/transactions/${transactionId}/move-in/confirm`)
+  return mapTransaction(data.data ?? data)
+}
+
+export const reportTransaction = async (transactionId: string, reason: string, details?: string) => {
+  const { data } = await apiClient.post(`/transactions/${transactionId}/report`, { reason, details })
+  return data
+}
+
+export const getSharedTransactions = async (userId: string): Promise<RentalTransaction[]> => {
+  const { data } = await apiClient.get(`/users/${userId}/transactions/shared`)
+  const list = (data.data ?? data) as any[]
+  return list.map(mapTransaction)
+}
+
+export const getAdminTransactions = async (params?: { status?: string }): Promise<RentalTransaction[]> => {
+  const { data } = await apiClient.get('/admin/transactions', { params })
+  const list = (data.data ?? data) as any[]
+  return list.map(mapTransaction)
+}
+
+export const getAdminTransaction = async (id: string): Promise<RentalTransaction> => {
+  const { data } = await apiClient.get(`/admin/transactions/${id}`)
+  return mapTransaction(data.data ?? data)
+}
+
+export const markAdminTransactionDisputed = async (id: string): Promise<RentalTransaction> => {
+  const { data } = await apiClient.patch(`/admin/transactions/${id}/mark-disputed`)
+  return mapTransaction(data.data ?? data)
+}
+
+export const cancelAdminTransaction = async (id: string): Promise<RentalTransaction> => {
+  const { data } = await apiClient.patch(`/admin/transactions/${id}/cancel`)
+  return mapTransaction(data.data ?? data)
+}
+
+export const payoutAdminTransaction = async (id: string): Promise<RentalTransaction> => {
+  const { data } = await apiClient.post(`/admin/transactions/${id}/payout`)
+  return mapTransaction(data.data ?? data)
+}
+
 export const submitKycSubmission = async (formData: FormData): Promise<KycSubmission> => {
   const { data } = await apiClient.post('/kyc/submissions', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
@@ -989,4 +1194,86 @@ export const rejectAdminKycSubmission = async (id: string | number, note?: strin
 export const redactAdminKycSubmission = async (id: string | number, note?: string): Promise<KycSubmission> => {
   const { data } = await apiClient.delete(`/admin/kyc/submissions/${id}/redact`, { data: { note } })
   return mapKycSubmission(data.data ?? data)
+}
+
+const mapSecuritySession = (data: any): SecuritySession => ({
+  id: String(data.id),
+  sessionId: data.sessionId ?? data.session_id,
+  deviceLabel: data.deviceLabel ?? data.device_label ?? null,
+  ipTruncated: data.ipTruncated ?? data.ip_truncated ?? null,
+  userAgent: data.userAgent ?? data.user_agent ?? null,
+  lastActiveAt: data.lastActiveAt ?? data.last_active_at ?? null,
+  createdAt: data.createdAt ?? data.created_at ?? null,
+  isCurrent: Boolean(data.isCurrent ?? false),
+})
+
+export const setupMfa = async () => {
+  const { data } = await apiClient.post('/security/mfa/setup')
+  return data
+}
+
+export const confirmMfaSetup = async (code: string) => {
+  const { data } = await apiClient.post('/security/mfa/confirm', { code })
+  return data
+}
+
+export const regenerateMfaRecoveryCodes = async (code: string) => {
+  const { data } = await apiClient.post('/security/mfa/recovery-codes', { code })
+  return data
+}
+
+export const disableMfa = async (payload: { password: string; code?: string; recoveryCode?: string }) => {
+  const { data } = await apiClient.post('/security/mfa/disable', {
+    password: payload.password,
+    code: payload.code,
+    recovery_code: payload.recoveryCode,
+  })
+  return data
+}
+
+export const getSecuritySessions = async (): Promise<{ sessions: SecuritySession[] }> => {
+  const { data } = await apiClient.get('/security/sessions')
+  return {
+    sessions: Array.isArray(data.sessions) ? data.sessions.map(mapSecuritySession) : [],
+  }
+}
+
+export const revokeSecuritySession = async (sessionId: string | number) => {
+  const { data } = await apiClient.post(`/security/sessions/${sessionId}/revoke`)
+  return data
+}
+
+export const revokeOtherSessions = async () => {
+  const { data } = await apiClient.post('/security/sessions/revoke-others')
+  return data
+}
+
+export const getAdminUserSecurity = async (userId: string | number): Promise<AdminUserSecurityPayload> => {
+  const { data } = await apiClient.get(`/admin/users/${userId}/security`)
+  return {
+    user: data.user,
+    fraudScore: data.fraudScore ?? { score: 0 },
+    fraudSignals: data.fraudSignals ?? [],
+    sessions: Array.isArray(data.sessions) ? data.sessions.map(mapSecuritySession) : [],
+    landlordMetrics: data.landlordMetrics ?? null,
+    landlordBadges: data.landlordBadges ?? null,
+  }
+}
+
+export const revokeAdminUserSessions = async (userId: string | number) => {
+  const { data } = await apiClient.post(`/admin/users/${userId}/sessions/revoke-all`)
+  return data
+}
+
+export const clearUserSuspicion = async (userId: string | number) => {
+  const { data } = await apiClient.post(`/admin/users/${userId}/fraud/clear`)
+  return data
+}
+
+export const updateAdminUserBadges = async (
+  userId: string | number,
+  payload: { topLandlord?: boolean | null },
+): Promise<{ badges: string[]; override?: Record<string, boolean> | null; suppressed?: boolean }> => {
+  const { data } = await apiClient.patch(`/admin/users/${userId}/badges`, payload)
+  return data
 }

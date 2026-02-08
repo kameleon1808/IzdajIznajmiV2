@@ -40,6 +40,15 @@
 | LST-02 | Seed podaci | 1) GET /api/v1/listings?category=villa&priceMin=100&priceMax=300&rating=4.5 | 200, svi rezultati po filteru | filter |
 | LST-03 | Seed podaci | 1) GET /api/v1/listings/{id} | 200, uključuje images[], facilities[] | detail |
 
+### Recommendations & badges
+| ID | Precondition | Koraci | Očekivano | Napomena |
+| --- | --- | --- | --- | --- |
+| REC-01 | Seeker session | 1) GET /api/v1/listings/{id} 2) ponovi u 12h | 1 view event u `listing_events` | dedupe |
+| REC-02 | Seeker session + aktivni listing | 1) GET /api/v1/listings/{id}/similar | 200, bez self/inactive | similar |
+| REC-03 | Seeker session + view/saved search | 1) GET /api/v1/recommendations | 200, aktivni listings + optional reasons | feed |
+| BADGE-01 | Admin session | 1) GET /api/v1/admin/users/{landlord}/security | vraća `landlordMetrics` + `landlordBadges` | admin |
+| BADGE-02 | Admin session | 1) PATCH /api/v1/admin/users/{landlord}/badges topLandlord=false | badge override sačuvan | override |
+
 ### Search v2 (Meili)
 | ID | Precondition | Koraci | Očekivano | Napomena |
 | --- | --- | --- | --- | --- |
@@ -64,6 +73,17 @@
 | KYC-04 | Admin session | 1) PATCH /api/v1/admin/kyc/submissions/{id}/approve | 200, user landlord_verification_status=approved | approve |
 | KYC-05 | Admin session | 1) PATCH /api/v1/admin/kyc/submissions/{id}/reject sa note | 200, status rejected + note | reject |
 | KYC-06 | Non-owner session | 1) GET /api/v1/kyc/documents/{id} | 403 | access control |
+
+### Transactions (ugovor, e-potpis, depozit)
+| ID | Precondition | Koraci | Očekivano | Napomena |
+| --- | --- | --- | --- | --- |
+| TX-01 | Landlord session, postoji listing + accepted aplikacija | 1) POST /api/v1/transactions (listingId, seekerId, depositAmount, rentAmount) | 201, status initiated | start |
+| TX-02 | TX-01 | 1) POST /api/v1/transactions/{id}/contracts (startDate) | 201, generisan PDF u private storage | contract |
+| TX-03 | TX-02 | 1) POST /api/v1/contracts/{contract}/sign (seeker) 2) POST /api/v1/contracts/{contract}/sign (landlord) | contract final, status landlord_signed | signing |
+| TX-04 | TX-03 + Stripe CLI | 1) POST /api/v1/transactions/{id}/payments/deposit/session 2) webhook checkout.session.completed | status deposit_paid | payment |
+| TX-05 | TX-04 | 1) POST /api/v1/transactions/{id}/move-in/confirm (landlord) | status move_in_confirmed | move-in |
+| TX-06 | Admin session | 1) POST /api/v1/admin/transactions/{id}/payout | status completed | payout |
+| TX-07 | Non-participant session | 1) GET /api/v1/transactions/{id} | 403 | authz |
 
 ### Saved searches & alerts
 | ID | Precondition | Koraci | Očekivano | Napomena |

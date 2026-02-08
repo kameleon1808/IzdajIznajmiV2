@@ -8,11 +8,13 @@ use App\Models\Listing;
 use App\Models\SavedSearch;
 use App\Observers\ListingObserver;
 use App\Models\Rating;
+use App\Models\RentalTransaction;
 use App\Models\ViewingRequest;
 use App\Models\ViewingSlot;
 use App\Policies\BookingRequestPolicy;
 use App\Policies\ApplicationPolicy;
 use App\Policies\ListingPolicy;
+use App\Policies\RentalTransactionPolicy;
 use App\Policies\SavedSearchPolicy;
 use App\Policies\ViewingRequestPolicy;
 use App\Policies\ViewingSlotPolicy;
@@ -110,6 +112,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(Application::class, ApplicationPolicy::class);
         Gate::policy(ViewingSlot::class, ViewingSlotPolicy::class);
         Gate::policy(ViewingRequest::class, ViewingRequestPolicy::class);
+        Gate::policy(RentalTransaction::class, RentalTransactionPolicy::class);
 
         RateLimiter::for('api', function (Request $request) {
             return Limit::perMinute(60)->by($request->user()?->id ?? $request->ip());
@@ -167,6 +170,26 @@ class AppServiceProvider extends ServiceProvider
                 ->response(function () {
                     return response()->json(['message' => 'Chat limit reached. Please slow down.'], 429);
                 });
+        });
+
+        RateLimiter::for('mfa_verify', function (Request $request) {
+            $key = sprintf('mfa_verify:%s:%s', $request->user()?->id ?? 'guest', $request->ip());
+            return Limit::perMinute(5)
+                ->by($key)
+                ->response(function () {
+                    $user = request()->user();
+                    if ($user) {
+                        app(\App\Services\FraudSignalService::class)->recordFailedMfaRateLimit($user, [
+                            'ip' => request()->ip(),
+                        ]);
+                    }
+                    return response()->json(['message' => 'Too many MFA attempts. Please wait a minute.'], 429);
+                });
+        });
+
+        RateLimiter::for('mfa_sensitive', function (Request $request) {
+            $key = sprintf('mfa_sensitive:%s:%s', $request->user()?->id ?? 'guest', $request->ip());
+            return Limit::perMinute(5)->by($key);
         });
     }
 }

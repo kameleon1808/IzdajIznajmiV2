@@ -34,6 +34,7 @@ export interface Listing {
     fullName?: string
     verificationStatus?: 'none' | 'pending' | 'approved' | 'rejected'
     verifiedAt?: string | null
+    badges?: string[]
   }
   createdAt?: string
   status?: 'draft' | 'active' | 'paused' | 'archived' | 'rented' | 'expired'
@@ -41,6 +42,7 @@ export interface Listing {
   archivedAt?: string | null
   expiredAt?: string | null
   warnings?: string[]
+  why?: string[]
 }
 
 export type SavedSearchFrequency = 'instant' | 'daily' | 'weekly'
@@ -177,6 +179,7 @@ export interface PublicProfile {
   id: string
   fullName: string
   joinedAt?: string
+  badges?: string[]
   verifications: {
     email: boolean
     phone: boolean
@@ -198,6 +201,74 @@ export interface PublicProfile {
     createdAt?: string
     listingTitle?: string
   }>
+}
+
+export type TransactionStatus =
+  | 'initiated'
+  | 'contract_generated'
+  | 'seeker_signed'
+  | 'landlord_signed'
+  | 'deposit_paid'
+  | 'move_in_confirmed'
+  | 'completed'
+  | 'cancelled'
+  | 'disputed'
+
+export interface ContractSignature {
+  id: string
+  userId: string
+  role: 'seeker' | 'landlord'
+  signedAt?: string | null
+  signatureMethod?: string
+  signatureData?: Record<string, any>
+}
+
+export interface Contract {
+  id: string
+  version: number
+  templateKey: string
+  status: 'draft' | 'final'
+  contractHash?: string
+  pdfUrl?: string
+  createdAt?: string
+  signatures: ContractSignature[]
+}
+
+export interface Payment {
+  id: string
+  provider: string
+  type: 'deposit' | 'rent'
+  amount: number
+  currency: string
+  status: 'pending' | 'succeeded' | 'failed' | 'refunded' | 'cancelled'
+  receiptUrl?: string | null
+  createdAt?: string
+}
+
+export interface RentalTransaction {
+  id: string
+  status: TransactionStatus
+  depositAmount?: number | null
+  rentAmount?: number | null
+  currency: string
+  startedAt?: string | null
+  completedAt?: string | null
+  createdAt?: string
+  updatedAt?: string
+  listing: {
+    id: string
+    title?: string
+    address?: string
+    city?: string
+    coverImage?: string
+    status?: Listing['status']
+  } | null
+  participants: {
+    landlordId: string
+    seekerId: string
+  }
+  contract: Contract | null
+  payments: Payment[]
 }
 
 export interface Rating {
@@ -317,4 +388,48 @@ export interface SearchSuggestion {
   label: string
   type: 'query' | 'city' | 'amenity'
   value: string
+}
+
+export interface SecuritySession {
+  id: string
+  sessionId?: string
+  deviceLabel?: string | null
+  ipTruncated?: string | null
+  userAgent?: string | null
+  lastActiveAt?: string | null
+  createdAt?: string | null
+  isCurrent?: boolean
+}
+
+export interface FraudSignal {
+  id: string
+  signalKey: string
+  weight: number
+  meta?: Record<string, any> | null
+  createdAt?: string | null
+}
+
+export interface FraudScore {
+  score: number
+  lastCalculatedAt?: string | null
+}
+
+export interface AdminUserSecurityPayload {
+  user: any
+  fraudScore: FraudScore
+  fraudSignals: FraudSignal[]
+  sessions: SecuritySession[]
+  landlordMetrics?: {
+    avgRating30d?: number | null
+    allTimeAvgRating?: number | null
+    ratingsCount?: number
+    medianResponseTimeMinutes?: number | null
+    completedTransactionsCount?: number
+    updatedAt?: string | null
+  } | null
+  landlordBadges?: {
+    badges: string[]
+    override?: Record<string, boolean> | null
+    suppressed?: boolean
+  } | null
 }

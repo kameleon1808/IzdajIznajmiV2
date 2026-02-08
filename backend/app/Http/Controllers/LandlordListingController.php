@@ -12,6 +12,7 @@ use App\Models\Listing;
 use App\Models\ListingImage;
 use App\Services\ListingAddressGuardService;
 use App\Services\ListingStatusService;
+use App\Services\FraudSignalService;
 use App\Services\StructuredLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -24,7 +25,8 @@ class LandlordListingController extends Controller
     public function __construct(
         private readonly ListingStatusService $statusService,
         private readonly ListingAddressGuardService $addressGuard,
-        private readonly StructuredLogger $log
+        private readonly StructuredLogger $log,
+        private FraudSignalService $fraudSignals
     ) {
     }
 
@@ -59,6 +61,8 @@ class LandlordListingController extends Controller
         $data = $request->validated();
         $addressKey = $this->addressGuard->normalizeAddressKey($data['address'], $data['city'], $data['country']);
         $rooms = $data['rooms'] ?? $data['beds'];
+
+        $this->recordDuplicateAddressAttempt($user, $addressKey);
 
         $listing = DB::transaction(function () use ($data, $user, $request, $addressKey, $rooms) {
             $listing = Listing::create([
@@ -121,6 +125,8 @@ class LandlordListingController extends Controller
         if ($listing->status === ListingStatusService::STATUS_ACTIVE) {
             $warnings = $this->addressGuard->guardActiveAddress($listing, $addressKey);
         }
+
+        $this->recordDuplicateAddressAttempt($request->user(), $addressKey);
 
         $payload = [];
         $map = [
@@ -444,6 +450,33 @@ class LandlordListingController extends Controller
 
         return ($user && method_exists($user, 'hasAnyRole') && $user->hasAnyRole($roles))
             || ($user && isset($user->role) && in_array($user->role, $roles, true));
+    }
+
+    private function recordDuplicateAddressAttempt($user, ?string $addressKey): void
+    {
+        if (!$user || !$addressKey) {
+            return;
+        }
+
+        $exists = Listing::where('owner_id', $user->id)
+            ->where('address_key', $addressKey)
+            ->exists();
+
+        if (!$exists) {
+            return;
+        }
+
+        $settings = config('security.fraud.signals.duplicate_address_attempt', []);
+        $weight = (int) ($settings['weight'] ?? 15);
+        $cooldown = (int) ($settings['cooldown_minutes'] ?? 60);
+
+        $this->fraudSignals->recordSignal(
+            $user,
+            'duplicate_address_attempt',
+            $weight,
+            ['address_key' => $addressKey],
+            $cooldown
+        );
     }
 
     private function isAdmin($user): bool

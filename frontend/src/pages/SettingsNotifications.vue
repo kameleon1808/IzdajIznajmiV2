@@ -31,6 +31,11 @@ const typeLabels: Record<string, string> = {
   'kyc.submission_received': 'KYC Submission Received',
   'kyc.approved': 'KYC Approved',
   'kyc.rejected': 'KYC Rejected',
+  'transaction.contract_ready': 'Contract Ready',
+  'transaction.signed_by_other_party': 'Contract Signed',
+  'transaction.fully_signed': 'Contract Fully Signed',
+  'transaction.deposit_paid': 'Deposit Paid',
+  'transaction.move_in_confirmed': 'Move-in Confirmed',
 }
 
 const isDirty = computed(() => {

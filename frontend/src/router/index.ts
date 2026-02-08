@@ -16,6 +16,10 @@ import AdminRatings from '../pages/AdminRatings.vue'
 import AdminDashboard from '../pages/AdminDashboard.vue'
 import AdminModeration from '../pages/AdminModeration.vue'
 import AdminKyc from '../pages/AdminKyc.vue'
+import AdminTransactions from '../pages/AdminTransactions.vue'
+import AdminTransactionDetail from '../pages/AdminTransactionDetail.vue'
+import AdminUserSecurity from '../pages/AdminUserSecurity.vue'
+import AdminUsers from '../pages/AdminUsers.vue'
 import Reviews from '../pages/Reviews.vue'
 import Search from '../pages/Search.vue'
 import SavedSearches from '../pages/SavedSearches.vue'
@@ -23,12 +27,15 @@ import SettingsLanguage from '../pages/SettingsLanguage.vue'
 import SettingsLegal from '../pages/SettingsLegal.vue'
 import SettingsPersonalInfo from '../pages/SettingsPersonalInfo.vue'
 import SettingsNotifications from '../pages/SettingsNotifications.vue'
+import SettingsSecurity from '../pages/SettingsSecurity.vue'
 import Notifications from '../pages/Notifications.vue'
 import { useAuthStore, type Role } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
 import Login from '../pages/Login.vue'
 import Register from '../pages/Register.vue'
 import KycVerification from '../pages/KycVerification.vue'
+import TransactionDetail from '../pages/TransactionDetail.vue'
+import Transactions from '../pages/Transactions.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -112,6 +119,18 @@ const router = createRouter({
       path: '/messages/:id',
       redirect: (to) => ({ path: `/chat/${to.params.id}`, query: to.query }),
     },
+    {
+      path: '/transactions/:id',
+      name: 'transaction-detail',
+      component: TransactionDetail,
+      meta: { topBar: { type: 'back', title: 'Transaction' }, showTabs: false, roles: ['seeker', 'landlord', 'admin'] },
+    },
+    {
+      path: '/transactions',
+      name: 'transactions',
+      component: Transactions,
+      meta: { topBar: { type: 'title', title: 'Transactions' }, showTabs: true, roles: ['seeker', 'landlord'] },
+    },
     { path: '/profile', name: 'profile', component: Profile, meta: { topBar: { type: 'title', title: 'Profile' }, showTabs: true } },
     {
       path: '/profile/verification',
@@ -142,6 +161,12 @@ const router = createRouter({
       name: 'settings-language',
       component: SettingsLanguage,
       meta: { topBar: { type: 'back', title: 'Language' }, showTabs: false },
+    },
+    {
+      path: '/settings/security',
+      name: 'settings-security',
+      component: SettingsSecurity,
+      meta: { topBar: { type: 'back', title: 'Security' }, showTabs: false },
     },
     {
       path: '/settings/notifications',
@@ -196,6 +221,30 @@ const router = createRouter({
       name: 'admin-kyc',
       component: AdminKyc,
       meta: { topBar: { type: 'title', title: 'KYC Review' }, showTabs: false, roles: ['admin'] },
+    },
+    {
+      path: '/admin/transactions',
+      name: 'admin-transactions',
+      component: AdminTransactions,
+      meta: { topBar: { type: 'title', title: 'Transactions' }, showTabs: false, roles: ['admin'] },
+    },
+    {
+      path: '/admin/transactions/:id',
+      name: 'admin-transaction-detail',
+      component: AdminTransactionDetail,
+      meta: { topBar: { type: 'back', title: 'Transaction Detail' }, showTabs: false, roles: ['admin'] },
+    },
+    {
+      path: '/admin/users',
+      name: 'admin-users',
+      component: AdminUsers,
+      meta: { topBar: { type: 'title', title: 'Users' }, showTabs: false, roles: ['admin'] },
+    },
+    {
+      path: '/admin/users/:id',
+      name: 'admin-user-security',
+      component: AdminUserSecurity,
+      meta: { topBar: { type: 'back', title: 'User Security' }, showTabs: false, roles: ['admin'] },
     },
     {
       path: '/admin/moderation/reports/:id',

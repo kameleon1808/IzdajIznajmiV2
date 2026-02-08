@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Heart, MapPin, ShieldCheck } from 'lucide-vue-next'
+import { Award, Heart, MapPin, ShieldCheck } from 'lucide-vue-next'
 import type { Listing } from '../../types'
 
 defineProps<{ listing: Listing }>()
@@ -26,12 +26,21 @@ const toggle = (e: Event, id: string) => {
       >
         <Heart :class="['h-5 w-5', listing.isFavorite ? 'fill-primary' : '']" />
       </button>
-      <div
-        v-if="listing.landlord?.verificationStatus === 'approved'"
-        class="absolute left-3 top-3 flex items-center gap-1 rounded-full bg-emerald-500/90 px-3 py-1 text-xs font-semibold text-white shadow-soft"
-      >
-        <ShieldCheck class="h-3.5 w-3.5" />
-        Verified
+      <div class="absolute left-3 top-3 flex flex-col gap-2">
+        <div
+          v-if="listing.landlord?.verificationStatus === 'approved'"
+          class="flex items-center gap-1 rounded-full bg-emerald-500/90 px-3 py-1 text-xs font-semibold text-white shadow-soft"
+        >
+          <ShieldCheck class="h-3.5 w-3.5" />
+          Verified
+        </div>
+        <div
+          v-if="listing.landlord?.badges?.includes('top_landlord')"
+          class="flex items-center gap-1 rounded-full bg-amber-500/90 px-3 py-1 text-xs font-semibold text-white shadow-soft"
+        >
+          <Award class="h-3.5 w-3.5" />
+          Top landlord
+        </div>
       </div>
       <div class="absolute bottom-3 left-3 right-3 flex items-end justify-between text-white">
         <div>

@@ -6,6 +6,19 @@ const baseURL = `${apiBaseUrl}/api/v1`
 
 let onUnauthorized: () => Promise<void> | void = () => {}
 let csrfPromise: Promise<void> | null = null
+const DEVICE_ID_KEY = 'ii-device-id'
+
+const getDeviceId = (): string | null => {
+  if (typeof localStorage === 'undefined') return null
+  let existing = localStorage.getItem(DEVICE_ID_KEY)
+  if (existing) return existing
+  const next =
+    typeof crypto !== 'undefined' && 'randomUUID' in crypto
+      ? crypto.randomUUID()
+      : Math.random().toString(36).slice(2) + Date.now().toString(36)
+  localStorage.setItem(DEVICE_ID_KEY, next)
+  return next
+}
 
 export const registerAuthHandlers = (options: { onUnauthorized: () => Promise<void> | void }) => {
   onUnauthorized = options.onUnauthorized
@@ -48,6 +61,11 @@ apiClient.interceptors.request.use((config) => {
   if (xsrf && (!config.headers || !config.headers['X-XSRF-TOKEN'])) {
     config.headers = config.headers ?? {}
     config.headers['X-XSRF-TOKEN'] = xsrf
+  }
+  const deviceId = getDeviceId()
+  if (deviceId) {
+    config.headers = config.headers ?? {}
+    config.headers['X-Device-Id'] = deviceId
   }
   if (config.data instanceof FormData) {
     // Let the browser set the boundary for multipart

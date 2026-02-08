@@ -8,8 +8,10 @@ use App\Http\Requests\ApplyToListingRequest;
 use App\Http\Requests\UpdateApplicationStatusRequest;
 use App\Http\Resources\ApplicationResource;
 use App\Models\Application;
+use App\Models\FraudSignal;
 use App\Models\Listing;
 use App\Services\ListingStatusService;
+use App\Services\FraudSignalService;
 use App\Services\StructuredLogger;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
@@ -18,8 +20,10 @@ use Illuminate\Support\Facades\Gate;
 
 class ApplicationController extends Controller
 {
-    public function __construct(private readonly StructuredLogger $log)
-    {
+    public function __construct(
+        private readonly StructuredLogger $log,
+        private FraudSignalService $fraudSignals
+    ) {
     }
 
     public function apply(ApplyToListingRequest $request, Listing $listing): JsonResponse
@@ -27,6 +31,19 @@ class ApplicationController extends Controller
         $user = $request->user();
         abort_unless($user, 401, 'Unauthenticated');
         abort_unless($this->userHasRole($user, ['seeker', 'admin']), 403, 'Only seekers can apply');
+
+        if (! $this->userHasRole($user, 'admin')) {
+            if ($user->is_suspicious) {
+                return response()->json(['message' => 'Applications are blocked until fraud is cleared.'], 403);
+            }
+
+            $hasRapidSignal = FraudSignal::where('user_id', $user->id)
+                ->where('signal_key', 'rapid_applications')
+                ->exists();
+            if ($hasRapidSignal) {
+                return response()->json(['message' => 'Applications are blocked until fraud is cleared.'], 403);
+            }
+        }
 
         if ($listing->status !== ListingStatusService::STATUS_ACTIVE) {
             return response()->json(['message' => 'Listing is not active for applications'], 422);
@@ -60,6 +77,8 @@ class ApplicationController extends Controller
             'application_id' => $application->id,
             'status' => $application->status,
         ]);
+
+        $this->recordRapidApplications($user);
 
         return response()->json(new ApplicationResource($application->load('listing.images')), 201);
     }
@@ -124,5 +143,27 @@ class ApplicationController extends Controller
 
         return ($user && method_exists($user, 'hasAnyRole') && $user->hasAnyRole($roles))
             || ($user && isset($user->role) && in_array($user->role, $roles, true));
+    }
+
+    private function recordRapidApplications($user): void
+    {
+        $settings = config('security.fraud.signals.rapid_applications', []);
+        $threshold = (int) ($settings['threshold'] ?? 4);
+        $windowMinutes = (int) ($settings['window_minutes'] ?? 30);
+        $weight = (int) ($settings['weight'] ?? 10);
+
+        $count = Application::where('seeker_id', $user->id)
+            ->where('created_at', '>=', now()->subMinutes($windowMinutes))
+            ->count();
+
+        if ($count >= $threshold) {
+            $this->fraudSignals->recordSignal(
+                $user,
+                'rapid_applications',
+                $weight,
+                ['count' => $count],
+                $windowMinutes
+            );
+        }
     }
 }

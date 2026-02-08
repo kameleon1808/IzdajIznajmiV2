@@ -8,10 +8,12 @@ import EmptyState from '../components/ui/EmptyState.vue'
 import Badge from '../components/ui/Badge.vue'
 import ModalSheet from '../components/ui/ModalSheet.vue'
 import Button from '../components/ui/Button.vue'
-import { getPublicProfile, getUserRatings, reportRating } from '../services'
-import type { PublicProfile, Rating } from '../types'
+import { getPublicProfile, getUserRatings, reportRating, getSharedTransactions, reportTransaction } from '../services'
+import { useAuthStore } from '../stores/auth'
+import type { PublicProfile, Rating, RentalTransaction } from '../types'
 
 const route = useRoute()
+const auth = useAuthStore()
 const profile = ref<PublicProfile | null>(null)
 const loading = ref(true)
 const error = ref('')
@@ -21,6 +23,12 @@ const showReport = ref(false)
 const reportReason = ref('spam')
 const reportDetails = ref('')
 const reportSubmitting = ref(false)
+const sharedTransactions = ref<RentalTransaction[]>([])
+const showTransactionReport = ref(false)
+const reportTransactionId = ref('')
+const transactionReason = ref('issue')
+const transactionDetails = ref('')
+const transactionSubmitting = ref(false)
 
 const load = async () => {
   loading.value = true
@@ -28,6 +36,17 @@ const load = async () => {
   try {
     profile.value = await getPublicProfile(route.params.id as string)
     ratings.value = await getUserRatings(route.params.id as string)
+    if (auth.user?.id) {
+      try {
+        sharedTransactions.value = await getSharedTransactions(route.params.id as string)
+        const [firstTransaction] = sharedTransactions.value
+        if (firstTransaction) {
+          reportTransactionId.value = firstTransaction.id
+        }
+      } catch (err) {
+        sharedTransactions.value = []
+      }
+    }
   } catch (err) {
     error.value = (err as Error).message || 'Failed to load profile.'
     profile.value = null
@@ -59,6 +78,31 @@ const submitReport = async () => {
 const openReport = (rating: Rating) => {
   reportTarget.value = rating
   showReport.value = true
+}
+
+const openTransactionReport = () => {
+  if (!reportTransactionId.value) {
+    const [firstTransaction] = sharedTransactions.value
+    if (firstTransaction) {
+      reportTransactionId.value = firstTransaction.id
+    }
+  }
+  showTransactionReport.value = true
+}
+
+const submitTransactionReport = async () => {
+  if (!reportTransactionId.value) return
+  transactionSubmitting.value = true
+  try {
+    await reportTransaction(reportTransactionId.value, transactionReason.value, transactionDetails.value || undefined)
+    showTransactionReport.value = false
+    transactionReason.value = 'issue'
+    transactionDetails.value = ''
+  } catch (err) {
+    error.value = (err as Error).message || 'Failed to report transaction.'
+  } finally {
+    transactionSubmitting.value = false
+  }
 }
 </script>
 
@@ -102,6 +146,15 @@ const openReport = (rating: Rating) => {
               Verified landlord {{ profile.landlordVerification.verifiedAt ? `· ${formatDate(profile.landlordVerification.verifiedAt)}` : '' }}
             </span>
           </Badge>
+          <Badge v-if="profile.badges?.includes('top_landlord')" variant="info">
+            <span class="inline-flex items-center gap-1">
+              <ShieldCheck class="h-4 w-4" />
+              Top landlord
+            </span>
+          </Badge>
+        </div>
+        <div v-if="sharedTransactions.length" class="pt-2">
+          <Button variant="secondary" size="sm" @click="openTransactionReport">Prijavi transakciju</Button>
         </div>
       </div>
 
@@ -156,6 +209,32 @@ const openReport = (rating: Rating) => {
       ></textarea>
       <Button :disabled="reportSubmitting" variant="primary" block @click="submitReport">
         {{ reportSubmitting ? 'Submitting...' : 'Submit report' }}
+      </Button>
+    </div>
+  </ModalSheet>
+
+  <ModalSheet v-model="showTransactionReport" title="Report transaction">
+    <div class="space-y-3">
+      <label class="text-sm font-semibold text-slate-900">Transaction</label>
+      <select v-model="reportTransactionId" class="w-full rounded-xl border border-line px-3 py-2 text-sm">
+        <option v-for="tx in sharedTransactions" :key="tx.id" :value="tx.id">
+          #{{ tx.id }} · {{ tx.listing?.title ?? 'Listing' }} · {{ tx.status }}
+        </option>
+      </select>
+      <label class="text-sm font-semibold text-slate-900">Reason</label>
+      <select v-model="transactionReason" class="w-full rounded-xl border border-line px-3 py-2 text-sm">
+        <option value="issue">Issue with transaction</option>
+        <option value="abuse">Abusive behavior</option>
+        <option value="other">Other</option>
+      </select>
+      <textarea
+        v-model="transactionDetails"
+        rows="3"
+        class="w-full rounded-2xl border border-line bg-surface px-3 py-2 text-sm text-slate-900 focus:border-primary focus:outline-none"
+        placeholder="Additional details (optional)"
+      ></textarea>
+      <Button :disabled="transactionSubmitting" variant="primary" block @click="submitTransactionReport">
+        {{ transactionSubmitting ? 'Submitting...' : 'Submit report' }}
       </Button>
     </div>
   </ModalSheet>

@@ -5,6 +5,7 @@ namespace App\Http\Resources;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Collection;
+use App\Services\BadgeService;
 
 class ListingResource extends JsonResource
 {
@@ -55,11 +56,13 @@ class ListingResource extends JsonResource
             'ownerId' => $this->owner_id,
             'landlord' => $this->whenLoaded('owner', function () {
                 $status = $this->owner?->landlord_verification_status ?? 'none';
+                $badges = $this->owner ? app(BadgeService::class)->badgesFor($this->owner, $this->owner->landlordMetric) : [];
                 return [
                     'id' => $this->owner?->id,
                     'fullName' => $this->owner?->full_name ?? $this->owner?->name,
                     'verificationStatus' => $status,
                     'verifiedAt' => optional($this->owner?->landlord_verified_at)->toISOString(),
+                    'badges' => $badges,
                 ];
             }),
             'createdAt' => optional($this->created_at)->toISOString(),
@@ -68,6 +71,7 @@ class ListingResource extends JsonResource
             'archivedAt' => optional($this->archived_at)->toISOString(),
             'expiredAt' => optional($this->expired_at)->toISOString(),
             'warnings' => $this->when(isset($this->warnings), fn () => array_values((array) $this->warnings)),
+            'why' => $this->when(isset($this->why), fn () => array_values((array) $this->why)),
         ];
     }
 

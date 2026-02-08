@@ -4,6 +4,7 @@
 - Node.js 20+ (Vite 7 needs >=20.19; `.nvmrc` set to 20)
 - PHP 8.2+ (CI runs on 8.3)
 - Composer, npm
+- Docker Engine or Docker Desktop (see Docker sections below)
 
 ## Docker dev (Windows / Docker Desktop)
 - Konfiguracija je u root `docker-compose.yml` i pokrece: backend (`artisan serve`), queue (`queue:work`), scheduler (`schedule:work`), frontend (`npm run dev`) i MeiliSearch.
@@ -13,6 +14,20 @@
 - Stop: `docker compose down`
 - Portovi: API `http://localhost:8000`, Frontend `http://localhost:5173`, Meili `http://localhost:7700`.
 - Compose automatski kopira `backend/.env.example` u `backend/.env` ako `.env` ne postoji, generise `APP_KEY`, kreira SQLite file i radi `storage:link`.
+
+## Docker dev (Windows + WSL2 terminal)
+- Ovaj setup zadrzava Docker Desktop, ali omogucava pokretanje iz WSL terminala.
+- U Docker Desktop: Settings -> Resources -> WSL Integration -> ukljuci distro u kojem radis.
+- U WSL distro instaliraj Docker CLI (ne engine). Za Ubuntu/Debian: `sudo apt update && sudo apt install -y docker.io docker-compose-plugin`
+- Provera iz WSL: `docker version` (treba da vidi Docker Desktop engine).
+- Pokretanje iz WSL (u root folderu repo-a): `docker compose up --build`
+- Napomena: ne pokretati lokalni Docker Engine u WSL-u paralelno sa Docker Desktop-om; koristi samo Desktop engine.
+
+## Docker dev (Linux native)
+- Instaliraj Docker Engine + Compose plugin (distro paketi ili Docker repo).
+- Dodaj korisnika u `docker` grupu i reloguj se. Komande: `sudo usermod -aG docker $USER` i `newgrp docker`
+- Provera: `docker version` i `docker compose version`.
+- Pokretanje (u root folderu repo-a): `docker compose up --build`
 
 ## Backend (Laravel API)
 - Lokacija: `/backend`

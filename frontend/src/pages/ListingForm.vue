@@ -181,6 +181,13 @@ const totalImages = computed(() => activeGallery.value.length)
 const hasPendingImages = computed(() => activeGallery.value.some((g) => g.processingStatus && g.processingStatus !== 'done'))
 const canPublish = computed(() => isValid.value && totalImages.value > 0 && !hasPendingImages.value)
 
+const parseCoordinate = (value: string) => {
+  const normalized = value.trim().replace(',', '.')
+  if (!normalized) return undefined
+  const parsed = Number(normalized)
+  return Number.isFinite(parsed) ? parsed : undefined
+}
+
 const save = async () => {
   if (!isValid.value) return
   submitting.value = true
@@ -195,8 +202,8 @@ const save = async () => {
       instantBook: Boolean(form.instantBook),
       area: areaValue,
       rooms: roomsValue,
-      lat: form.lat ? Number(form.lat) : undefined,
-      lng: form.lng ? Number(form.lng) : undefined,
+      lat: parseCoordinate(form.lat),
+      lng: parseCoordinate(form.lng),
       ownerId: auth.user.id,
       keepImages: ordered
         .filter((g) => !g.isNew)
@@ -246,8 +253,8 @@ const publishNow = async () => {
         instantBook: Boolean(form.instantBook),
         area: areaValue,
         rooms: roomsValue,
-        lat: form.lat ? Number(form.lat) : undefined,
-        lng: form.lng ? Number(form.lng) : undefined,
+        lat: parseCoordinate(form.lat),
+        lng: parseCoordinate(form.lng),
         ownerId: auth.user.id,
         keepImages: [],
         imagesFiles: activeGallery.value.filter((g) => g.isNew && g.file).map((g) => g.file),

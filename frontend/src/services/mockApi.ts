@@ -5,16 +5,20 @@ import type {
   Application,
   Booking,
   Conversation,
+  Contract,
+  ContractSignature,
   KycDocument,
   KycSubmission,
   Listing,
   ListingFilters,
   ListingSearchFacets,
   Message,
+  Payment,
   PublicProfile,
   Rating,
   Report,
   Review,
+  RentalTransaction,
   SavedSearch,
   SearchSuggestion,
   ViewingRequest,
@@ -351,6 +355,18 @@ const toAppListing = (listingId: string) => {
   }
 }
 
+const toTransactionListing = (listingId: string) => {
+  const listing = listings.find((l) => l.id === listingId)
+  return {
+    id: listingId,
+    title: listing?.title ?? 'Listing',
+    address: listing?.address,
+    city: listing?.city,
+    coverImage: listing?.coverImage ?? listing?.images?.[0],
+    status: (listing as any)?.status ?? 'active',
+  }
+}
+
 const applications: Application[] = [
   {
     id: 'app1',
@@ -375,6 +391,28 @@ const applications: Application[] = [
     createdAt: '2026-01-10T09:20:00Z',
     listing: toAppListing('3'),
     participants: { seekerId: 'tenant-2', landlordId: 'landlord-1' },
+  },
+]
+
+const transactions: RentalTransaction[] = [
+  {
+    id: 'tx-1',
+    status: 'contract_generated',
+    depositAmount: 600,
+    rentAmount: 1200,
+    currency: 'EUR',
+    startedAt: '2026-01-15T10:00:00Z',
+    listing: toTransactionListing('2'),
+    participants: { landlordId: 'landlord-2', seekerId: 'tenant-1' },
+    contract: {
+      id: 'ctr-1',
+      version: 1,
+      templateKey: 'standard_v1',
+      status: 'draft',
+      pdfUrl: '/api/v1/contracts/ctr-1/pdf',
+      signatures: [],
+    },
+    payments: [],
   },
 ]
 
@@ -660,6 +698,19 @@ export async function getPopularListings(): Promise<Listing[]> {
 
 export async function getRecommendedListings(filters?: Partial<ListingFilters>): Promise<Listing[]> {
   return simulate(applyFilters(listings, filters))
+}
+
+export async function getSimilarListings(id: string, limit = 8): Promise<Listing[]> {
+  const base = listings.find((item) => String(item.id) === String(id))
+  if (!base) return simulate([])
+  const filtered = listings
+    .filter((item) => item.id !== base.id && item.city === base.city)
+    .slice(0, limit)
+    .map((item) => ({
+      ...item,
+      why: ['Same city', 'Similar price'],
+    }))
+  return simulate(filtered)
 }
 
 export async function searchListings(query: string, filters?: Partial<ListingFilters>): Promise<Listing[]> {
@@ -969,6 +1020,205 @@ END:VCALENDAR`
   return simulate(new Blob([text], { type: 'text/calendar' }))
 }
 
+export async function createTransaction(payload: {
+  listingId: string
+  seekerId: string
+  depositAmount?: number | null
+  rentAmount?: number | null
+  currency?: string
+}): Promise<RentalTransaction> {
+  await delay()
+  const now = new Date().toISOString()
+  const listing = toTransactionListing(payload.listingId)
+  const listingOwner = listings.find((l) => l.id === payload.listingId)?.ownerId ?? 'landlord-1'
+  const created: RentalTransaction = {
+    id: makeId(),
+    status: 'initiated',
+    depositAmount: payload.depositAmount ?? null,
+    rentAmount: payload.rentAmount ?? null,
+    currency: payload.currency ?? 'EUR',
+    startedAt: now,
+    createdAt: now,
+    listing,
+    participants: { landlordId: String(listingOwner), seekerId: payload.seekerId },
+    contract: null,
+    payments: [],
+  }
+  transactions.unshift(created)
+  return JSON.parse(JSON.stringify(created))
+}
+
+export async function getTransactions(): Promise<RentalTransaction[]> {
+  await delay()
+  return JSON.parse(JSON.stringify(transactions))
+}
+
+export async function getTransaction(id: string): Promise<RentalTransaction> {
+  await delay()
+  const tx = transactions.find((t) => t.id === id)
+  if (!tx) throw new Error('Transaction not found')
+  return JSON.parse(JSON.stringify(tx))
+}
+
+export async function generateTransactionContract(
+  transactionId: string,
+  _payload: { startDate: string; terms?: string },
+): Promise<Contract> {
+  await delay()
+  const tx = transactions.find((t) => t.id === transactionId)
+  if (!tx) throw new Error('Transaction not found')
+  const contract: Contract = {
+    id: tx.contract?.id ?? makeId(),
+    version: tx.contract?.version ?? 1,
+    templateKey: 'standard_v1',
+    status: 'draft',
+    pdfUrl: '/api/v1/contracts/mock.pdf',
+    signatures: [],
+  }
+  tx.contract = contract
+  tx.status = 'contract_generated'
+  return JSON.parse(JSON.stringify(contract))
+}
+
+export async function getLatestTransactionContract(transactionId: string): Promise<Contract> {
+  await delay()
+  const tx = transactions.find((t) => t.id === transactionId)
+  if (!tx?.contract) throw new Error('Contract not found')
+  return JSON.parse(JSON.stringify(tx.contract))
+}
+
+export async function signTransactionContract(
+  contractId: string,
+  payload: { typedName: string; consent: boolean },
+): Promise<Contract> {
+  await delay()
+  const tx = transactions.find((t) => t.contract?.id === contractId)
+  if (!tx || !tx.contract) throw new Error('Contract not found')
+
+  const role: ContractSignature['role'] = tx.contract.signatures.find((s) => s.role === 'seeker') ? 'landlord' : 'seeker'
+  tx.contract.signatures.push({
+    id: makeId(),
+    userId: role === 'seeker' ? tx.participants.seekerId : tx.participants.landlordId,
+    role,
+    signedAt: new Date().toISOString(),
+    signatureMethod: 'typed_name',
+    signatureData: { typed_name: payload.typedName, consent: payload.consent },
+  })
+
+  const hasSeeker = tx.contract.signatures.some((s) => s.role === 'seeker')
+  const hasLandlord = tx.contract.signatures.some((s) => s.role === 'landlord')
+
+  if (hasSeeker && hasLandlord) {
+    tx.contract.status = 'final'
+    tx.status = 'landlord_signed'
+  } else {
+    tx.status = role === 'seeker' ? 'seeker_signed' : 'landlord_signed'
+  }
+
+  return JSON.parse(JSON.stringify(tx.contract))
+}
+
+export async function createDepositSession(transactionId: string): Promise<{ checkoutUrl: string; payment: Payment }> {
+  await delay()
+  const tx = transactions.find((t) => t.id === transactionId)
+  if (!tx) throw new Error('Transaction not found')
+  const payment: Payment = {
+    id: makeId(),
+    provider: 'stripe',
+    type: 'deposit',
+    amount: Number(tx.depositAmount ?? 0),
+    currency: tx.currency,
+    status: 'pending',
+    receiptUrl: null,
+    createdAt: new Date().toISOString(),
+  }
+  tx.payments.push(payment)
+  return { checkoutUrl: 'https://checkout.stripe.test/session', payment }
+}
+
+export async function markDepositPaidCash(transactionId: string): Promise<{ transaction: RentalTransaction; payment: Payment }> {
+  await delay()
+  const tx = transactions.find((t) => t.id === transactionId)
+  if (!tx) throw new Error('Transaction not found')
+  const payment: Payment = {
+    id: makeId(),
+    provider: 'cash',
+    type: 'deposit',
+    amount: Number(tx.depositAmount ?? 0),
+    currency: tx.currency,
+    status: 'succeeded',
+    receiptUrl: null,
+    createdAt: new Date().toISOString(),
+  }
+  tx.payments.push(payment)
+  tx.status = 'deposit_paid'
+  return { transaction: JSON.parse(JSON.stringify(tx)), payment }
+}
+
+export async function completeTransaction(transactionId: string): Promise<RentalTransaction> {
+  await delay()
+  const tx = transactions.find((t) => t.id === transactionId)
+  if (!tx) throw new Error('Transaction not found')
+  tx.status = 'completed'
+  tx.completedAt = new Date().toISOString()
+  return JSON.parse(JSON.stringify(tx))
+}
+
+export async function confirmMoveIn(transactionId: string): Promise<RentalTransaction> {
+  await delay()
+  const tx = transactions.find((t) => t.id === transactionId)
+  if (!tx) throw new Error('Transaction not found')
+  tx.status = 'move_in_confirmed'
+  return JSON.parse(JSON.stringify(tx))
+}
+
+export async function reportTransaction(_transactionId: string, _reason: string, _details?: string) {
+  await delay()
+  return { status: 'ok' }
+}
+
+export async function getSharedTransactions(userId: string): Promise<RentalTransaction[]> {
+  await delay()
+  return JSON.parse(JSON.stringify(transactions.filter((t) => [t.participants.landlordId, t.participants.seekerId].includes(userId))))
+}
+
+export async function getAdminTransactions(params?: { status?: string }): Promise<RentalTransaction[]> {
+  await delay()
+  if (params?.status) {
+    return JSON.parse(JSON.stringify(transactions.filter((t) => t.status === params.status)))
+  }
+  return JSON.parse(JSON.stringify(transactions))
+}
+
+export async function getAdminTransaction(id: string): Promise<RentalTransaction> {
+  return getTransaction(id)
+}
+
+export async function markAdminTransactionDisputed(id: string): Promise<RentalTransaction> {
+  await delay()
+  const tx = transactions.find((t) => t.id === id)
+  if (!tx) throw new Error('Transaction not found')
+  tx.status = 'disputed'
+  return JSON.parse(JSON.stringify(tx))
+}
+
+export async function cancelAdminTransaction(id: string): Promise<RentalTransaction> {
+  await delay()
+  const tx = transactions.find((t) => t.id === id)
+  if (!tx) throw new Error('Transaction not found')
+  tx.status = 'cancelled'
+  return JSON.parse(JSON.stringify(tx))
+}
+
+export async function payoutAdminTransaction(id: string): Promise<RentalTransaction> {
+  await delay()
+  const tx = transactions.find((t) => t.id === id)
+  if (!tx) throw new Error('Transaction not found')
+  tx.status = 'completed'
+  tx.completedAt = new Date().toISOString()
+  return JSON.parse(JSON.stringify(tx))
+}
+
 export async function getConversations(): Promise<Conversation[]> {
   return simulate(conversations)
 }
@@ -1149,6 +1399,28 @@ export async function reportRating(_ratingId: string, _reason: string, _details?
 export async function getAdminRatings(): Promise<Rating[]> {
   await delay()
   return []
+}
+
+export async function getAdminUsers(params?: { q?: string; role?: string; suspicious?: boolean }): Promise<any[]> {
+  await delay()
+  const base = [
+    { id: 'admin-1', name: 'Admin One', fullName: 'Admin One', email: 'admin@example.com', role: 'admin', isSuspicious: false, mfaEnabled: true },
+    { id: 'landlord-1', name: 'Landlord One', fullName: 'Landlord One', email: 'landlord@example.com', role: 'landlord', isSuspicious: false, mfaEnabled: true },
+    { id: 'tenant-1', name: 'Tenant One', fullName: 'Tenant One', email: 'tenant@example.com', role: 'seeker', isSuspicious: false, mfaEnabled: false },
+    { id: 'tenant-2', name: 'Tenant Two', fullName: 'Tenant Two', email: 'tenant2@example.com', role: 'seeker', isSuspicious: true, mfaEnabled: true },
+  ]
+  const q = (params?.q ?? '').toLowerCase()
+  let list = base
+  if (q) {
+    list = list.filter((u) => String(u.id).includes(q) || u.name.toLowerCase().includes(q) || u.fullName.toLowerCase().includes(q) || u.email.toLowerCase().includes(q))
+  }
+  if (params?.role) {
+    list = list.filter((u) => u.role === params.role)
+  }
+  if (params?.suspicious !== undefined) {
+    list = list.filter((u) => u.isSuspicious === params.suspicious)
+  }
+  return JSON.parse(JSON.stringify(list))
 }
 
 export async function deleteAdminRating(_ratingId: string) {
@@ -1572,4 +1844,105 @@ export async function redactAdminKycSubmission(id: string | number, note?: strin
   submission.documents = []
   submission.reviewedAt = new Date().toISOString()
   return JSON.parse(JSON.stringify(submission))
+}
+
+export async function setupMfa() {
+  await delay()
+  return {
+    secret: 'MOCKSECRET123',
+    otpauth_url: 'otpauth://totp/IzdajIznajmi:mock?secret=MOCKSECRET123&issuer=IzdajIznajmi',
+    qr_svg: '',
+    recovery_codes: ['ABCD1-EFGH2', 'IJKL3-MNOP4', 'QRST5-UVWX6', 'YZ01A-BC23D'],
+  }
+}
+
+export async function confirmMfaSetup(_code: string) {
+  await delay()
+  return { message: 'MFA confirmed' }
+}
+
+export async function regenerateMfaRecoveryCodes(_code: string) {
+  await delay()
+  return { recovery_codes: ['NEWC1-ODE02', 'NEWC3-ODE04', 'NEWC5-ODE06'] }
+}
+
+export async function disableMfa(_payload: { password: string; code?: string; recoveryCode?: string }) {
+  await delay()
+  return { message: 'MFA disabled' }
+}
+
+export async function getSecuritySessions() {
+  await delay()
+  return {
+    sessions: [
+      {
+        id: '1',
+        sessionId: 'mock-session-1',
+        deviceLabel: 'Chrome on macOS',
+        ipTruncated: '192.168.1.0/24',
+        userAgent: 'MockAgent',
+        lastActiveAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        isCurrent: true,
+      },
+    ],
+  }
+}
+
+export async function revokeSecuritySession(_sessionId: string | number) {
+  await delay()
+  return { message: 'Session revoked' }
+}
+
+export async function revokeOtherSessions() {
+  await delay()
+  return { revoked: 0 }
+}
+
+export async function getAdminUserSecurity(userId: string | number) {
+  await delay()
+  return {
+    user: { id: String(userId), name: 'Mock User', email: 'mock@example.com', mfaEnabled: true, isSuspicious: false },
+    fraudScore: { score: 10, lastCalculatedAt: new Date().toISOString() },
+    fraudSignals: [],
+    sessions: [
+      {
+        id: '1',
+        sessionId: 'mock-session-1',
+        deviceLabel: 'Chrome on macOS',
+        ipTruncated: '192.168.1.0/24',
+        userAgent: 'MockAgent',
+        lastActiveAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+      },
+    ],
+    landlordMetrics: {
+      avgRating30d: 4.7,
+      allTimeAvgRating: 4.8,
+      ratingsCount: 12,
+      medianResponseTimeMinutes: 90,
+      completedTransactionsCount: 5,
+      updatedAt: new Date().toISOString(),
+    },
+    landlordBadges: {
+      badges: ['top_landlord'],
+      override: null,
+      suppressed: false,
+    },
+  }
+}
+
+export async function revokeAdminUserSessions(_userId: string | number) {
+  await delay()
+  return { message: 'Sessions revoked' }
+}
+
+export async function clearUserSuspicion(_userId: string | number) {
+  await delay()
+  return { message: 'Suspicion cleared', isSuspicious: false }
+}
+
+export async function updateAdminUserBadges(_userId: string | number, _payload: any) {
+  await delay()
+  return { badges: _payload?.topLandlord ? ['top_landlord'] : [], override: _payload ?? null, suppressed: false }
 }

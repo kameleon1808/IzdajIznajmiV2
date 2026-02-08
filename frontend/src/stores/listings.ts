@@ -176,9 +176,16 @@ export const useListingsStore = defineStore('listings', {
       this.loading = true
       this.error = ''
       try {
-        const resp = await getRecommendedListings(this.filters, 1, 10)
-        const list = Array.isArray(resp) ? resp : resp.items
-        this.recommended = this.syncFavorites(list)
+        const auth = useAuthStore()
+        if (!auth.isAuthenticated || !auth.hasRole('seeker')) {
+          const fallback = await getPopularListings(this.filters, 1, 10)
+          const list = Array.isArray(fallback) ? fallback : fallback.items
+          this.recommended = this.syncFavorites(list)
+        } else {
+          const resp = await getRecommendedListings(this.filters, 1, 10)
+          const list = Array.isArray(resp) ? resp : resp.items
+          this.recommended = this.syncFavorites(list)
+        }
       } catch (error) {
         this.error = (error as Error).message || 'Failed to load listings.'
         this.recommended = []

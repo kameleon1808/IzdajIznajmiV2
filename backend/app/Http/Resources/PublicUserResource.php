@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Services\BadgeService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -22,6 +23,7 @@ class PublicUserResource extends JsonResource
             'id' => $this->id,
             'fullName' => $this->full_name ?? $this->name,
             'joinedAt' => optional($this->created_at)->toISOString(),
+            'badges' => app(BadgeService::class)->badgesFor($this->resource, $this->landlordMetric),
             'verifications' => [
                 'email' => (bool) $this->email_verified,
                 'phone' => (bool) $this->phone_verified,

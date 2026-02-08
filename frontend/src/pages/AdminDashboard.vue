@@ -1,17 +1,20 @@
 <script setup lang="ts">
 import { onMounted, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import ErrorBanner from '../components/ui/ErrorBanner.vue'
 import ListSkeleton from '../components/ui/ListSkeleton.vue'
 import Button from '../components/ui/Button.vue'
 import type { AdminConversion, AdminKpiSummary, AdminTrendPoint } from '../types'
 import { getAdminKpiConversion, getAdminKpiSummary, getAdminKpiTrends } from '../services'
 
+const router = useRouter()
 const loading = ref(true)
 const error = ref('')
 const summary = ref<AdminKpiSummary | null>(null)
 const conversion = ref<AdminConversion | null>(null)
 const trends = ref<AdminTrendPoint[]>([])
 const range = ref<'7d' | '30d'>('7d')
+const userLookupId = ref('')
 
 const load = async () => {
   loading.value = true
@@ -32,6 +35,11 @@ watch(range, () => load())
 
 const trendMax = (key: keyof AdminTrendPoint) =>
   Math.max(...(trends.value.map((t) => Number((t as any)[key] ?? 0)) || [1, 1]), 1)
+
+const goToUser = () => {
+  if (!userLookupId.value) return
+  router.push(`/admin/users/${userLookupId.value}`)
+}
 </script>
 
 <template>
@@ -46,7 +54,22 @@ const trendMax = (key: keyof AdminTrendPoint) =>
       <router-link to="/admin">Dashboard</router-link>
       <router-link to="/admin/moderation" class="opacity-80 hover:opacity-100">Moderacija</router-link>
       <router-link to="/admin/ratings" class="opacity-80 hover:opacity-100">Ocene</router-link>
+      <router-link to="/admin/transactions" class="opacity-80 hover:opacity-100">Transakcije</router-link>
+      <router-link to="/admin/users" class="opacity-80 hover:opacity-100">Korisnici</router-link>
       <router-link to="/admin/kyc" class="opacity-80 hover:opacity-100">KYC</router-link>
+    </div>
+
+    <div class="rounded-2xl border border-line bg-white p-4 shadow-soft">
+      <p class="text-xs text-muted">User security lookup</p>
+      <div class="mt-2 flex flex-wrap gap-2">
+        <input
+          v-model="userLookupId"
+          type="text"
+          class="flex-1 rounded-xl border border-line px-3 py-2 text-sm"
+          placeholder="Enter user ID"
+        />
+        <Button size="sm" @click="goToUser">Open</Button>
+      </div>
     </div>
 
     <ErrorBanner v-if="error" :message="error" />
