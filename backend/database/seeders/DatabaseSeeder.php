@@ -8,6 +8,7 @@ use Database\Seeders\ApplicationsSeeder;
 use Database\Seeders\ConversationsSeeder;
 use Database\Seeders\FacilitiesSeeder;
 use Database\Seeders\ListingsSeeder;
+use Database\Seeders\LandlordMetricsSeeder;
 use Database\Seeders\PermissionSeeder;
 use Database\Seeders\RolesUsersSeeder;
 
@@ -27,6 +28,7 @@ class DatabaseSeeder extends Seeder
             ListingsSeeder::class,
             ApplicationsSeeder::class,
             ConversationsSeeder::class,
+            LandlordMetricsSeeder::class,
         ]);
     }
 }
