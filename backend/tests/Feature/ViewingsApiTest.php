@@ -53,6 +53,7 @@ class ViewingsApiTest extends TestCase
         $this->actingAs($landlord);
         $starts = Carbon::now()->addDays(2);
         $ends = $starts->clone()->addHour();
+        $scheduledAt = $starts->clone()->addMinutes(15);
 
         $create = $this->postJson("/api/v1/listings/{$listing->id}/viewing-slots", [
             'starts_at' => $starts->toIso8601String(),
@@ -71,7 +72,10 @@ class ViewingsApiTest extends TestCase
 
         $seeker = User::factory()->create(['role' => 'seeker']);
         $this->actingAs($seeker);
-        $this->postJson("/api/v1/viewing-slots/{$slotId}/request", ['message' => 'Looking forward'])->assertCreated();
+        $this->postJson("/api/v1/viewing-slots/{$slotId}/request", [
+            'message' => 'Looking forward',
+            'scheduled_at' => $scheduledAt->toIso8601String(),
+        ])->assertCreated();
 
         $this->actingAs($landlord);
         $this->deleteJson("/api/v1/viewing-slots/{$slotId}")->assertStatus(422);
@@ -86,6 +90,7 @@ class ViewingsApiTest extends TestCase
 
         $starts = Carbon::now()->addDays(1);
         $ends = $starts->clone()->addHour();
+        $scheduledAt = $starts->clone()->addMinutes(15);
 
         $this->actingAs($landlord);
         $slot = $this->postJson("/api/v1/listings/{$listing->id}/viewing-slots", [
@@ -94,10 +99,14 @@ class ViewingsApiTest extends TestCase
         ])->json();
 
         $this->actingAs($seeker);
-        $this->postJson("/api/v1/viewing-slots/{$slot['id']}/request", [])->assertCreated();
+        $this->postJson("/api/v1/viewing-slots/{$slot['id']}/request", [
+            'scheduled_at' => $scheduledAt->toIso8601String(),
+        ])->assertCreated();
 
         $this->actingAs($otherSeeker);
-        $response = $this->postJson("/api/v1/viewing-slots/{$slot['id']}/request", []);
+        $response = $this->postJson("/api/v1/viewing-slots/{$slot['id']}/request", [
+            'scheduled_at' => $scheduledAt->toIso8601String(),
+        ]);
         $response->assertStatus(422);
         $this->assertSame(1, ViewingRequest::count());
     }
@@ -110,6 +119,7 @@ class ViewingsApiTest extends TestCase
 
         $starts = Carbon::now()->addDays(3);
         $ends = $starts->clone()->addHour();
+        $scheduledAt = $starts->clone()->addMinutes(15);
 
         $this->actingAs($landlord);
         $slot = $this->postJson("/api/v1/listings/{$listing->id}/viewing-slots", [
@@ -118,7 +128,10 @@ class ViewingsApiTest extends TestCase
         ])->json();
 
         $this->actingAs($seeker);
-        $createRequest = $this->postJson("/api/v1/viewing-slots/{$slot['id']}/request", ['message' => 'See you there']);
+        $createRequest = $this->postJson("/api/v1/viewing-slots/{$slot['id']}/request", [
+            'message' => 'See you there',
+            'scheduled_at' => $scheduledAt->toIso8601String(),
+        ]);
         $createRequest->assertCreated()->assertJsonPath('status', ViewingRequest::STATUS_REQUESTED);
 
         $viewingRequestId = $createRequest->json('id');
@@ -155,6 +168,7 @@ class ViewingsApiTest extends TestCase
 
         $starts = Carbon::now()->addDays(4);
         $ends = $starts->clone()->addHour();
+        $scheduledAt = $starts->clone()->addMinutes(15);
 
         $this->actingAs($landlord);
         $slot = $this->postJson("/api/v1/listings/{$listing->id}/viewing-slots", [
@@ -163,7 +177,9 @@ class ViewingsApiTest extends TestCase
         ])->json();
 
         $this->actingAs($seeker);
-        $create = $this->postJson("/api/v1/viewing-slots/{$slot['id']}/request", []);
+        $create = $this->postJson("/api/v1/viewing-slots/{$slot['id']}/request", [
+            'scheduled_at' => $scheduledAt->toIso8601String(),
+        ]);
         $requestId = $create->json('id');
 
         $this->actingAs($landlord);
@@ -180,6 +196,7 @@ class ViewingsApiTest extends TestCase
 
         $laterStarts = Carbon::now()->addDays(5);
         $laterEnds = $laterStarts->clone()->addHour();
+        $laterScheduled = $laterStarts->clone()->addMinutes(15);
 
         $this->actingAs($landlord);
         $secondSlot = $this->postJson("/api/v1/listings/{$listing->id}/viewing-slots", [
@@ -188,7 +205,9 @@ class ViewingsApiTest extends TestCase
         ])->json();
 
         $this->actingAs($otherUser);
-        $pendingCreate = $this->postJson("/api/v1/viewing-slots/{$secondSlot['id']}/request", []);
+        $pendingCreate = $this->postJson("/api/v1/viewing-slots/{$secondSlot['id']}/request", [
+            'scheduled_at' => $laterScheduled->toIso8601String(),
+        ]);
         $pendingId = $pendingCreate->json('id');
 
         $this->get("/api/v1/viewing-requests/{$pendingId}/ics")->assertNotFound();

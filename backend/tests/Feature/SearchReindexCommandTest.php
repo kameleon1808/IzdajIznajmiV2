@@ -42,8 +42,12 @@ class SearchReindexCommandTest extends TestCase
             public function resetIndex(): void {}
         });
 
-        $active = Listing::factory()->create(['status' => ListingStatusService::STATUS_ACTIVE]);
-        $draft = Listing::factory()->create(['status' => ListingStatusService::STATUS_DRAFT]);
+        [$active, $draft] = Listing::withoutEvents(function () {
+            $active = Listing::factory()->create(['status' => ListingStatusService::STATUS_ACTIVE]);
+            $draft = Listing::factory()->create(['status' => ListingStatusService::STATUS_DRAFT]);
+
+            return [$active, $draft];
+        });
 
         $this->artisan('search:listings:reindex')->assertExitCode(Command::SUCCESS);
 

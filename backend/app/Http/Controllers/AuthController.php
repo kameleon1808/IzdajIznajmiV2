@@ -48,7 +48,7 @@ class AuthController extends Controller
         Role::findOrCreate($role, 'web');
         $user->syncRoles([$role]);
 
-        Auth::login($user);
+        Auth::guard('web')->login($user);
         $request->session()->regenerate();
         $this->sessions->recordSession($user, $request);
 
@@ -59,7 +59,7 @@ class AuthController extends Controller
     {
         $credentials = $request->validated();
 
-        if (! Auth::attempt($credentials)) {
+        if (! Auth::guard('web')->attempt($credentials)) {
             return response()->json(['message' => 'Invalid credentials'], 401);
         }
 

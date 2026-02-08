@@ -65,8 +65,9 @@ class SimilarListingsTest extends TestCase
         $response = $this->getJson('/api/v1/listings/'.$base->id.'/similar?limit=3');
 
         $response->assertOk();
-        $response->assertJsonMissing(['id' => $base->id]);
-        $response->assertJsonMissing(['id' => $inactive->id]);
+        $ids = collect($response->json('data'))->pluck('id');
+        $this->assertFalse($ids->contains($base->id));
+        $this->assertFalse($ids->contains($inactive->id));
         $response->assertJsonPath('data.0.id', $candidateA->id);
     }
 }
