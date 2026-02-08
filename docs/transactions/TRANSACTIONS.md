@@ -7,9 +7,9 @@
 - `landlord_signed`: landlord signed (also used once both parties sign; use contract status for “fully signed”).
 - `deposit_paid`: Stripe deposit payment succeeded (escrow-lite hold).
 - `move_in_confirmed`: landlord confirmed move-in.
-- `completed`: admin recorded payout (manual in Phase I).
-- `cancelled`: admin cancelled transaction.
-- `disputed`: admin marked transaction as disputed.
+- `completed`: landlord confirmed completion after move-in.
+- `cancelled`: transaction cancelled (legacy/admin tools disabled).
+- `disputed`: transaction disputed (legacy/admin tools disabled).
 
 Contract status:
 - `draft`: one or zero signatures.
@@ -34,6 +34,7 @@ Webhook:
 3. Create a transaction, generate a contract, and sign as both parties.
 4. Click “Pay deposit” to open Checkout in test mode.
 5. Verify status updates to `deposit_paid` and receipt link appears when `charge.succeeded` arrives.
+6. Landlord confirms move-in, then marks transaction completed.
 
 ## Security notes
 - Contracts PDFs are stored on the private disk: `storage/app/private/contracts/{transaction_id}/contract_v{version}.pdf`.

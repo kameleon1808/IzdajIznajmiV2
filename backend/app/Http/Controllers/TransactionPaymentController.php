@@ -129,13 +129,75 @@ class TransactionPaymentController extends Controller
         ]);
     }
 
+    public function markDepositPaidCash(Request $request, RentalTransaction $transaction): JsonResponse
+    {
+        $user = $request->user();
+        abort_unless($user, 401, 'Unauthenticated');
+        Gate::authorize('pay', $transaction);
+
+        if (in_array($transaction->status, [
+            RentalTransaction::STATUS_DEPOSIT_PAID,
+            RentalTransaction::STATUS_MOVE_IN_CONFIRMED,
+            RentalTransaction::STATUS_COMPLETED,
+            RentalTransaction::STATUS_CANCELLED,
+            RentalTransaction::STATUS_DISPUTED,
+        ], true)) {
+            return response()->json(['message' => 'Deposit payment not allowed'], 422);
+        }
+
+        $contract = $transaction->latestContract()->first();
+        if (! $contract || $contract->status !== Contract::STATUS_FINAL) {
+            return response()->json(['message' => 'Contract must be fully signed before payment'], 422);
+        }
+
+        if (! $transaction->deposit_amount || (float) $transaction->deposit_amount <= 0) {
+            return response()->json(['message' => 'Deposit amount is missing'], 422);
+        }
+
+        $existing = $transaction->payments()
+            ->where('type', Payment::TYPE_DEPOSIT)
+            ->whereIn('status', [Payment::STATUS_PENDING, Payment::STATUS_SUCCEEDED])
+            ->latest()
+            ->first();
+
+        if ($existing) {
+            return response()->json(['message' => 'Deposit payment already started'], 409);
+        }
+
+        $payment = Payment::create([
+            'transaction_id' => $transaction->id,
+            'provider' => Payment::PROVIDER_CASH,
+            'type' => Payment::TYPE_DEPOSIT,
+            'amount' => $transaction->deposit_amount,
+            'currency' => $transaction->currency,
+            'status' => Payment::STATUS_SUCCEEDED,
+        ]);
+
+        if (! in_array($transaction->status, [
+            RentalTransaction::STATUS_DEPOSIT_PAID,
+            RentalTransaction::STATUS_MOVE_IN_CONFIRMED,
+            RentalTransaction::STATUS_COMPLETED,
+        ], true)
+        ) {
+            $transaction->update(['status' => RentalTransaction::STATUS_DEPOSIT_PAID]);
+            $this->notifyDepositPaid($transaction);
+        }
+
+        $transaction->load(['listing.images', 'latestContract.signatures', 'payments']);
+
+        return response()->json([
+            'transaction' => new \App\Http\Resources\RentalTransactionResource($transaction),
+            'payment' => new PaymentResource($payment),
+        ]);
+    }
+
     public function confirmMoveIn(Request $request, RentalTransaction $transaction): JsonResponse
     {
         $user = $request->user();
         abort_unless($user, 401, 'Unauthenticated');
-        abort_unless($this->userHasRole($user, ['landlord', 'admin']), 403, 'Only landlords can confirm move-in');
+        abort_unless($this->userHasRole($user, 'landlord'), 403, 'Only landlords can confirm move-in');
 
-        if ((int) $transaction->landlord_id !== (int) $user->id && ! $this->userHasRole($user, 'admin')) {
+        if ((int) $transaction->landlord_id !== (int) $user->id) {
             abort(403, 'Forbidden');
         }
 
@@ -146,6 +208,30 @@ class TransactionPaymentController extends Controller
         $transaction->update(['status' => RentalTransaction::STATUS_MOVE_IN_CONFIRMED]);
 
         $this->notifyMoveInConfirmed($transaction);
+
+        $transaction->load(['listing.images', 'latestContract.signatures', 'payments']);
+
+        return response()->json(new \App\Http\Resources\RentalTransactionResource($transaction));
+    }
+
+    public function completeByLandlord(Request $request, RentalTransaction $transaction): JsonResponse
+    {
+        $user = $request->user();
+        abort_unless($user, 401, 'Unauthenticated');
+        abort_unless($this->userHasRole($user, 'landlord'), 403, 'Only landlords can complete transactions');
+
+        if ((int) $transaction->landlord_id !== (int) $user->id) {
+            abort(403, 'Forbidden');
+        }
+
+        if ($transaction->status !== RentalTransaction::STATUS_MOVE_IN_CONFIRMED) {
+            return response()->json(['message' => 'Completion only allowed after move-in confirmation'], 422);
+        }
+
+        $transaction->update([
+            'status' => RentalTransaction::STATUS_COMPLETED,
+            'completed_at' => now(),
+        ]);
 
         $transaction->load(['listing.images', 'latestContract.signatures', 'payments']);
 
@@ -181,5 +267,27 @@ class TransactionPaymentController extends Controller
 
         return ($user && method_exists($user, 'hasAnyRole') && $user->hasAnyRole($roles))
             || ($user && isset($user->role) && in_array($user->role, $roles, true));
+    }
+
+    private function notifyDepositPaid(RentalTransaction $transaction): void
+    {
+        $transaction->loadMissing('listing');
+        $listingTitle = $transaction->listing?->title ?? 'listing';
+
+        foreach ([$transaction->seeker_id, $transaction->landlord_id] as $userId) {
+            $recipient = User::find($userId);
+            if (! $recipient) {
+                continue;
+            }
+            $this->notifications->createNotification($recipient, Notification::TYPE_TRANSACTION_DEPOSIT_PAID, [
+                'title' => 'Deposit paid',
+                'body' => sprintf('Deposit for "%s" has been paid.', $listingTitle),
+                'data' => [
+                    'transaction_id' => $transaction->id,
+                    'listing_id' => $transaction->listing_id,
+                ],
+                'url' => sprintf('/transactions/%d', $transaction->id),
+            ]);
+        }
     }
 }

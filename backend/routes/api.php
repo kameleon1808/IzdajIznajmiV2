@@ -29,7 +29,9 @@ use App\Http\Controllers\TransactionContractController;
 use App\Http\Controllers\ContractSignatureController;
 use App\Http\Controllers\ContractPdfController;
 use App\Http\Controllers\TransactionPaymentController;
+use App\Http\Controllers\TransactionReportController;
 use App\Http\Controllers\StripeWebhookController;
+use App\Http\Controllers\UserTransactionController;
 use App\Http\Controllers\Security\MfaController;
 use App\Http\Controllers\Security\SessionController;
 use App\Http\Controllers\Admin\UserSecurityController;
@@ -155,6 +157,7 @@ $apiRoutes = function () use ($authRoutes) {
 
         Route::get('/recommendations', [\App\Http\Controllers\RecommendationsController::class, 'index']);
 
+        Route::get('/transactions', [RentalTransactionController::class, 'index']);
         Route::post('/transactions', [RentalTransactionController::class, 'store']);
         Route::get('/transactions/{transaction}', [RentalTransactionController::class, 'show']);
         Route::post('/transactions/{transaction}/contracts', [TransactionContractController::class, 'store']);
@@ -162,7 +165,11 @@ $apiRoutes = function () use ($authRoutes) {
         Route::post('/contracts/{contract}/sign', [ContractSignatureController::class, 'sign']);
         Route::get('/contracts/{contract}/pdf', [ContractPdfController::class, 'show'])->name('contracts.pdf');
         Route::post('/transactions/{transaction}/payments/deposit/session', [TransactionPaymentController::class, 'createDepositSession']);
+        Route::post('/transactions/{transaction}/payments/deposit/cash', [TransactionPaymentController::class, 'markDepositPaidCash']);
         Route::post('/transactions/{transaction}/move-in/confirm', [TransactionPaymentController::class, 'confirmMoveIn']);
+        Route::post('/transactions/{transaction}/complete', [TransactionPaymentController::class, 'completeByLandlord']);
+        Route::post('/transactions/{transaction}/report', [TransactionReportController::class, 'store']);
+        Route::get('/users/{user}/transactions/shared', [UserTransactionController::class, 'shared']);
 
         Route::post('/kyc/submissions', [KycSubmissionController::class, 'store']);
         Route::get('/kyc/submissions/me', [KycSubmissionController::class, 'me']);

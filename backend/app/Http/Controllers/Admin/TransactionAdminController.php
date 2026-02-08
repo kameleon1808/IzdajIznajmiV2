@@ -31,37 +31,16 @@ class TransactionAdminController extends Controller
 
     public function markDisputed(Request $request, RentalTransaction $transaction): JsonResponse
     {
-        if ($transaction->status === RentalTransaction::STATUS_COMPLETED) {
-            return response()->json(['message' => 'Completed transactions cannot be disputed'], 422);
-        }
-
-        $transaction->update(['status' => RentalTransaction::STATUS_DISPUTED]);
-
-        return response()->json(new RentalTransactionResource($transaction->load(['listing.images', 'latestContract.signatures', 'payments'])));
+        return response()->json(['message' => 'Admin actions are read-only for transactions'], 403);
     }
 
     public function cancel(Request $request, RentalTransaction $transaction): JsonResponse
     {
-        if ($transaction->status === RentalTransaction::STATUS_COMPLETED) {
-            return response()->json(['message' => 'Completed transactions cannot be cancelled'], 422);
-        }
-
-        $transaction->update(['status' => RentalTransaction::STATUS_CANCELLED]);
-
-        return response()->json(new RentalTransactionResource($transaction->load(['listing.images', 'latestContract.signatures', 'payments'])));
+        return response()->json(['message' => 'Admin actions are read-only for transactions'], 403);
     }
 
     public function payout(Request $request, RentalTransaction $transaction): JsonResponse
     {
-        if ($transaction->status !== RentalTransaction::STATUS_MOVE_IN_CONFIRMED) {
-            return response()->json(['message' => 'Payout only allowed after move-in confirmation'], 422);
-        }
-
-        $transaction->update([
-            'status' => RentalTransaction::STATUS_COMPLETED,
-            'completed_at' => now(),
-        ]);
-
-        return response()->json(new RentalTransactionResource($transaction->load(['listing.images', 'latestContract.signatures', 'payments'])));
+        return response()->json(['message' => 'Admin actions are read-only for transactions'], 403);
     }
 }

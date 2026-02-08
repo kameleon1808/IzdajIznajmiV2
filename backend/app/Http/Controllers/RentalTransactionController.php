@@ -14,6 +14,25 @@ use Illuminate\Support\Facades\Gate;
 
 class RentalTransactionController extends Controller
 {
+    public function index(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        abort_unless($user, 401, 'Unauthenticated');
+
+        $status = $request->input('status');
+
+        $transactions = RentalTransaction::query()
+            ->where(function ($query) use ($user) {
+                $query->where('landlord_id', $user->id)
+                    ->orWhere('seeker_id', $user->id);
+            })
+            ->when($status, fn ($q) => $q->where('status', $status))
+            ->with(['listing.images', 'latestContract.signatures', 'payments'])
+            ->latest()
+            ->get();
+
+        return response()->json(RentalTransactionResource::collection($transactions));
+    }
     public function store(StoreRentalTransactionRequest $request): JsonResponse
     {
         $user = $request->user();

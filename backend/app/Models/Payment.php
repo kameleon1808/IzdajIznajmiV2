@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Payment extends Model
 {
     public const PROVIDER_STRIPE = 'stripe';
+    public const PROVIDER_CASH = 'cash';
 
     public const TYPE_DEPOSIT = 'deposit';
     public const TYPE_RENT = 'rent';
