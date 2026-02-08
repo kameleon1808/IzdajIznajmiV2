@@ -33,6 +33,7 @@ const menuItems = computed(() => {
   if (auth.hasRole('admin')) {
     extras.push({ label: 'KYC Review', icon: Shield, action: () => router.push('/admin/kyc') })
     extras.push({ label: 'Transactions', icon: FileText, action: () => router.push('/admin/transactions') })
+    extras.push({ label: 'Users', icon: FileText, action: () => router.push('/admin/users') })
   }
   if (auth.hasRole('seeker')) {
     extras.push({ label: 'Saved Searches', icon: Bookmark, action: () => router.push('/saved-searches') })

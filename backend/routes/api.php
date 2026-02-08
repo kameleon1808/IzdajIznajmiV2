@@ -10,6 +10,7 @@ use App\Http\Controllers\RatingReportController;
 use App\Http\Controllers\UserProfileController;
 use App\Http\Controllers\GeocodeSuggestController;
 use App\Http\Controllers\Admin\RatingAdminController;
+use App\Http\Controllers\Admin\UserAdminController;
 use App\Http\Controllers\MessageReportController;
 use App\Http\Controllers\ListingReportController;
 use App\Http\Controllers\Admin\ModerationController;
@@ -188,6 +189,7 @@ $apiRoutes = function () use ($authRoutes) {
                 Route::get('/ratings/{rating}', [RatingAdminController::class, 'show']);
                 Route::delete('/ratings/{rating}', [RatingAdminController::class, 'destroy']);
                 Route::patch('/users/{user}/flag-suspicious', [RatingAdminController::class, 'flagUser']);
+                Route::get('/users', [UserAdminController::class, 'index']);
                 Route::get('/users/{user}/security', [UserSecurityController::class, 'overview']);
                 Route::get('/users/{user}/sessions', [UserSecurityController::class, 'sessions']);
                 Route::post('/users/{user}/sessions/revoke-all', [UserSecurityController::class, 'revokeAllSessions']);

@@ -1401,6 +1401,28 @@ export async function getAdminRatings(): Promise<Rating[]> {
   return []
 }
 
+export async function getAdminUsers(params?: { q?: string; role?: string; suspicious?: boolean }): Promise<any[]> {
+  await delay()
+  const base = [
+    { id: 'admin-1', name: 'Admin One', fullName: 'Admin One', email: 'admin@example.com', role: 'admin', isSuspicious: false, mfaEnabled: true },
+    { id: 'landlord-1', name: 'Landlord One', fullName: 'Landlord One', email: 'landlord@example.com', role: 'landlord', isSuspicious: false, mfaEnabled: true },
+    { id: 'tenant-1', name: 'Tenant One', fullName: 'Tenant One', email: 'tenant@example.com', role: 'seeker', isSuspicious: false, mfaEnabled: false },
+    { id: 'tenant-2', name: 'Tenant Two', fullName: 'Tenant Two', email: 'tenant2@example.com', role: 'seeker', isSuspicious: true, mfaEnabled: true },
+  ]
+  const q = (params?.q ?? '').toLowerCase()
+  let list = base
+  if (q) {
+    list = list.filter((u) => String(u.id).includes(q) || u.name.toLowerCase().includes(q) || u.fullName.toLowerCase().includes(q) || u.email.toLowerCase().includes(q))
+  }
+  if (params?.role) {
+    list = list.filter((u) => u.role === params.role)
+  }
+  if (params?.suspicious !== undefined) {
+    list = list.filter((u) => u.isSuspicious === params.suspicious)
+  }
+  return JSON.parse(JSON.stringify(list))
+}
+
 export async function deleteAdminRating(_ratingId: string) {
   await delay()
 }

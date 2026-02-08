@@ -55,6 +55,7 @@ const goToUser = () => {
       <router-link to="/admin/moderation" class="opacity-80 hover:opacity-100">Moderacija</router-link>
       <router-link to="/admin/ratings" class="opacity-80 hover:opacity-100">Ocene</router-link>
       <router-link to="/admin/transactions" class="opacity-80 hover:opacity-100">Transakcije</router-link>
+      <router-link to="/admin/users" class="opacity-80 hover:opacity-100">Korisnici</router-link>
       <router-link to="/admin/kyc" class="opacity-80 hover:opacity-100">KYC</router-link>
     </div>
 

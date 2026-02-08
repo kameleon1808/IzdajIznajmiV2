@@ -881,6 +881,11 @@ export const flagUserSuspicious = async (userId: string | number, isSuspicious: 
   return data
 }
 
+export const getAdminUsers = async (params?: { q?: string; role?: string; suspicious?: boolean }): Promise<any[]> => {
+  const { data } = await apiClient.get('/admin/users', { params })
+  return (data.data ?? data) as any[]
+}
+
 export const getAdminReports = async (params?: {
   type?: 'rating' | 'message' | 'listing'
   status?: 'open' | 'resolved' | 'dismissed'

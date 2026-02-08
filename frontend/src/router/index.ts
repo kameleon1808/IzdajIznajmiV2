@@ -19,6 +19,7 @@ import AdminKyc from '../pages/AdminKyc.vue'
 import AdminTransactions from '../pages/AdminTransactions.vue'
 import AdminTransactionDetail from '../pages/AdminTransactionDetail.vue'
 import AdminUserSecurity from '../pages/AdminUserSecurity.vue'
+import AdminUsers from '../pages/AdminUsers.vue'
 import Reviews from '../pages/Reviews.vue'
 import Search from '../pages/Search.vue'
 import SavedSearches from '../pages/SavedSearches.vue'
@@ -232,6 +233,12 @@ const router = createRouter({
       name: 'admin-transaction-detail',
       component: AdminTransactionDetail,
       meta: { topBar: { type: 'back', title: 'Transaction Detail' }, showTabs: false, roles: ['admin'] },
+    },
+    {
+      path: '/admin/users',
+      name: 'admin-users',
+      component: AdminUsers,
+      meta: { topBar: { type: 'title', title: 'Users' }, showTabs: false, roles: ['admin'] },
     },
     {
       path: '/admin/users/:id',
