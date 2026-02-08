@@ -8,12 +8,12 @@ const close = () => emit('update:modelValue', false)
 <template>
   <teleport to="body">
     <transition name="fade">
-      <div v-if="modelValue" class="fixed inset-0 z-[1100] bg-black/40" @click.self="close"></div>
+      <div v-if="modelValue" class="fixed inset-0 z-[1300] bg-black/40" @click.self="close"></div>
     </transition>
     <transition name="slide-up">
       <div
         v-if="modelValue"
-        class="fixed inset-x-0 bottom-0 z-[1101] flex justify-center px-3 pb-3"
+        class="fixed inset-x-0 bottom-0 z-[1301] flex justify-center px-3 pb-3"
       >
         <div
           class="w-full max-w-3xl rounded-t-3xl bg-white p-4 shadow-card md:pb-6"
