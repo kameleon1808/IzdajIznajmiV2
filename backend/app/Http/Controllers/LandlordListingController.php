@@ -116,16 +116,19 @@ class LandlordListingController extends Controller
         $this->authorize('update', $listing);
         $data = $request->validated();
 
+        $addressChanged = array_key_exists('address', $data) || array_key_exists('city', $data) || array_key_exists('country', $data);
         $newAddress = $data['address'] ?? $listing->address;
         $newCity = $data['city'] ?? $listing->city;
         $newCountry = $data['country'] ?? $listing->country;
         $addressKey = $this->addressGuard->normalizeAddressKey($newAddress, $newCity, $newCountry);
         $warnings = [];
-        if ($listing->status === ListingStatusService::STATUS_ACTIVE) {
+        if ($addressChanged && $listing->status === ListingStatusService::STATUS_ACTIVE) {
             $warnings = $this->addressGuard->guardActiveAddress($listing, $addressKey);
         }
 
-        $this->recordDuplicateAddressAttempt($request->user(), $addressKey);
+        if ($addressChanged) {
+            $this->recordDuplicateAddressAttempt($request->user(), $addressKey);
+        }
 
         $payload = [];
         $map = [
@@ -151,7 +154,7 @@ class LandlordListingController extends Controller
             }
         }
 
-        $addressKeyChanged = $listing->address_key !== $addressKey;
+        $addressKeyChanged = $addressChanged && $listing->address_key !== $addressKey;
         $latProvided = array_key_exists('lat', $payload) || array_key_exists('lng', $payload);
         $resetManualLocation = $addressKeyChanged && $listing->location_source === 'manual';
         if ($latProvided) {
@@ -171,7 +174,9 @@ class LandlordListingController extends Controller
             }
         }
 
-        $payload['address_key'] = $addressKey;
+        if ($addressChanged) {
+            $payload['address_key'] = $addressKey;
+        }
 
         DB::transaction(function () use ($listing, $data, $payload, $request) {
             if (! empty($payload)) {

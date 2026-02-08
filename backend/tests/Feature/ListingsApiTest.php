@@ -544,11 +544,13 @@ class ListingsApiTest extends TestCase
             'lng' => 15.0,
             'status' => 'active',
         ]);
-        $missing = Listing::factory()->create([
-            'lat' => null,
-            'lng' => null,
-            'status' => 'active',
-        ]);
+        $missing = Listing::withoutEvents(function () {
+            return Listing::factory()->create([
+                'lat' => null,
+                'lng' => null,
+                'status' => 'active',
+            ]);
+        });
 
         $response = $this->getJson('/api/v1/listings?centerLat=45&centerLng=15&radiusKm=50&mapMode=1');
         $response->assertOk();
