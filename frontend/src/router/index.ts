@@ -34,6 +34,7 @@ import Login from '../pages/Login.vue'
 import Register from '../pages/Register.vue'
 import KycVerification from '../pages/KycVerification.vue'
 import TransactionDetail from '../pages/TransactionDetail.vue'
+import Transactions from '../pages/Transactions.vue'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -122,6 +123,12 @@ const router = createRouter({
       name: 'transaction-detail',
       component: TransactionDetail,
       meta: { topBar: { type: 'back', title: 'Transaction' }, showTabs: false, roles: ['seeker', 'landlord', 'admin'] },
+    },
+    {
+      path: '/transactions',
+      name: 'transactions',
+      component: Transactions,
+      meta: { topBar: { type: 'title', title: 'Transactions' }, showTabs: true, roles: ['seeker', 'landlord'] },
     },
     { path: '/profile', name: 'profile', component: Profile, meta: { topBar: { type: 'title', title: 'Profile' }, showTabs: true } },
     {

@@ -1052,6 +1052,12 @@ export const createTransaction = async (payload: {
   return mapTransaction(data.data ?? data)
 }
 
+export const getTransactions = async (params?: { status?: string }): Promise<RentalTransaction[]> => {
+  const { data } = await apiClient.get('/transactions', { params })
+  const list = (data.data ?? data) as any[]
+  return list.map(mapTransaction)
+}
+
 export const getTransaction = async (id: string): Promise<RentalTransaction> => {
   const { data } = await apiClient.get(`/transactions/${id}`)
   return mapTransaction(data.data ?? data)
@@ -1086,9 +1092,33 @@ export const createDepositSession = async (transactionId: string): Promise<{ che
   }
 }
 
+export const markDepositPaidCash = async (transactionId: string): Promise<{ transaction: RentalTransaction; payment: PaymentType }> => {
+  const { data } = await apiClient.post(`/transactions/${transactionId}/payments/deposit/cash`)
+  return {
+    transaction: mapTransaction(data.transaction ?? data.data?.transaction ?? data),
+    payment: mapPayment(data.payment ?? data.data?.payment ?? data.paymentPayload ?? {}),
+  }
+}
+
+export const completeTransaction = async (transactionId: string): Promise<RentalTransaction> => {
+  const { data } = await apiClient.post(`/transactions/${transactionId}/complete`)
+  return mapTransaction(data.data ?? data)
+}
+
 export const confirmMoveIn = async (transactionId: string): Promise<RentalTransaction> => {
   const { data } = await apiClient.post(`/transactions/${transactionId}/move-in/confirm`)
   return mapTransaction(data.data ?? data)
+}
+
+export const reportTransaction = async (transactionId: string, reason: string, details?: string) => {
+  const { data } = await apiClient.post(`/transactions/${transactionId}/report`, { reason, details })
+  return data
+}
+
+export const getSharedTransactions = async (userId: string): Promise<RentalTransaction[]> => {
+  const { data } = await apiClient.get(`/users/${userId}/transactions/shared`)
+  const list = (data.data ?? data) as any[]
+  return list.map(mapTransaction)
 }
 
 export const getAdminTransactions = async (params?: { status?: string }): Promise<RentalTransaction[]> => {

@@ -1048,6 +1048,11 @@ export async function createTransaction(payload: {
   return JSON.parse(JSON.stringify(created))
 }
 
+export async function getTransactions(): Promise<RentalTransaction[]> {
+  await delay()
+  return JSON.parse(JSON.stringify(transactions))
+}
+
 export async function getTransaction(id: string): Promise<RentalTransaction> {
   await delay()
   const tx = transactions.find((t) => t.id === id)
@@ -1131,12 +1136,50 @@ export async function createDepositSession(transactionId: string): Promise<{ che
   return { checkoutUrl: 'https://checkout.stripe.test/session', payment }
 }
 
+export async function markDepositPaidCash(transactionId: string): Promise<{ transaction: RentalTransaction; payment: Payment }> {
+  await delay()
+  const tx = transactions.find((t) => t.id === transactionId)
+  if (!tx) throw new Error('Transaction not found')
+  const payment: Payment = {
+    id: makeId(),
+    provider: 'cash',
+    type: 'deposit',
+    amount: Number(tx.depositAmount ?? 0),
+    currency: tx.currency,
+    status: 'succeeded',
+    receiptUrl: null,
+    createdAt: new Date().toISOString(),
+  }
+  tx.payments.push(payment)
+  tx.status = 'deposit_paid'
+  return { transaction: JSON.parse(JSON.stringify(tx)), payment }
+}
+
+export async function completeTransaction(transactionId: string): Promise<RentalTransaction> {
+  await delay()
+  const tx = transactions.find((t) => t.id === transactionId)
+  if (!tx) throw new Error('Transaction not found')
+  tx.status = 'completed'
+  tx.completedAt = new Date().toISOString()
+  return JSON.parse(JSON.stringify(tx))
+}
+
 export async function confirmMoveIn(transactionId: string): Promise<RentalTransaction> {
   await delay()
   const tx = transactions.find((t) => t.id === transactionId)
   if (!tx) throw new Error('Transaction not found')
   tx.status = 'move_in_confirmed'
   return JSON.parse(JSON.stringify(tx))
+}
+
+export async function reportTransaction(_transactionId: string, _reason: string, _details?: string) {
+  await delay()
+  return { status: 'ok' }
+}
+
+export async function getSharedTransactions(userId: string): Promise<RentalTransaction[]> {
+  await delay()
+  return JSON.parse(JSON.stringify(transactions.filter((t) => [t.participants.landlordId, t.participants.seekerId].includes(userId))))
 }
 
 export async function getAdminTransactions(params?: { status?: string }): Promise<RentalTransaction[]> {

@@ -2,10 +2,13 @@ import { defineStore } from 'pinia'
 import type { Contract, RentalTransaction } from '../types'
 import {
   createTransaction,
+  getTransactions,
   getTransaction,
   generateTransactionContract,
   signTransactionContract,
   createDepositSession,
+  markDepositPaidCash,
+  completeTransaction,
   confirmMoveIn,
   getAdminTransactions,
   getAdminTransaction,
@@ -18,7 +21,9 @@ export const useTransactionsStore = defineStore('transactions', {
   state: () => ({
     current: null as RentalTransaction | null,
     adminList: [] as RentalTransaction[],
+    list: [] as RentalTransaction[],
     loading: false,
+    listLoading: false,
     error: '',
   }),
   actions: {
@@ -54,6 +59,20 @@ export const useTransactionsStore = defineStore('transactions', {
       } catch (error) {
         this.error = (error as Error).message || 'Failed to start transaction.'
         throw error
+      }
+    },
+    async fetchTransactions(status?: string) {
+      this.listLoading = true
+      this.error = ''
+      try {
+        this.list = await getTransactions(status ? { status } : undefined)
+        return this.list
+      } catch (error) {
+        this.error = (error as Error).message || 'Failed to load transactions.'
+        this.list = []
+        throw error
+      } finally {
+        this.listLoading = false
       }
     },
     async generateContract(transactionId: string, payload: { startDate: string; terms?: string }): Promise<Contract> {
@@ -93,6 +112,32 @@ export const useTransactionsStore = defineStore('transactions', {
         return result
       } catch (error) {
         this.error = (error as Error).message || 'Failed to start deposit payment.'
+        throw error
+      }
+    },
+    async payDepositCash(transactionId: string) {
+      this.error = ''
+      try {
+        const result = await markDepositPaidCash(transactionId)
+        if (this.current && this.current.id === transactionId) {
+          this.current = result.transaction
+        }
+        return result
+      } catch (error) {
+        this.error = (error as Error).message || 'Failed to confirm cash deposit.'
+        throw error
+      }
+    },
+    async completeTransaction(transactionId: string) {
+      this.error = ''
+      try {
+        const tx = await completeTransaction(transactionId)
+        if (this.current && this.current.id === transactionId) {
+          this.current = tx
+        }
+        return tx
+      } catch (error) {
+        this.error = (error as Error).message || 'Failed to complete transaction.'
         throw error
       }
     },

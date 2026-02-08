@@ -63,6 +63,16 @@ const currentIndex = computed(() => timeline.indexOf(transaction.value?.status |
 
 const isLandlord = computed(() => auth.hasRole('landlord'))
 const isSeeker = computed(() => auth.hasRole('seeker'))
+const isAdmin = computed(() => auth.hasRole('admin'))
+
+const landlordId = computed(() => transaction.value?.participants.landlordId || '')
+const seekerId = computed(() => transaction.value?.participants.seekerId || '')
+
+const counterpartId = computed(() => {
+  if (isLandlord.value) return seekerId.value
+  if (isSeeker.value) return landlordId.value
+  return ''
+})
 
 const hasSigned = computed(() => {
   const contract = transaction.value?.contract
@@ -97,6 +107,13 @@ const canConfirmMoveIn = computed(() => {
   if (!tx) return false
   if (!isLandlord.value) return false
   return tx.status === 'deposit_paid'
+})
+
+const canComplete = computed(() => {
+  const tx = transaction.value
+  if (!tx) return false
+  if (!isLandlord.value) return false
+  return tx.status === 'move_in_confirmed'
 })
 
 const load = async () => {
@@ -150,6 +167,17 @@ const payDeposit = async () => {
   }
 }
 
+const payDepositCash = async () => {
+  if (!transaction.value) return
+  try {
+    await transactionsStore.payDepositCash(transaction.value.id)
+    toast.push({ title: 'Cash deposit recorded', type: 'success' })
+    await load()
+  } catch (error) {
+    toast.push({ title: 'Cash deposit failed', message: (error as Error).message, type: 'error' })
+  }
+}
+
 const confirmMoveIn = async () => {
   if (!transaction.value) return
   try {
@@ -161,7 +189,28 @@ const confirmMoveIn = async () => {
   }
 }
 
+const completeTransaction = async () => {
+  if (!transaction.value) return
+  try {
+    await transactionsStore.completeTransaction(transaction.value.id)
+    toast.push({ title: 'Transaction completed', type: 'success' })
+    await load()
+  } catch (error) {
+    toast.push({ title: 'Completion failed', message: (error as Error).message, type: 'error' })
+  }
+}
+
 const goBack = () => router.push('/bookings?tab=reservations&section=requests')
+
+const openListing = () => {
+  if (!transaction.value?.listing?.id) return
+  router.push(`/listing/${transaction.value.listing.id}`)
+}
+
+const openProfile = (userId: string) => {
+  if (!userId) return
+  router.push(`/users/${userId}`)
+}
 </script>
 
 <template>
@@ -185,6 +234,12 @@ const goBack = () => router.push('/bookings?tab=reservations&section=requests')
           <div>Deposit: {{ transaction.depositAmount ?? '—' }} {{ transaction.currency }}</div>
           <div>Rent: {{ transaction.rentAmount ?? '—' }} {{ transaction.currency }}</div>
           <div>Started: {{ transaction.startedAt ? new Date(transaction.startedAt).toLocaleString() : '—' }}</div>
+        </div>
+        <div class="mt-4 flex flex-wrap gap-2">
+          <Button variant="secondary" size="sm" @click="openListing">Open listing</Button>
+          <Button v-if="counterpartId" variant="secondary" size="sm" @click="openProfile(counterpartId)">Open participant profile</Button>
+          <Button v-if="isAdmin && landlordId" variant="secondary" size="sm" @click="openProfile(landlordId)">Open landlord profile</Button>
+          <Button v-if="isAdmin && seekerId" variant="secondary" size="sm" @click="openProfile(seekerId)">Open seeker profile</Button>
         </div>
       </section>
 
@@ -276,15 +331,21 @@ const goBack = () => router.push('/bookings?tab=reservations&section=requests')
               </a>
             </div>
           </div>
-          <Button v-if="canPayDeposit" variant="primary" class="w-full" @click="payDeposit">Pay deposit</Button>
+          <Button v-if="canPayDeposit" variant="primary" class="w-full" @click="payDeposit">Pay deposit online</Button>
+          <Button v-if="canPayDeposit" variant="secondary" class="w-full" @click="payDepositCash">Pay deposit by cash</Button>
         </div>
       </section>
 
       <section class="rounded-3xl border border-line bg-white p-5 shadow-soft">
         <h2 class="text-lg font-semibold text-slate-900">Move-in confirmation</h2>
-        <p class="text-sm text-muted">Confirm when the seeker has moved in.</p>
+        <p class="text-sm text-muted" v-if="canConfirmMoveIn">Confirm when the seeker has moved in.</p>
+        <p class="text-sm text-muted" v-else-if="canComplete">Finalize the transaction after move-in.</p>
+        <p class="text-sm text-muted" v-else-if="transaction.status === 'move_in_confirmed'">Awaiting landlord completion.</p>
         <Button v-if="canConfirmMoveIn" variant="primary" class="mt-3 w-full" @click="confirmMoveIn">
           Confirm move-in
+        </Button>
+        <Button v-if="canComplete" variant="primary" class="mt-3 w-full" @click="completeTransaction">
+          Complete transaction
         </Button>
       </section>
     </div>

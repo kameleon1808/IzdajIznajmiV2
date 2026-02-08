@@ -39,35 +39,17 @@ const load = async () => {
 
 onMounted(load)
 
-const markDisputed = async () => {
-  if (!transactionsStore.current) return
-  try {
-    await transactionsStore.markDisputed(transactionsStore.current.id)
-    toast.push({ title: 'Transaction marked disputed', type: 'info' })
-  } catch (error) {
-    toast.push({ title: 'Failed to update', message: (error as Error).message, type: 'error' })
-  }
+const openListing = () => {
+  if (!transactionsStore.current?.listing?.id) return
+  router.push(`/listing/${transactionsStore.current.listing.id}`)
 }
 
-const cancelTransaction = async () => {
-  if (!transactionsStore.current) return
-  try {
-    await transactionsStore.cancelTransaction(transactionsStore.current.id)
-    toast.push({ title: 'Transaction cancelled', type: 'info' })
-  } catch (error) {
-    toast.push({ title: 'Failed to update', message: (error as Error).message, type: 'error' })
-  }
+const openProfile = (userId: string | undefined) => {
+  if (!userId) return
+  router.push(`/users/${userId}`)
 }
 
-const markPayout = async () => {
-  if (!transactionsStore.current) return
-  try {
-    await transactionsStore.payoutTransaction(transactionsStore.current.id)
-    toast.push({ title: 'Payout recorded', type: 'success' })
-  } catch (error) {
-    toast.push({ title: 'Failed to update', message: (error as Error).message, type: 'error' })
-  }
-}
+// Admin view is read-only for transactions.
 </script>
 
 <template>
@@ -91,18 +73,15 @@ const markPayout = async () => {
           <div>Deposit: {{ transactionsStore.current.depositAmount ?? '—' }} {{ transactionsStore.current.currency }}</div>
           <div>Rent: {{ transactionsStore.current.rentAmount ?? '—' }} {{ transactionsStore.current.currency }}</div>
         </div>
+        <div class="mt-4 flex flex-wrap gap-2">
+          <Button variant="secondary" size="sm" @click="openListing">Open listing</Button>
+          <Button variant="secondary" size="sm" @click="openProfile(transactionsStore.current.participants?.landlordId)">Open landlord profile</Button>
+          <Button variant="secondary" size="sm" @click="openProfile(transactionsStore.current.participants?.seekerId)">Open seeker profile</Button>
+        </div>
       </div>
 
-      <div class="flex flex-wrap gap-2">
-        <Button variant="secondary" @click="markDisputed">Mark disputed</Button>
-        <Button variant="secondary" @click="cancelTransaction">Cancel transaction</Button>
-        <Button
-          variant="primary"
-          :disabled="transactionsStore.current.status !== 'move_in_confirmed'"
-          @click="markPayout"
-        >
-          Record payout
-        </Button>
+      <div class="rounded-2xl border border-line bg-surface p-3 text-sm text-muted">
+        Transactions are read-only for admins. Resolve issues through reports on participant profiles.
       </div>
 
       <div class="rounded-3xl border border-line bg-white p-5 shadow-soft">
