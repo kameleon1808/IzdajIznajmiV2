@@ -39,12 +39,8 @@ jobs:
 
       - name: Deploy over SSH
         shell: bash
+        if: env.SSH_HOST != '' && env.SSH_USER != '' && env.DEPLOY_PATH != '' && env.SSH_KEY != ''
         run: |
-          if [ -z "$SSH_HOST" ] || [ -z "$SSH_USER" ] || [ -z "$DEPLOY_PATH" ]; then
-            echo "Missing SSH secrets (host/user/path)." >&2
-            exit 1
-          fi
-
           BRANCH_VALUE="${BRANCH:-staging}"
           HEALTH="${HEALTH_URL:-http://127.0.0.1/api/v1/health}"
 
