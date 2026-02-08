@@ -26,8 +26,10 @@ class SearchFilterSnapshotService
         $staleIds = SearchFilterSnapshot::query()
             ->where('user_id', $user->id)
             ->orderByDesc('created_at')
-            ->skip($maxSnapshots)
-            ->pluck('id');
+            ->get(['id'])
+            ->pluck('id')
+            ->slice($maxSnapshots)
+            ->values();
 
         if ($staleIds->isNotEmpty()) {
             SearchFilterSnapshot::whereIn('id', $staleIds)->delete();
