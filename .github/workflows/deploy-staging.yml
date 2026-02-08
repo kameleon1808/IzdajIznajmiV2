@@ -42,11 +42,4 @@ jobs:
           BRANCH_VALUE="${BRANCH:-staging}"
           HEALTH="${HEALTH_URL:-http://127.0.0.1/api/v1/health}"
 
-          ssh "$SSH_USER@$SSH_HOST" <<EOF
-set -euo pipefail
-cd "$DEPLOY_PATH"
-git fetch origin "$BRANCH_VALUE"
-git checkout "$BRANCH_VALUE"
-git pull origin "$BRANCH_VALUE"
-ENVIRONMENT=staging HEALTH_URL="$HEALTH" ./ops/deploy.sh
-EOF
+          ssh "$SSH_USER@$SSH_HOST" "set -euo pipefail; cd \"$DEPLOY_PATH\"; git fetch origin \"$BRANCH_VALUE\"; git checkout \"$BRANCH_VALUE\"; git pull origin \"$BRANCH_VALUE\"; ENVIRONMENT=staging HEALTH_URL=\"$HEALTH\" ./ops/deploy.sh"
