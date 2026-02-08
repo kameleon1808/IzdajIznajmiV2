@@ -72,10 +72,34 @@ class FraudSignalService
 
         $key = 'fraud:failed_mfa:' . $user->id;
         $count = Cache::increment($key);
+        if (!is_int($count)) {
+            $count = (int) Cache::get($key, 0) + 1;
+        }
         Cache::put($key, $count, now()->addMinutes($windowMinutes));
 
         if ($count >= $threshold) {
-            $this->recordSignal($user, 'failed_mfa', $weight, ['count' => $count], $cooldown);
+            $signal = $this->recordSignal($user, 'failed_mfa', $weight, ['count' => $count], $cooldown);
+            if ($signal) {
+                $this->notifyAdminsOfSignal($user, 'Failed MFA attempts', [
+                    'signal' => 'failed_mfa',
+                    'count' => $count,
+                ]);
+            }
+        }
+    }
+
+    public function recordFailedMfaRateLimit(User $user, array $meta = []): void
+    {
+        $settings = config('security.fraud.signals.failed_mfa');
+        $cooldown = (int) ($settings['cooldown_minutes'] ?? 30);
+        $weight = (int) ($settings['weight'] ?? 8);
+
+        $signal = $this->recordSignal($user, 'failed_mfa_rate_limited', $weight, $meta, $cooldown);
+        if ($signal) {
+            $this->notifyAdminsOfSignal($user, 'MFA rate limit reached', [
+                'signal' => 'failed_mfa_rate_limited',
+                'count' => $meta['count'] ?? null,
+            ]);
         }
     }
 
@@ -95,6 +119,25 @@ class FraudSignalService
                     'score' => $score,
                     'signal' => 'fraud_threshold',
                 ],
+                'url' => '/admin/users/' . $user->id,
+            ]);
+        }
+    }
+
+    private function notifyAdminsOfSignal(User $user, string $title, array $data = []): void
+    {
+        $admins = User::query()
+            ->where('role', 'admin')
+            ->orWhereHas('roles', fn ($query) => $query->where('name', 'admin'))
+            ->get();
+
+        foreach ($admins as $admin) {
+            $this->notifications->createNotification($admin, Notification::TYPE_ADMIN_NOTICE, [
+                'title' => $title,
+                'body' => sprintf('User %s (ID %d) triggered %s.', $user->full_name ?? $user->name ?? 'User', $user->id, $data['signal'] ?? 'fraud signal'),
+                'data' => array_merge([
+                    'userId' => $user->id,
+                ], $data),
                 'url' => '/admin/users/' . $user->id,
             ]);
         }

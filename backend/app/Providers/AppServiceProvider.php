@@ -177,6 +177,12 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(5)
                 ->by($key)
                 ->response(function () {
+                    $user = request()->user();
+                    if ($user) {
+                        app(\App\Services\FraudSignalService::class)->recordFailedMfaRateLimit($user, [
+                            'ip' => request()->ip(),
+                        ]);
+                    }
                     return response()->json(['message' => 'Too many MFA attempts. Please wait a minute.'], 429);
                 });
         });

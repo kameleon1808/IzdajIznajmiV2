@@ -183,16 +183,10 @@ onMounted(load)
       </div>
       <div class="mt-3 flex gap-2">
         <Button size="sm" variant="secondary" :loading="loading" @click="load">Refresh</Button>
-        <Button
-          v-if="payload.user?.isSuspicious"
-          size="sm"
-          variant="danger"
-          :loading="loading"
-          @click="clearSuspicion"
-        >
-          Clear suspicion
+        <Button size="sm" variant="danger" :loading="loading" @click="clearSuspicion">
+          Clear fraud
         </Button>
-        <Button v-else size="sm" variant="secondary" :loading="loading" @click="markSuspicious">
+        <Button size="sm" variant="secondary" :loading="loading" @click="markSuspicious">
           Mark suspicious
         </Button>
       </div>

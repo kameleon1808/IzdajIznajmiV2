@@ -120,7 +120,10 @@ class UserSecurityController extends Controller
         $user->is_suspicious = false;
         $user->save();
 
-        return response()->json(['message' => 'Suspicion cleared.', 'isSuspicious' => false]);
+        FraudSignal::where('user_id', $user->id)->delete();
+        \App\Models\FraudScore::where('user_id', $user->id)->delete();
+
+        return response()->json(['message' => 'Fraud cleared.', 'isSuspicious' => false]);
     }
 
     public function updateBadgeOverride(Request $request, User $user): JsonResponse
