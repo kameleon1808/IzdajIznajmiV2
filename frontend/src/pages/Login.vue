@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { onMounted, ref } from 'vue'
+import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import Button from '../components/ui/Button.vue'
 import Input from '../components/ui/Input.vue'
 import ErrorBanner from '../components/ui/ErrorBanner.vue'
@@ -20,6 +20,16 @@ const mfaCode = ref('')
 const recoveryCode = ref('')
 const useRecovery = ref(false)
 const rememberDevice = ref(true)
+
+onMounted(() => {
+  resetMfa()
+})
+
+onBeforeRouteLeave(() => {
+  if (auth.mfaRequired) {
+    resetMfa()
+  }
+})
 
 const onSubmit = async () => {
   error.value = ''

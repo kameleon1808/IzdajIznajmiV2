@@ -171,6 +171,10 @@ export const useAuthStore = defineStore('auth', {
       const response = await apiClient.get('/auth/me')
       const data = response.data
       if (data?.mfa_required) {
+        if (this.mfaChallengeId && data.challenge_id !== this.mfaChallengeId) {
+          this.clearMfaChallenge()
+          return
+        }
         this.setMfaChallenge(data.challenge_id)
         return
       }
@@ -267,10 +271,16 @@ export const useAuthStore = defineStore('auth', {
       this.mfaChallengeId = challengeId
       this.isAuthenticated = false
       this.user = { ...defaultUser }
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.setItem('ii-mfa-challenge', challengeId)
+      }
     },
     clearMfaChallenge() {
       this.mfaRequired = false
       this.mfaChallengeId = null
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.removeItem('ii-mfa-challenge')
+      }
     },
     async handleUnauthorized() {
       this.clearSession()
