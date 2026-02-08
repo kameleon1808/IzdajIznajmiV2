@@ -8,6 +8,7 @@ use App\Http\Requests\ApplyToListingRequest;
 use App\Http\Requests\UpdateApplicationStatusRequest;
 use App\Http\Resources\ApplicationResource;
 use App\Models\Application;
+use App\Models\FraudSignal;
 use App\Models\Listing;
 use App\Services\ListingStatusService;
 use App\Services\FraudSignalService;
@@ -30,6 +31,19 @@ class ApplicationController extends Controller
         $user = $request->user();
         abort_unless($user, 401, 'Unauthenticated');
         abort_unless($this->userHasRole($user, ['seeker', 'admin']), 403, 'Only seekers can apply');
+
+        if (! $this->userHasRole($user, 'admin')) {
+            if ($user->is_suspicious) {
+                return response()->json(['message' => 'Applications are blocked until fraud is cleared.'], 403);
+            }
+
+            $hasRapidSignal = FraudSignal::where('user_id', $user->id)
+                ->where('signal_key', 'rapid_applications')
+                ->exists();
+            if ($hasRapidSignal) {
+                return response()->json(['message' => 'Applications are blocked until fraud is cleared.'], 403);
+            }
+        }
 
         if ($listing->status !== ListingStatusService::STATUS_ACTIVE) {
             return response()->json(['message' => 'Listing is not active for applications'], 422);
