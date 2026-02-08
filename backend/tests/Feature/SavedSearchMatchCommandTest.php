@@ -3,9 +3,9 @@
 namespace Tests\Feature;
 
 use Illuminate\Console\Command;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Cache;
 use Tests\TestCase;
-use Illuminate\Foundation\Testing\RefreshDatabase;
 
 class SavedSearchMatchCommandTest extends TestCase
 {

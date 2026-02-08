@@ -17,8 +17,7 @@ class MfaController extends Controller
         private MfaService $mfa,
         private SecuritySessionService $sessions,
         private FraudSignalService $fraudSignals
-    ) {
-    }
+    ) {}
 
     public function setup(Request $request): JsonResponse
     {
@@ -48,7 +47,7 @@ class MfaController extends Controller
             'code' => ['required', 'string'],
         ]);
 
-        if (!$this->mfa->confirm($user, $data['code'])) {
+        if (! $this->mfa->confirm($user, $data['code'])) {
             return response()->json(['message' => 'Invalid MFA code.'], 422);
         }
 
@@ -71,7 +70,7 @@ class MfaController extends Controller
             'device_label' => ['nullable', 'string'],
         ]);
 
-        if (!$request->session()->get('mfa_pending')) {
+        if (! $request->session()->get('mfa_pending')) {
             return response()->json(['message' => 'No MFA challenge pending.'], 409);
         }
 
@@ -80,14 +79,15 @@ class MfaController extends Controller
         }
 
         $valid = false;
-        if (!empty($data['code'])) {
+        if (! empty($data['code'])) {
             $valid = $this->mfa->verifyTotp($user, $data['code']);
-        } elseif (!empty($data['recovery_code'])) {
+        } elseif (! empty($data['recovery_code'])) {
             $valid = $this->mfa->verifyRecoveryCode($user, $data['recovery_code']);
         }
 
-        if (!$valid) {
+        if (! $valid) {
             $this->fraudSignals->recordFailedMfaAttempt($user);
+
             return response()->json(['message' => 'Invalid MFA code.'], 422);
         }
 
@@ -95,7 +95,7 @@ class MfaController extends Controller
         $request->session()->forget('mfa_challenge_id');
         $request->session()->put('mfa_verified_at', now()->toISOString());
 
-        if (!empty($data['remember_device'])) {
+        if (! empty($data['remember_device'])) {
             $this->sessions->rememberDevice($user, $request, $data['device_label'] ?? null);
         }
 
@@ -113,18 +113,18 @@ class MfaController extends Controller
             'recovery_code' => ['nullable', 'string'],
         ]);
 
-        if (!Hash::check($data['password'], $user->password)) {
+        if (! Hash::check($data['password'], $user->password)) {
             return response()->json(['message' => 'Invalid password.'], 422);
         }
 
         $valid = false;
-        if (!empty($data['code'])) {
+        if (! empty($data['code'])) {
             $valid = $this->mfa->verifyTotp($user, $data['code']);
-        } elseif (!empty($data['recovery_code'])) {
+        } elseif (! empty($data['recovery_code'])) {
             $valid = $this->mfa->verifyRecoveryCode($user, $data['recovery_code']);
         }
 
-        if (!$valid) {
+        if (! $valid) {
             return response()->json(['message' => 'Invalid MFA code.'], 422);
         }
 
@@ -145,13 +145,13 @@ class MfaController extends Controller
         ]);
 
         $valid = false;
-        if (!empty($data['code'])) {
+        if (! empty($data['code'])) {
             $valid = $this->mfa->verifyTotp($user, $data['code']);
-        } elseif (!empty($data['recovery_code'])) {
+        } elseif (! empty($data['recovery_code'])) {
             $valid = $this->mfa->verifyRecoveryCode($user, $data['recovery_code']);
         }
 
-        if (!$valid) {
+        if (! $valid) {
             return response()->json(['message' => 'Invalid MFA code.'], 422);
         }
 

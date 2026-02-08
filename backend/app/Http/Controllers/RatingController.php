@@ -9,13 +9,10 @@ use App\Models\User;
 use App\Services\RatingService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Validation\ValidationException;
 
 class RatingController extends Controller
 {
-    public function __construct(private RatingService $ratingService)
-    {
-    }
+    public function __construct(private RatingService $ratingService) {}
 
     public function store(Request $request, Listing $listing): JsonResponse
     {

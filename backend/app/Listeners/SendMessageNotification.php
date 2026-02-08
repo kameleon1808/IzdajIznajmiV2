@@ -8,9 +8,7 @@ use App\Services\NotificationService;
 
 class SendMessageNotification
 {
-    public function __construct(private NotificationService $notifications)
-    {
-    }
+    public function __construct(private NotificationService $notifications) {}
 
     public function handle(MessageCreated $event): void
     {
@@ -57,4 +55,3 @@ class SendMessageNotification
         ]);
     }
 }
-

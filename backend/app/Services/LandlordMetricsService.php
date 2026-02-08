@@ -89,18 +89,19 @@ class LandlordMetricsService
 
         foreach ($messages as $message) {
             $conversation = $conversationMap->get($message->conversation_id);
-            if (!$conversation) {
+            if (! $conversation) {
                 continue;
             }
             $tenantId = (int) $conversation->tenant_id;
             $senderId = (int) $message->sender_id;
 
             if ($senderId === $tenantId) {
-                if (!isset($lastTenantMessage[$message->conversation_id])) {
+                if (! isset($lastTenantMessage[$message->conversation_id])) {
                     $lastTenantMessage[$message->conversation_id] = $message->created_at instanceof Carbon
                         ? $message->created_at
                         : Carbon::parse($message->created_at);
                 }
+
                 continue;
             }
 

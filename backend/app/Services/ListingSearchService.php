@@ -5,13 +5,10 @@ namespace App\Services;
 use App\Models\Listing;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\DB;
 
 class ListingSearchService
 {
-    public function __construct(private readonly ListingStatusService $statusService)
-    {
-    }
+    public function __construct(private readonly ListingStatusService $statusService) {}
 
     public function search(array $filters, int $perPage = 10): LengthAwarePaginator
     {
@@ -48,13 +45,13 @@ class ListingSearchService
     {
         $statuses = array_filter((array) ($filters['status'] ?? []));
         $allowedStatuses = $this->statusService->allowedStatuses();
-        if (!empty($statuses) && !in_array('all', $statuses, true)) {
+        if (! empty($statuses) && ! in_array('all', $statuses, true)) {
             $query->whereIn('status', array_intersect($statuses, $allowedStatuses));
         } else {
             $query->where('status', ListingStatusService::STATUS_ACTIVE);
         }
 
-        if (!empty($filters['category']) && $filters['category'] !== 'all') {
+        if (! empty($filters['category']) && $filters['category'] !== 'all') {
             $query->where('category', $filters['category']);
         }
 
@@ -76,7 +73,7 @@ class ListingSearchService
             $query->where('area', '<=', (int) $filters['areaMax']);
         }
 
-        if (!empty($filters['instantBook'])) {
+        if (! empty($filters['instantBook'])) {
             $query->where('instant_book', true);
         }
 
@@ -84,7 +81,7 @@ class ListingSearchService
             $query->where('rating', '>=', (float) $filters['rating']);
         }
 
-        if (!empty($filters['location'])) {
+        if (! empty($filters['location'])) {
             $location = $this->normalizeSerbianLatin((string) $filters['location']);
             $columns = ['city', 'country', 'title', 'address'];
 
@@ -92,13 +89,13 @@ class ListingSearchService
                 $first = true;
                 foreach ($columns as $column) {
                     $method = $first ? 'whereRaw' : 'orWhereRaw';
-                    $builder->{$method}($this->normalizedColumn($column) . ' like ?', ["%{$location}%"]);
+                    $builder->{$method}($this->normalizedColumn($column).' like ?', ["%{$location}%"]);
                     $first = false;
                 }
             });
         }
 
-        if (!empty($filters['city'])) {
+        if (! empty($filters['city'])) {
             $cityInput = $this->normalizeSerbianLatin((string) $filters['city']);
             $tokens = collect(preg_split('/,/', $cityInput))
                 ->filter()
@@ -111,24 +108,24 @@ class ListingSearchService
                 $first = true;
                 foreach ($columns as $column) {
                     $method = $first ? 'whereRaw' : 'orWhereRaw';
-                    $builder->{$method}($this->normalizedColumn($column) . ' like ?', ["%{$cityInput}%"]);
+                    $builder->{$method}($this->normalizedColumn($column).' like ?', ["%{$cityInput}%"]);
                     $first = false;
                 }
 
                 $tokens->each(function ($token) use ($builder, $columns) {
                     foreach ($columns as $column) {
-                        $builder->orWhereRaw($this->normalizedColumn($column) . ' like ?', ["%{$token}%"]);
+                        $builder->orWhereRaw($this->normalizedColumn($column).' like ?', ["%{$token}%"]);
                     }
                 });
             });
         }
 
-        if (!empty($filters['guests'])) {
+        if (! empty($filters['guests'])) {
             $query->where('beds', '>=', (int) $filters['guests']);
         }
 
         $amenitiesToApply = $filters['amenities'] ?? $filters['facilities'] ?? [];
-        if (!empty($amenitiesToApply)) {
+        if (! empty($amenitiesToApply)) {
             $facilityIds = array_values((array) $amenitiesToApply);
             foreach ($facilityIds as $facilityName) {
                 $query->whereHas('facilities', function ($builder) use ($facilityName) {
@@ -142,7 +139,7 @@ class ListingSearchService
 
     private function applyGeoFilter(Builder $query, array $filters, bool $mapMode = false): bool
     {
-        if (!$mapMode) {
+        if (! $mapMode) {
             return false;
         }
 
@@ -160,7 +157,7 @@ class ListingSearchService
 
         $radiusKm = $radius ?? 10.0;
         $earthRadius = 6371; // km
-        $cosPart = "cos(radians(?)) * cos(radians(lat)) * cos(radians(lng) - radians(?)) + sin(radians(?)) * sin(radians(lat))";
+        $cosPart = 'cos(radians(?)) * cos(radians(lat)) * cos(radians(lng) - radians(?)) + sin(radians(?)) * sin(radians(lat))';
         $haversine = "({$earthRadius} * acos(max(-1, min(1, {$cosPart}))))";
         $distanceExpr = "COALESCE({$haversine}, 0)";
         $query->select('*')->selectRaw("{$distanceExpr} as distance_km", [$centerLat, $centerLng, $centerLat]);
@@ -184,7 +181,7 @@ class ListingSearchService
         if ($value === null || $value === '') {
             return null;
         }
-        if (!is_numeric($value)) {
+        if (! is_numeric($value)) {
             return null;
         }
         $float = (float) $value;
@@ -194,6 +191,7 @@ class ListingSearchService
         if ($max !== null) {
             $float = min($max, $float);
         }
+
         return $float;
     }
 

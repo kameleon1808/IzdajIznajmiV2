@@ -14,8 +14,7 @@ class NominatimSuggestGeocoder implements SuggestGeocoder
         private readonly ?string $countryCodes = null,
         private readonly int $rateLimitMs = 1200,
         private readonly int $timeoutSeconds = 8,
-    ) {
-    }
+    ) {}
 
     public function suggest(string $query, int $limit = 5): array
     {
@@ -39,11 +38,12 @@ class NominatimSuggestGeocoder implements SuggestGeocoder
                 'email' => $this->email,
             ]));
 
-        if (!$response->successful()) {
+        if (! $response->successful()) {
             return [];
         }
 
         $items = $response->json() ?? [];
+
         return collect($items)
             ->take($limit)
             ->map(function ($item) {
@@ -62,6 +62,7 @@ class NominatimSuggestGeocoder implements SuggestGeocoder
     private function userAgent(): string
     {
         $email = $this->email ?? 'noreply@example.com';
+
         return 'IzdajIznajmiSuggest/1.0 ('.$email.')';
     }
 

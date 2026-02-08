@@ -18,6 +18,7 @@ class SearchListingsSyncMissingCommand extends Command
     {
         if (config('search.driver', 'sql') !== 'meili') {
             $this->warn('Search driver is sql; sync skipped.');
+
             return Command::SUCCESS;
         }
 

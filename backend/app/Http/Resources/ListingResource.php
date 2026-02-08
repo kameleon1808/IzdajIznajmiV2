@@ -2,10 +2,10 @@
 
 namespace App\Http\Resources;
 
+use App\Services\BadgeService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Collection;
-use App\Services\BadgeService;
 
 class ListingResource extends JsonResource
 {
@@ -57,6 +57,7 @@ class ListingResource extends JsonResource
             'landlord' => $this->whenLoaded('owner', function () {
                 $status = $this->owner?->landlord_verification_status ?? 'none';
                 $badges = $this->owner ? app(BadgeService::class)->badgesFor($this->owner, $this->owner->landlordMetric) : [];
+
                 return [
                     'id' => $this->owner?->id,
                     'fullName' => $this->owner?->full_name ?? $this->owner?->name,
@@ -80,6 +81,7 @@ class ListingResource extends JsonResource
         if ($this->relationLoaded('images')) {
             return $this->images->where('processing_status', 'done')->pluck('url');
         }
+
         return $this->images()->where('processing_status', 'done')->pluck('url');
     }
 
@@ -117,8 +119,10 @@ class ListingResource extends JsonResource
                 $dlat = $lat2 - $lat1;
                 $a = sin($dlat / 2) ** 2 + cos($lat1) * cos($lat2) * sin($dlng / 2) ** 2;
                 $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
+
                 return round($earthRadius * $c, 2);
             }
+
             // center provided but listing lacks coords; return 0 to keep key non-null for tests
             return 0.0;
         }

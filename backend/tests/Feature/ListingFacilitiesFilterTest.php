@@ -2,7 +2,6 @@
 
 namespace Tests\Feature;
 
-use App\Models\Facility;
 use App\Models\Listing;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -20,7 +19,7 @@ class ListingFacilitiesFilterTest extends TestCase
             ['name' => 'Workspace'],
         ]);
 
-        $response = $this->getJson('/api/v1/listings?' . http_build_query([
+        $response = $this->getJson('/api/v1/listings?'.http_build_query([
             'amenities' => ['Wi-Fi', 'Spa', 'Workspace', 'Bike Rental', 'Bar'],
         ]));
 
@@ -40,7 +39,7 @@ class ListingFacilitiesFilterTest extends TestCase
             ['name' => 'Wi-Fi'],
         ]);
 
-        $response = $this->getJson('/api/v1/listings?' . http_build_query([
+        $response = $this->getJson('/api/v1/listings?'.http_build_query([
             'amenities' => ['Wi-Fi', 'Spa', 'Workspace'],
         ]));
 

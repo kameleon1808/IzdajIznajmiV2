@@ -67,4 +67,3 @@ class NotificationPreferenceController extends Controller
         return response()->json($preferences->fresh());
     }
 }
-

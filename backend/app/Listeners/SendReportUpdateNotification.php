@@ -4,14 +4,11 @@ namespace App\Listeners;
 
 use App\Events\ReportUpdated;
 use App\Models\Notification;
-use App\Models\Report;
 use App\Services\NotificationService;
 
 class SendReportUpdateNotification
 {
-    public function __construct(private NotificationService $notifications)
-    {
-    }
+    public function __construct(private NotificationService $notifications) {}
 
     public function handle(ReportUpdated $event): void
     {
@@ -27,7 +24,7 @@ class SendReportUpdateNotification
         }
 
         $this->notifications->createNotification($reporter, Notification::TYPE_REPORT_UPDATE, [
-            'title' => 'Your report was ' . $report->status,
+            'title' => 'Your report was '.$report->status,
             'body' => $report->resolution
                 ? mb_strimwidth($report->resolution, 0, 140, '...')
                 : sprintf('Your report about a %s has been %s.', class_basename($report->target_type ?? ''), $report->status),
@@ -39,4 +36,3 @@ class SendReportUpdateNotification
         ]);
     }
 }
-

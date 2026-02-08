@@ -17,7 +17,7 @@ class ChatSignalsTest extends TestCase
     private function createListing(User $owner, string $status = ListingStatusService::STATUS_ACTIVE): Listing
     {
         $addressGuard = app(ListingAddressGuardService::class);
-        $address = 'Chat Signal Street ' . uniqid();
+        $address = 'Chat Signal Street '.uniqid();
         $addressKey = $addressGuard->normalizeAddressKey($address, 'Zagreb', 'Croatia');
 
         return Listing::create([

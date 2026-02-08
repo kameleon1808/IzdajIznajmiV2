@@ -4,7 +4,6 @@ namespace App\Console\Commands;
 
 use App\Models\Notification;
 use App\Models\NotificationPreference;
-use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
@@ -18,7 +17,7 @@ class SendNotificationDigestCommand extends Command
     public function handle(): int
     {
         $frequency = $this->option('frequency');
-        if (!in_array($frequency, ['daily', 'weekly'], true)) {
+        if (! in_array($frequency, ['daily', 'weekly'], true)) {
             $this->error('Frequency must be "daily" or "weekly"');
 
             return self::FAILURE;
@@ -46,6 +45,7 @@ class SendNotificationDigestCommand extends Command
             // Skip if already processed for this window (idempotency)
             if ($lastDigestAt && Carbon::parse($lastDigestAt)->isAfter($windowStart)) {
                 $skipped++;
+
                 continue;
             }
 
@@ -59,6 +59,7 @@ class SendNotificationDigestCommand extends Command
 
             if ($notifications->isEmpty()) {
                 $skipped++;
+
                 continue;
             }
 

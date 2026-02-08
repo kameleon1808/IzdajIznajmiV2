@@ -20,8 +20,7 @@ class UserSecurityController extends Controller
     public function __construct(
         private SecuritySessionService $sessions,
         private FraudSignalService $fraudSignals
-    ) {
-    }
+    ) {}
 
     public function overview(Request $request, User $user): JsonResponse
     {
@@ -105,7 +104,7 @@ class UserSecurityController extends Controller
         $this->authorizeAdmin($request);
 
         $sessionIds = UserSession::where('user_id', $user->id)->pluck('session_id')->all();
-        if (!empty($sessionIds)) {
+        if (! empty($sessionIds)) {
             DB::table('sessions')->whereIn('id', $sessionIds)->delete();
         }
         UserSession::where('user_id', $user->id)->delete();

@@ -14,9 +14,7 @@ use Illuminate\Support\Facades\Storage;
 
 class KycSubmissionAdminController extends Controller
 {
-    public function __construct(private readonly NotificationService $notifications)
-    {
-    }
+    public function __construct(private readonly NotificationService $notifications) {}
 
     public function index(Request $request): JsonResponse
     {

@@ -1,5 +1,16 @@
 <?php
 
+use App\Console\Commands\ExpireListingsCommand;
+use App\Console\Commands\GeocodeListingsCommand;
+use App\Console\Commands\RecomputeBadgesCommand;
+use App\Console\Commands\SavedSearchMatchCommand;
+use App\Console\Commands\SearchListingsReindexCommand;
+use App\Console\Commands\SearchListingsSyncMissingCommand;
+use App\Http\Middleware\ChatAttachmentRateLimit;
+use App\Services\StructuredLogger;
+use Illuminate\Auth\Access\AuthorizationException;
+use Illuminate\Auth\AuthenticationException;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -7,25 +18,14 @@ use Illuminate\Foundation\Http\Middleware\ConvertEmptyStringsToNull;
 use Illuminate\Foundation\Http\Middleware\PreventRequestsDuringMaintenance;
 use Illuminate\Foundation\Http\Middleware\TrimStrings;
 use Illuminate\Foundation\Http\Middleware\ValidatePostSize;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Middleware\HandleCors;
 use Illuminate\Http\Middleware\TrustProxies;
 use Illuminate\Http\Middleware\ValidatePathEncoding;
-use Illuminate\Console\Scheduling\Schedule;
-use App\Http\Middleware\ChatAttachmentRateLimit;
-use App\Console\Commands\ExpireListingsCommand;
-use App\Console\Commands\GeocodeListingsCommand;
-use App\Console\Commands\RecomputeBadgesCommand;
-use App\Console\Commands\SavedSearchMatchCommand;
-use App\Console\Commands\SearchListingsReindexCommand;
-use App\Console\Commands\SearchListingsSyncMissingCommand;
+use Illuminate\Validation\ValidationException;
 use Spatie\Permission\Middleware\PermissionMiddleware;
 use Spatie\Permission\Middleware\RoleMiddleware;
 use Spatie\Permission\Middleware\RoleOrPermissionMiddleware;
-use App\Services\StructuredLogger;
-use Illuminate\Auth\Access\AuthorizationException;
-use Illuminate\Auth\AuthenticationException;
-use Illuminate\Http\Exceptions\HttpResponseException;
-use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 
 return Application::configure(basePath: dirname(__DIR__))

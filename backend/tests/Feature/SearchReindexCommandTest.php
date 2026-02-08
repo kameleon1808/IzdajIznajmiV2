@@ -21,7 +21,8 @@ class SearchReindexCommandTest extends TestCase
         config(['search.driver' => 'meili']);
         Queue::fake();
 
-        $this->app->instance(SearchDriver::class, new class implements SearchDriver {
+        $this->app->instance(SearchDriver::class, new class implements SearchDriver
+        {
             public function searchListings(array $filters, int $page, int $perPage): ListingSearchResult
             {
                 return new ListingSearchResult([], [], []);
@@ -32,21 +33,13 @@ class SearchReindexCommandTest extends TestCase
                 return [];
             }
 
-            public function indexListing(\App\Models\Listing $listing): void
-            {
-            }
+            public function indexListing(\App\Models\Listing $listing): void {}
 
-            public function removeListing(int $listingId): void
-            {
-            }
+            public function removeListing(int $listingId): void {}
 
-            public function configureIndex(): void
-            {
-            }
+            public function configureIndex(): void {}
 
-            public function resetIndex(): void
-            {
-            }
+            public function resetIndex(): void {}
         });
 
         $active = Listing::factory()->create(['status' => ListingStatusService::STATUS_ACTIVE]);

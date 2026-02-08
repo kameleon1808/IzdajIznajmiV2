@@ -8,15 +8,21 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Payment extends Model
 {
     public const PROVIDER_STRIPE = 'stripe';
+
     public const PROVIDER_CASH = 'cash';
 
     public const TYPE_DEPOSIT = 'deposit';
+
     public const TYPE_RENT = 'rent';
 
     public const STATUS_PENDING = 'pending';
+
     public const STATUS_SUCCEEDED = 'succeeded';
+
     public const STATUS_FAILED = 'failed';
+
     public const STATUS_REFUNDED = 'refunded';
+
     public const STATUS_CANCELLED = 'cancelled';
 
     protected $fillable = [

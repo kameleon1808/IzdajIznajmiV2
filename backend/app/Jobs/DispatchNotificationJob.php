@@ -21,8 +21,7 @@ class DispatchNotificationJob implements ShouldQueue
         public string $body,
         public array $data = [],
         public ?string $url = null,
-    ) {
-    }
+    ) {}
 
     public function handle(): void
     {
@@ -43,4 +42,3 @@ class DispatchNotificationJob implements ShouldQueue
         ]);
     }
 }
-

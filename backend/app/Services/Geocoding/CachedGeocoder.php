@@ -11,8 +11,7 @@ class CachedGeocoder implements Geocoder
         private readonly Geocoder $inner,
         private readonly CacheRepository $cache,
         private readonly int $ttlMinutes = 1440
-    ) {
-    }
+    ) {}
 
     public function geocode(string $address): ?array
     {
@@ -31,6 +30,7 @@ class CachedGeocoder implements Geocoder
         $fresh = $this->inner->geocode($normalized);
         if ($this->isValid($fresh)) {
             $this->cache->put($cacheKey, $fresh, now()->addMinutes($this->ttlMinutes));
+
             return $fresh;
         }
 
@@ -41,10 +41,10 @@ class CachedGeocoder implements Geocoder
 
     private function isValid(mixed $result): bool
     {
-        if (!is_array($result)) {
+        if (! is_array($result)) {
             return false;
         }
-        if (!isset($result['lat'], $result['lng'])) {
+        if (! isset($result['lat'], $result['lng'])) {
             return false;
         }
 

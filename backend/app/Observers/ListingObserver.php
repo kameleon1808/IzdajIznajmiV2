@@ -12,14 +12,14 @@ class ListingObserver
     public function created(Listing $listing): void
     {
         if ($listing->location_source === 'manual') {
-            if ($this->coordsPresent($listing) && !$listing->location_overridden_at) {
+            if ($this->coordsPresent($listing) && ! $listing->location_overridden_at) {
                 $listing->forceFill(['location_overridden_at' => now()])->saveQuietly();
             }
             if ($this->coordsInvalid($listing)) {
                 $listing->forceFill(['lat' => null, 'lng' => null, 'geocoded_at' => null])->saveQuietly();
             }
-        } elseif ($this->coordsPresent($listing) && !$this->coordsInvalid($listing)) {
-            if (!$listing->geocoded_at) {
+        } elseif ($this->coordsPresent($listing) && ! $this->coordsInvalid($listing)) {
+            if (! $listing->geocoded_at) {
                 $listing->forceFill(['geocoded_at' => now()])->saveQuietly();
             }
         } else {
@@ -40,9 +40,9 @@ class ListingObserver
             $latLngProvided = $listing->wasChanged(['lat', 'lng']) && $listing->lat !== null && $listing->lng !== null;
             $latMissing = $listing->lat === null || $listing->lng === null || $this->coordsInvalid($listing);
 
-            if ($latMissing || ($addressChanged && !$latLngProvided)) {
+            if ($latMissing || ($addressChanged && ! $latLngProvided)) {
                 GeocodeListingJob::dispatchSync($listing->id, $addressChanged);
-            } elseif ($latLngProvided && !$listing->geocoded_at) {
+            } elseif ($latLngProvided && ! $listing->geocoded_at) {
                 $listing->forceFill(['geocoded_at' => now()])->saveQuietly();
             }
         }

@@ -24,7 +24,7 @@ class BadgeService
         }
 
         $metrics = $metrics ?? LandlordMetric::where('landlord_id', $landlord->id)->first();
-        if (!$metrics) {
+        if (! $metrics) {
             return [];
         }
 

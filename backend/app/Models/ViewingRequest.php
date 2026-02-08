@@ -11,12 +11,17 @@ class ViewingRequest extends Model
     use HasFactory;
 
     public const STATUS_REQUESTED = 'requested';
+
     public const STATUS_CONFIRMED = 'confirmed';
+
     public const STATUS_CANCELLED = 'cancelled';
+
     public const STATUS_REJECTED = 'rejected';
 
     public const CANCELLED_BY_SEEKER = 'seeker';
+
     public const CANCELLED_BY_LANDLORD = 'landlord';
+
     public const CANCELLED_BY_SYSTEM = 'system';
 
     protected $fillable = [

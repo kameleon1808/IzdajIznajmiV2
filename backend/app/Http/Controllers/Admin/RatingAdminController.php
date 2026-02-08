@@ -12,9 +12,7 @@ use Illuminate\Http\Request;
 
 class RatingAdminController extends Controller
 {
-    public function __construct(private AuditLogService $auditLog)
-    {
-    }
+    public function __construct(private AuditLogService $auditLog) {}
 
     public function index(Request $request): JsonResponse
     {

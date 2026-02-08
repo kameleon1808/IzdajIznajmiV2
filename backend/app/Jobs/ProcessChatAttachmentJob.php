@@ -8,8 +8,8 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Intervention\Image\ImageManager;
 use Throwable;
@@ -20,20 +20,18 @@ class ProcessChatAttachmentJob implements ShouldQueue
 
     public int $tries = 3;
 
-    public function __construct(public int $attachmentId)
-    {
-    }
+    public function __construct(public int $attachmentId) {}
 
     public function handle(): void
     {
         $attachment = ChatAttachment::find($this->attachmentId);
-        if (!$attachment || $attachment->kind !== 'image') {
+        if (! $attachment || $attachment->kind !== 'image') {
             return;
         }
 
         $diskName = $attachment->disk ?: 'private';
         $disk = Storage::disk($diskName);
-        if (!$disk->exists($attachment->path_original)) {
+        if (! $disk->exists($attachment->path_original)) {
             return;
         }
 
@@ -60,6 +58,7 @@ class ProcessChatAttachmentJob implements ShouldQueue
             ]);
             // Fallback to original so UI doesn't stay in processing state.
             $attachment->update(['path_thumb' => $attachment->path_original]);
+
             return;
         }
     }

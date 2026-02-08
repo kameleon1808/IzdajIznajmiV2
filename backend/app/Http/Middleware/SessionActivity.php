@@ -9,9 +9,7 @@ use Symfony\Component\HttpFoundation\Response;
 
 class SessionActivity
 {
-    public function __construct(private SecuritySessionService $sessions)
-    {
-    }
+    public function __construct(private SecuritySessionService $sessions) {}
 
     public function handle(Request $request, Closure $next): Response
     {

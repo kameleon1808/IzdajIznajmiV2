@@ -24,7 +24,9 @@ class NotificationPreference extends Model
     ];
 
     public const DIGEST_NONE = 'none';
+
     public const DIGEST_DAILY = 'daily';
+
     public const DIGEST_WEEKLY = 'weekly';
 
     public static function defaultTypeSettings(): array

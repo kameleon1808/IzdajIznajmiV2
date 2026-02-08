@@ -5,17 +5,15 @@ namespace App\Events;
 use App\Http\Resources\ChatAttachmentResource;
 use App\Models\Message;
 use Illuminate\Broadcasting\PrivateChannel;
-use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
+use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
 class MessageCreated implements ShouldBroadcast
 {
     use Dispatchable, SerializesModels;
 
-    public function __construct(public Message $message)
-    {
-    }
+    public function __construct(public Message $message) {}
 
     public function broadcastOn(): PrivateChannel
     {
@@ -45,4 +43,3 @@ class MessageCreated implements ShouldBroadcast
         ];
     }
 }
-

@@ -31,7 +31,7 @@ class ListingAddressGuardService
      */
     public function guardActiveAddress(Listing $listing, ?string $addressKey): array
     {
-        if (!$addressKey) {
+        if (! $addressKey) {
             return [];
         }
 

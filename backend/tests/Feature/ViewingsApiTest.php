@@ -19,7 +19,7 @@ class ViewingsApiTest extends TestCase
     private function createListing(User $owner): Listing
     {
         $addressGuard = app(ListingAddressGuardService::class);
-        $address = 'Viewing Street ' . uniqid();
+        $address = 'Viewing Street '.uniqid();
         $city = 'Split';
         $country = 'Croatia';
         $addressKey = $addressGuard->normalizeAddressKey($address, $city, $country);

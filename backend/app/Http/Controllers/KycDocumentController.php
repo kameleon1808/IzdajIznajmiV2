@@ -11,9 +11,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class KycDocumentController extends Controller
 {
-    public function __construct(private readonly AuditLogService $auditLogs)
-    {
-    }
+    public function __construct(private readonly AuditLogService $auditLogs) {}
 
     public function show(Request $request, KycDocument $document): StreamedResponse
     {
@@ -27,7 +25,7 @@ class KycDocumentController extends Controller
 
         $disk = $document->disk ?? 'private';
         $path = $document->path;
-        if (!$path || !Storage::disk($disk)->exists($path)) {
+        if (! $path || ! Storage::disk($disk)->exists($path)) {
             abort(404, 'Document not found');
         }
 
@@ -51,6 +49,7 @@ class KycDocumentController extends Controller
         $safeName = $this->sanitizeFilename($document->original_name);
 
         $stream = Storage::disk($disk)->readStream($path);
+
         return response()->stream(function () use ($stream) {
             if (is_resource($stream)) {
                 fpassthru($stream);
@@ -58,7 +57,7 @@ class KycDocumentController extends Controller
             }
         }, 200, [
             'Content-Type' => $mime,
-            'Content-Disposition' => $disposition . '; filename="' . $safeName . '"',
+            'Content-Disposition' => $disposition.'; filename="'.$safeName.'"',
             'X-Content-Type-Options' => 'nosniff',
             'Cache-Control' => 'private, no-store, max-age=0',
         ]);

@@ -16,7 +16,7 @@ class ApplicationsSeeder extends Seeder
         $seeker = User::where('role', 'seeker')->first();
         $listing = Listing::where('status', 'active')->first();
 
-        if (!$seeker || !$listing) {
+        if (! $seeker || ! $listing) {
             return;
         }
 

@@ -63,7 +63,7 @@ class HealthController extends Controller
     private function checkCache(): array
     {
         $driver = Cache::getDefaultDriver();
-        $key = 'health:' . uniqid('', true);
+        $key = 'health:'.uniqid('', true);
 
         try {
             $store = Cache::store($driver);

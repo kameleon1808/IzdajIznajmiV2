@@ -13,9 +13,7 @@ use Illuminate\Support\Facades\DB;
 
 class SqlSearchDriver implements SearchDriver
 {
-    public function __construct(private readonly ListingSearchService $searchService)
-    {
-    }
+    public function __construct(private readonly ListingSearchService $searchService) {}
 
     public function searchListings(array $filters, int $page, int $perPage): ListingSearchResult
     {
@@ -56,7 +54,7 @@ class SqlSearchDriver implements SearchDriver
         $seen = [];
 
         $push = function (string $label, string $type, string $value) use (&$suggestions, &$seen, $limit): void {
-            $key = strtolower($type . '|' . $label);
+            $key = strtolower($type.'|'.$label);
             if (isset($seen[$key]) || count($suggestions) >= $limit) {
                 return;
             }
@@ -73,7 +71,7 @@ class SqlSearchDriver implements SearchDriver
         $cityMatches = Listing::query()
             ->where('status', ListingStatusService::STATUS_ACTIVE)
             ->whereNotNull('city')
-            ->where('city', 'like', '%' . $query . '%')
+            ->where('city', 'like', '%'.$query.'%')
             ->distinct()
             ->limit($limit)
             ->pluck('city');
@@ -83,7 +81,7 @@ class SqlSearchDriver implements SearchDriver
         }
 
         $amenityMatches = Facility::query()
-            ->where('name', 'like', '%' . $query . '%')
+            ->where('name', 'like', '%'.$query.'%')
             ->limit($limit)
             ->pluck('name');
 
@@ -192,7 +190,7 @@ class SqlSearchDriver implements SearchDriver
     }
 
     /**
-     * @param Collection<int, mixed> $rows
+     * @param  Collection<int, mixed>  $rows
      * @return array<int, array{value: string, count: int}>
      */
     private function mapFacetRows(Collection $rows, string $valueKey): array
@@ -207,8 +205,8 @@ class SqlSearchDriver implements SearchDriver
     }
 
     /**
-     * @param array<int, array{value: string, count: int}> $items
-     * @param array<int, string> $order
+     * @param  array<int, array{value: string, count: int}>  $items
+     * @param  array<int, string>  $order
      * @return array<int, array{value: string, count: int}>
      */
     private function sortFacetBuckets(array $items, array $order): array
@@ -217,6 +215,7 @@ class SqlSearchDriver implements SearchDriver
         usort($items, function ($a, $b) use ($lookup) {
             $aIndex = $lookup[$a['value']] ?? PHP_INT_MAX;
             $bIndex = $lookup[$b['value']] ?? PHP_INT_MAX;
+
             return $aIndex <=> $bIndex;
         });
 

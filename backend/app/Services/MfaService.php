@@ -40,11 +40,11 @@ class MfaService
     public function confirm(User $user, string $code): bool
     {
         $secret = $this->getSecret($user);
-        if (!$secret) {
+        if (! $secret) {
             return false;
         }
 
-        if (!$this->verifyCode($secret, $code)) {
+        if (! $this->verifyCode($secret, $code)) {
             return false;
         }
 
@@ -58,7 +58,7 @@ class MfaService
     public function verifyTotp(User $user, string $code): bool
     {
         $secret = $this->getSecret($user);
-        if (!$secret) {
+        if (! $secret) {
             return false;
         }
 
@@ -78,7 +78,7 @@ class MfaService
             ->whereNull('used_at')
             ->first();
 
-        if (!$record) {
+        if (! $record) {
             return false;
         }
 
@@ -108,7 +108,7 @@ class MfaService
 
         for ($i = 0; $i < $count; $i++) {
             $raw = Str::upper(Str::random(10));
-            $code = substr($raw, 0, 5) . '-' . substr($raw, 5);
+            $code = substr($raw, 0, 5).'-'.substr($raw, 5);
             $normalized = $this->normalizeRecoveryCode($code);
             $codes[] = $code;
 
@@ -125,7 +125,7 @@ class MfaService
 
     public function getSecret(User $user): ?string
     {
-        if (!$user->mfa_totp_secret) {
+        if (! $user->mfa_totp_secret) {
             return null;
         }
 
@@ -139,13 +139,14 @@ class MfaService
     private function verifyCode(string $secret, string $code): bool
     {
         $totp = TOTP::create($secret);
+
         return $totp->verify($code);
     }
 
     private function buildQrSvg(string $data): string
     {
         $result = Builder::create()
-            ->writer(new SvgWriter())
+            ->writer(new SvgWriter)
             ->data($data)
             ->size(220)
             ->margin(2)

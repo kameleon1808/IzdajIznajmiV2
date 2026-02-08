@@ -12,7 +12,7 @@ class FacilitiesSeeder extends Seeder
         Facility::truncate();
 
         $items = [
-            'Pool', 'Wi-Fi', 'Breakfast', 'Parking', 'Spa', 'Gym', 'Kitchen', 'Ocean View', 'Mountain View', 'Workspace', 'Bike Rental', 'Bar'
+            'Pool', 'Wi-Fi', 'Breakfast', 'Parking', 'Spa', 'Gym', 'Kitchen', 'Ocean View', 'Mountain View', 'Workspace', 'Bike Rental', 'Bar',
         ];
 
         foreach ($items as $name) {

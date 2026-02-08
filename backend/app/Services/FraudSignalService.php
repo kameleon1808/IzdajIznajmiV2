@@ -10,9 +10,7 @@ use Illuminate\Support\Facades\Cache;
 
 class FraudSignalService
 {
-    public function __construct(private NotificationService $notifications)
-    {
-    }
+    public function __construct(private NotificationService $notifications) {}
 
     public function recordSignal(User $user, string $key, int $weight, array $meta = [], ?int $cooldownMinutes = null): ?FraudSignal
     {
@@ -53,7 +51,7 @@ class FraudSignalService
         );
 
         $threshold = (int) config('security.fraud.score_threshold', 60);
-        if ($score >= $threshold && !$user->is_suspicious) {
+        if ($score >= $threshold && ! $user->is_suspicious) {
             $user->is_suspicious = true;
             $user->save();
             $this->notifyAdmins($user, $score);
@@ -70,9 +68,9 @@ class FraudSignalService
         $cooldown = (int) ($settings['cooldown_minutes'] ?? 30);
         $weight = (int) ($settings['weight'] ?? 8);
 
-        $key = 'fraud:failed_mfa:' . $user->id;
+        $key = 'fraud:failed_mfa:'.$user->id;
         $count = Cache::increment($key);
-        if (!is_int($count)) {
+        if (! is_int($count)) {
             $count = (int) Cache::get($key, 0) + 1;
         }
         Cache::put($key, $count, now()->addMinutes($windowMinutes));
@@ -119,7 +117,7 @@ class FraudSignalService
                     'score' => $score,
                     'signal' => 'fraud_threshold',
                 ],
-                'url' => '/admin/users/' . $user->id,
+                'url' => '/admin/users/'.$user->id,
             ]);
         }
     }
@@ -138,7 +136,7 @@ class FraudSignalService
                 'data' => array_merge([
                     'userId' => $user->id,
                 ], $data),
-                'url' => '/admin/users/' . $user->id,
+                'url' => '/admin/users/'.$user->id,
             ]);
         }
     }

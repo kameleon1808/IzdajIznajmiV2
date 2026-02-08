@@ -42,35 +42,35 @@ class SavedSearchNormalizer
             }
 
             if (in_array($key, ['priceMin', 'priceMax', 'rooms', 'areaMin', 'areaMax', 'guests'], true)) {
-                if (!is_numeric($value)) {
+                if (! is_numeric($value)) {
                     continue;
                 }
                 $value = (int) $value;
             }
 
             if ($key === 'rating') {
-                if (!is_numeric($value)) {
+                if (! is_numeric($value)) {
                     continue;
                 }
                 $value = (float) $value;
             }
 
             if ($key === 'centerLat') {
-                if (!is_numeric($value)) {
+                if (! is_numeric($value)) {
                     continue;
                 }
                 $value = round((float) $value, 5);
             }
 
             if ($key === 'centerLng') {
-                if (!is_numeric($value)) {
+                if (! is_numeric($value)) {
                     continue;
                 }
                 $value = round((float) $value, 5);
             }
 
             if ($key === 'radiusKm') {
-                if (!is_numeric($value)) {
+                if (! is_numeric($value)) {
                     continue;
                 }
                 $value = round((float) $value, 2);
@@ -79,7 +79,7 @@ class SavedSearchNormalizer
             $normalized[$key] = $value;
         }
 
-        if (!isset($normalized['amenities']) && isset($normalized['facilities'])) {
+        if (! isset($normalized['amenities']) && isset($normalized['facilities'])) {
             $normalized['amenities'] = $normalized['facilities'];
             unset($normalized['facilities']);
         } elseif (isset($normalized['amenities']) && isset($normalized['facilities'])) {

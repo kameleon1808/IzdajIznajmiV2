@@ -16,7 +16,7 @@ class GeocodingController extends Controller
         }
 
         $result = $geocoder->geocode($query);
-        if (!$result) {
+        if (! $result) {
             return response()->json(['message' => 'Location not found'], 404);
         }
 

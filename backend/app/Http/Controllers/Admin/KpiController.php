@@ -119,7 +119,7 @@ class KpiController extends Controller
     private function countsByDate(string $modelClass, $start, $end): array
     {
         /** @var \Illuminate\Database\Eloquent\Model $model */
-        $model = new $modelClass();
+        $model = new $modelClass;
 
         return $model->newQuery()
             ->select(DB::raw('DATE(created_at) as date'), DB::raw('COUNT(*) as count'))

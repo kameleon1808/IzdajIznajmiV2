@@ -17,9 +17,7 @@ use Stripe\Stripe;
 
 class TransactionPaymentController extends Controller
 {
-    public function __construct(private readonly NotificationService $notifications)
-    {
-    }
+    public function __construct(private readonly NotificationService $notifications) {}
 
     public function createDepositSession(Request $request, RentalTransaction $transaction): JsonResponse
     {
@@ -64,8 +62,8 @@ class TransactionPaymentController extends Controller
         Stripe::setApiKey($secret);
 
         $frontendUrl = rtrim(config('app.frontend_url', ''), '/');
-        $successUrl = $frontendUrl . "/transactions/{$transaction->id}?payment=success&session_id={CHECKOUT_SESSION_ID}";
-        $cancelUrl = $frontendUrl . "/transactions/{$transaction->id}?payment=cancelled";
+        $successUrl = $frontendUrl."/transactions/{$transaction->id}?payment=success&session_id={CHECKOUT_SESSION_ID}";
+        $cancelUrl = $frontendUrl."/transactions/{$transaction->id}?payment=cancelled";
 
         $payment = Payment::create([
             'transaction_id' => $transaction->id,
@@ -77,10 +75,10 @@ class TransactionPaymentController extends Controller
         ]);
 
         try {
-        $transaction->loadMissing('seeker');
-        $customerEmail = $transaction->seeker?->email ?? $user->email;
+            $transaction->loadMissing('seeker');
+            $customerEmail = $transaction->seeker?->email ?? $user->email;
 
-        $session = Session::create([
+            $session = Session::create([
                 'mode' => 'payment',
                 'payment_method_types' => ['card'],
                 'line_items' => [

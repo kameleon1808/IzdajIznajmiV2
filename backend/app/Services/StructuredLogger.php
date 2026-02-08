@@ -7,9 +7,7 @@ use Illuminate\Support\Facades\Log;
 
 class StructuredLogger
 {
-    public function __construct(private readonly ?Request $request = null)
-    {
-    }
+    public function __construct(private readonly ?Request $request = null) {}
 
     public function info(string $action, array $context = []): void
     {

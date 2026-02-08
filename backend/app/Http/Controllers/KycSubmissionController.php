@@ -16,9 +16,7 @@ use Illuminate\Support\Str;
 
 class KycSubmissionController extends Controller
 {
-    public function __construct(private readonly NotificationService $notifications)
-    {
-    }
+    public function __construct(private readonly NotificationService $notifications) {}
 
     public function store(StoreKycSubmissionRequest $request): JsonResponse
     {
@@ -123,12 +121,12 @@ class KycSubmissionController extends Controller
         ];
 
         foreach ($files as $type => $file) {
-            if (!$file) {
+            if (! $file) {
                 continue;
             }
 
             $extension = $file->getClientOriginalExtension();
-            $filename = $type . '_' . Str::uuid()->toString() . ($extension ? ".{$extension}" : '');
+            $filename = $type.'_'.Str::uuid()->toString().($extension ? ".{$extension}" : '');
             $path = $file->storeAs($dir, $filename, $disk);
 
             KycDocument::create([

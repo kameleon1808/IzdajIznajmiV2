@@ -9,9 +9,7 @@ use App\Services\NotificationService;
 
 class SendApplicationNotifications
 {
-    public function __construct(private NotificationService $notifications)
-    {
-    }
+    public function __construct(private NotificationService $notifications) {}
 
     public function onCreated(ApplicationCreated $event): void
     {
@@ -57,4 +55,3 @@ class SendApplicationNotifications
         ]);
     }
 }
-

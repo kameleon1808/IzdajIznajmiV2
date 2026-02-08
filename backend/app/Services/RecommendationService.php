@@ -6,28 +6,35 @@ use App\Models\Listing;
 use App\Models\ListingEvent;
 use App\Models\SavedSearch;
 use App\Models\User;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Carbon;
 
 class RecommendationService
 {
     private const MAX_RECOMMENDATIONS = 30;
+
     private const MAX_VIEW_EVENTS = 20;
+
     private const MAX_SAVED_SEARCHES = 10;
+
     private const MAX_SIMILAR_SEEDS = 3;
+
     private const MAX_SIMILAR_PER_SEED = 4;
+
     private const MAX_SAVED_SEARCH_RESULTS = 5;
+
     private const MAX_RECENT_SEARCH_RESULTS = 5;
+
     private const MAX_FRESH_RESULTS = 8;
+
     private const CACHE_MINUTES = 7;
 
     public function __construct(
         private readonly ListingSearchService $searchService,
         private readonly SimilarListingsService $similarService,
         private readonly SearchFilterSnapshotService $snapshotService,
-    ) {
-    }
+    ) {}
 
     /**
      * @return array{items: Collection<int, Listing>, reasons: array<string, array<int, string>>, meta: array<string, int>}
@@ -68,7 +75,7 @@ class RecommendationService
         $pageReasons = array_intersect_key($reasons, array_flip($pageIds));
         foreach ($items as $listing) {
             $key = (string) $listing->id;
-            if (isset($pageReasons[$key]) && !empty($pageReasons[$key])) {
+            if (isset($pageReasons[$key]) && ! empty($pageReasons[$key])) {
                 $listing->setAttribute('why', $pageReasons[$key]);
             }
         }
@@ -175,6 +182,7 @@ class RecommendationService
         $scored = $filtered->map(function (Listing $listing) use ($profile, $sourceTags) {
             $score = $this->scoreListing($listing, $profile, $sourceTags[$listing->id] ?? []);
             $listing->setAttribute('recommendation_score', $score);
+
             return $listing;
         })->sortByDesc(fn (Listing $listing) => $listing->getAttribute('recommendation_score') ?? 0);
 
@@ -189,7 +197,7 @@ class RecommendationService
                 $sourceReasons[$listingId] ?? []
             );
             $reasons[(string) $listingId] = $reasonList;
-            if (!empty($reasonList)) {
+            if (! empty($reasonList)) {
                 $listing->setAttribute('why', $reasonList);
             }
         }
@@ -203,16 +211,16 @@ class RecommendationService
     }
 
     /**
-     * @param array<int, Listing> $candidates
-     * @param array<int, array<int, string>> $sourceTags
-     * @param array<int, array<int, string>> $sourceReasons
+     * @param  array<int, Listing>  $candidates
+     * @param  array<int, array<int, string>>  $sourceTags
+     * @param  array<int, array<int, string>>  $sourceReasons
      */
     private function addCandidate(array &$candidates, array &$sourceTags, array &$sourceReasons, Listing $listing, string $tag, array $reasons): void
     {
         $listingId = (int) $listing->id;
         $candidates[$listingId] = $listing;
         $sourceTags[$listingId] = array_values(array_unique(array_merge($sourceTags[$listingId] ?? [], [$tag])));
-        if (!empty($reasons)) {
+        if (! empty($reasons)) {
             $sourceReasons[$listingId] = array_values(array_unique(array_merge($sourceReasons[$listingId] ?? [], $reasons)));
         }
     }
@@ -228,6 +236,7 @@ class RecommendationService
         $filters = $this->sanitizeFilters($filters);
         $query = $this->baseListingQuery();
         $this->searchService->applyFilters($query, $filters, false);
+
         return $query->limit($limit)->get();
     }
 
@@ -246,6 +255,7 @@ class RecommendationService
         $filters = $this->sanitizeFilters($filters);
         $query = $this->baseListingQuery();
         $this->searchService->applyFilters($query, $filters, false);
+
         return $query->latest('created_at')->limit($limit)->get();
     }
 
@@ -294,10 +304,10 @@ class RecommendationService
         }
 
         $amenities = $profile['amenities'] ?? [];
-        if (!empty($amenities)) {
+        if (! empty($amenities)) {
             $listingAmenities = $listing->facilities?->pluck('name')->all() ?? [];
             $overlap = array_intersect($amenities, $listingAmenities);
-            if (!empty($overlap)) {
+            if (! empty($overlap)) {
                 $score += 15 * (count($overlap) / max(count($amenities), 1));
             }
         }
@@ -340,10 +350,10 @@ class RecommendationService
         }
 
         $amenities = $profile['amenities'] ?? [];
-        if (!empty($amenities)) {
+        if (! empty($amenities)) {
             $listingAmenities = $listing->facilities?->pluck('name')->all() ?? [];
             $overlap = array_intersect($amenities, $listingAmenities);
-            if (!empty($overlap)) {
+            if (! empty($overlap)) {
                 $reasons[] = 'Has amenities you like';
             }
         }
@@ -359,17 +369,17 @@ class RecommendationService
 
     private function matchesRequestFilters(Listing $listing, array $filters): bool
     {
-        if (!empty($filters['category']) && $filters['category'] !== 'all') {
+        if (! empty($filters['category']) && $filters['category'] !== 'all') {
             if ($listing->category !== $filters['category']) {
                 return false;
             }
         }
 
-        if (!empty($filters['city']) && $listing->city !== $filters['city']) {
+        if (! empty($filters['city']) && $listing->city !== $filters['city']) {
             return false;
         }
 
-        if (!empty($filters['instantBook']) && !$listing->instant_book) {
+        if (! empty($filters['instantBook']) && ! $listing->instant_book) {
             return false;
         }
 
@@ -404,10 +414,10 @@ class RecommendationService
         }
 
         $amenities = $filters['amenities'] ?? $filters['facilities'] ?? [];
-        if (!empty($amenities)) {
+        if (! empty($amenities)) {
             $listingAmenities = $listing->facilities?->pluck('name')->all() ?? [];
             foreach ((array) $amenities as $amenity) {
-                if (!in_array($amenity, $listingAmenities, true)) {
+                if (! in_array($amenity, $listingAmenities, true)) {
                     return false;
                 }
             }
@@ -524,9 +534,9 @@ class RecommendationService
         }
 
         $amenities = $filters['amenities'] ?? $filters['facilities'] ?? [];
-        if (!empty($amenities)) {
+        if (! empty($amenities)) {
             foreach ((array) $amenities as $amenity) {
-                if (!is_string($amenity) || $amenity === '') {
+                if (! is_string($amenity) || $amenity === '') {
                     continue;
                 }
                 $amenityCounts[$amenity] = ($amenityCounts[$amenity] ?? 0) + 1;
@@ -546,6 +556,7 @@ class RecommendationService
         if ($count % 2) {
             return (float) $values[$middle];
         }
+
         return ((float) $values[$middle] + (float) $values[$middle + 1]) / 2;
     }
 
@@ -564,6 +575,7 @@ class RecommendationService
         if (array_key_exists('status', $filters)) {
             unset($filters['status']);
         }
+
         return $filters;
     }
 }

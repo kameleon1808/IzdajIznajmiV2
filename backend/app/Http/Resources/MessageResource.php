@@ -4,13 +4,13 @@ namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-use App\Http\Resources\ChatAttachmentResource;
 
 class MessageResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
         $authId = $request->user()?->id;
+
         return [
             'id' => $this->id,
             'conversationId' => $this->conversation_id,

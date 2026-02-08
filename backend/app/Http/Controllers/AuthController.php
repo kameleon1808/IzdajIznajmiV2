@@ -10,21 +10,20 @@ use App\Models\UserSession;
 use App\Services\FraudSignalService;
 use App\Services\SecuritySessionService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Cookie;
-use Illuminate\Http\Request;
-use Spatie\Permission\Models\Role;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
+use Spatie\Permission\Models\Role;
 
 class AuthController extends Controller
 {
     public function __construct(
         private SecuritySessionService $sessions,
         private FraudSignalService $fraudSignals
-    ) {
-    }
+    ) {}
 
     public function register(RegisterRequest $request): JsonResponse
     {
@@ -60,21 +59,21 @@ class AuthController extends Controller
     {
         $credentials = $request->validated();
 
-        if (!Auth::attempt($credentials)) {
+        if (! Auth::attempt($credentials)) {
             return response()->json(['message' => 'Invalid credentials'], 401);
         }
 
         $request->session()->regenerate();
 
         $user = $request->user();
-        if (!$user) {
+        if (! $user) {
             return response()->json(['message' => 'Unauthenticated'], 401);
         }
 
         $this->sessions->recordSession($user, $request);
         $this->recordSessionAnomaly($user);
 
-        if ($user->mfa_enabled && $user->mfa_confirmed_at && !$this->sessions->isTrustedDevice($user, $request)) {
+        if ($user->mfa_enabled && $user->mfa_confirmed_at && ! $this->sessions->isTrustedDevice($user, $request)) {
             $challengeId = (string) Str::uuid();
             $request->session()->put('mfa_pending', true);
             $request->session()->put('mfa_challenge_id', $challengeId);

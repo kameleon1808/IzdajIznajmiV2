@@ -16,7 +16,7 @@ class RatingService
             throw new HttpResponseException(response()->json(['message' => 'You cannot rate yourself'], 422));
         }
 
-        if (!$this->isVerified($rater)) {
+        if (! $this->isVerified($rater)) {
             throw new HttpResponseException(response()->json(['message' => 'Verify your email, phone, and address to rate'], 422));
         }
 
@@ -28,7 +28,7 @@ class RatingService
             throw new HttpResponseException(response()->json(['message' => 'Rating limit reached. Try again later.'], 429));
         }
 
-        if (!$this->hasMessagingHistory($rater->id, $rateeId, $listing->id)) {
+        if (! $this->hasMessagingHistory($rater->id, $rateeId, $listing->id)) {
             throw new HttpResponseException(response()->json(['message' => 'You need a conversation with messages before rating'], 422));
         }
     }
@@ -94,7 +94,7 @@ class RatingService
             })
             ->first();
 
-        if (!$conversation) {
+        if (! $conversation) {
             return false;
         }
 

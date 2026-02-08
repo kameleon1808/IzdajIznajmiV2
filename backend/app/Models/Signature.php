@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class Signature extends Model
 {
     public const METHOD_TYPED_NAME = 'typed_name';
+
     public const METHOD_CHECKBOX = 'checkbox_consent';
 
     protected $fillable = [

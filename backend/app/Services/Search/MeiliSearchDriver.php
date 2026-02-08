@@ -12,9 +12,7 @@ class MeiliSearchDriver implements SearchDriver
 {
     private const DEFAULT_FACETS = ['city', 'status', 'rooms', 'amenities', 'price_bucket', 'area_bucket'];
 
-    public function __construct(private readonly Client $client)
-    {
-    }
+    public function __construct(private readonly Client $client) {}
 
     public function searchListings(array $filters, int $page, int $perPage): ListingSearchResult
     {
@@ -80,7 +78,7 @@ class MeiliSearchDriver implements SearchDriver
         $seen = [];
 
         $push = function (string $label, string $type, string $value) use (&$suggestions, &$seen, $limit): void {
-            $key = strtolower($type . '|' . $label);
+            $key = strtolower($type.'|'.$label);
             if (isset($seen[$key]) || count($suggestions) >= $limit) {
                 return;
             }
@@ -205,8 +203,8 @@ class MeiliSearchDriver implements SearchDriver
     }
 
     /**
-     * @param array<int, array{value: string, count: int}> $items
-     * @param array<int, string> $order
+     * @param  array<int, array{value: string, count: int}>  $items
+     * @param  array<int, string>  $order
      * @return array<int, array{value: string, count: int}>
      */
     private function sortFacetBuckets(array $items, array $order): array
@@ -215,6 +213,7 @@ class MeiliSearchDriver implements SearchDriver
         usort($items, function ($a, $b) use ($lookup) {
             $aIndex = $lookup[$a['value']] ?? PHP_INT_MAX;
             $bIndex = $lookup[$b['value']] ?? PHP_INT_MAX;
+
             return $aIndex <=> $bIndex;
         });
 
@@ -243,22 +242,22 @@ class MeiliSearchDriver implements SearchDriver
         if (count($statuses) === 1) {
             $clauses[] = sprintf('status = "%s"', $this->escapeFilterValue($statuses[0]));
         } else {
-            $clauses[] = 'status IN [' . implode(', ', array_map(fn ($s) => '"' . $this->escapeFilterValue($s) . '"', $statuses)) . ']';
+            $clauses[] = 'status IN ['.implode(', ', array_map(fn ($s) => '"'.$this->escapeFilterValue($s).'"', $statuses)).']';
         }
 
         $cities = $this->normalizeArrayInput($filters['city'] ?? []);
         if ($cities !== []) {
-            $clauses[] = 'city IN [' . implode(', ', array_map(fn ($c) => '"' . $this->escapeFilterValue($c) . '"', $cities)) . ']';
+            $clauses[] = 'city IN ['.implode(', ', array_map(fn ($c) => '"'.$this->escapeFilterValue($c).'"', $cities)).']';
         }
 
         $rooms = $filters['rooms'] ?? null;
         if ($rooms !== null && $rooms !== '') {
-            $clauses[] = 'rooms >= ' . (int) $rooms;
+            $clauses[] = 'rooms >= '.(int) $rooms;
         }
 
         $guests = $filters['guests'] ?? null;
         if ($guests !== null && $guests !== '') {
-            $clauses[] = 'beds >= ' . (int) $guests;
+            $clauses[] = 'beds >= '.(int) $guests;
         }
 
         $category = $filters['category'] ?? null;
@@ -273,32 +272,32 @@ class MeiliSearchDriver implements SearchDriver
 
         $priceBucket = $this->normalizeArrayInput($filters['priceBucket'] ?? $filters['price_bucket'] ?? []);
         if ($priceBucket !== []) {
-            $clauses[] = 'price_bucket IN [' . implode(', ', array_map(fn ($p) => '"' . $this->escapeFilterValue($p) . '"', $priceBucket)) . ']';
+            $clauses[] = 'price_bucket IN ['.implode(', ', array_map(fn ($p) => '"'.$this->escapeFilterValue($p).'"', $priceBucket)).']';
         }
 
         $areaBucket = $this->normalizeArrayInput($filters['areaBucket'] ?? $filters['area_bucket'] ?? []);
         if ($areaBucket !== []) {
-            $clauses[] = 'area_bucket IN [' . implode(', ', array_map(fn ($a) => '"' . $this->escapeFilterValue($a) . '"', $areaBucket)) . ']';
+            $clauses[] = 'area_bucket IN ['.implode(', ', array_map(fn ($a) => '"'.$this->escapeFilterValue($a).'"', $areaBucket)).']';
         }
 
         if ($this->hasValue($filters['priceMin'] ?? null)) {
-            $clauses[] = 'price_per_night >= ' . (int) $filters['priceMin'];
+            $clauses[] = 'price_per_night >= '.(int) $filters['priceMin'];
         }
         if ($this->hasValue($filters['priceMax'] ?? null)) {
-            $clauses[] = 'price_per_night <= ' . (int) $filters['priceMax'];
+            $clauses[] = 'price_per_night <= '.(int) $filters['priceMax'];
         }
         if ($this->hasValue($filters['areaMin'] ?? null)) {
-            $clauses[] = 'area >= ' . (int) $filters['areaMin'];
+            $clauses[] = 'area >= '.(int) $filters['areaMin'];
         }
         if ($this->hasValue($filters['areaMax'] ?? null)) {
-            $clauses[] = 'area <= ' . (int) $filters['areaMax'];
+            $clauses[] = 'area <= '.(int) $filters['areaMax'];
         }
 
         if ($this->hasValue($filters['rating'] ?? null)) {
-            $clauses[] = 'rating >= ' . (float) $filters['rating'];
+            $clauses[] = 'rating >= '.(float) $filters['rating'];
         }
 
-        if (!empty($filters['instantBook'])) {
+        if (! empty($filters['instantBook'])) {
             $clauses[] = 'instant_book = true';
         }
 

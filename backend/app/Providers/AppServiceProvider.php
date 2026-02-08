@@ -2,17 +2,16 @@
 
 namespace App\Providers;
 
-use App\Models\BookingRequest;
 use App\Models\Application;
+use App\Models\BookingRequest;
 use App\Models\Listing;
-use App\Models\SavedSearch;
-use App\Observers\ListingObserver;
-use App\Models\Rating;
 use App\Models\RentalTransaction;
+use App\Models\SavedSearch;
 use App\Models\ViewingRequest;
 use App\Models\ViewingSlot;
-use App\Policies\BookingRequestPolicy;
+use App\Observers\ListingObserver;
 use App\Policies\ApplicationPolicy;
+use App\Policies\BookingRequestPolicy;
 use App\Policies\ListingPolicy;
 use App\Policies\RentalTransactionPolicy;
 use App\Policies\SavedSearchPolicy;
@@ -29,11 +28,11 @@ use App\Services\Geocoding\SuggestGeocoder;
 use App\Services\Search\MeiliSearchDriver;
 use App\Services\Search\SearchDriver;
 use App\Services\Search\SqlSearchDriver;
-use Illuminate\Support\Facades\Gate;
-use Illuminate\Support\ServiceProvider;
-use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\ServiceProvider;
 use MeiliSearch\Client;
 
 class AppServiceProvider extends ServiceProvider
@@ -45,11 +44,13 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->singleton(Client::class, function ($app) {
             $config = $app['config']->get('search.meili', []);
+
             return new Client($config['host'] ?? 'http://localhost:7700', $config['key'] ?? null);
         });
 
         $this->app->bind(SearchDriver::class, function ($app) {
             $driver = $app['config']->get('search.driver', 'sql');
+
             return $driver === 'meili'
                 ? $app->make(MeiliSearchDriver::class)
                 : $app->make(SqlSearchDriver::class);
@@ -93,7 +94,7 @@ class AppServiceProvider extends ServiceProvider
                     (int) ($config['nominatim']['rate_limit_ms'] ?? 1200),
                     (int) ($config['nominatim']['timeout'] ?? 8),
                 ),
-                default => new FakeSuggestGeocoder(),
+                default => new FakeSuggestGeocoder,
             };
 
             return new CachedSuggestGeocoder($baseGeocoder, $cache, $ttl);
@@ -132,6 +133,7 @@ class AppServiceProvider extends ServiceProvider
 
         RateLimiter::for('booking_requests', function (Request $request) {
             $key = $request->user()?->id ?? $request->ip();
+
             return Limit::perMinute(20)->by($key);
         });
 
@@ -147,11 +149,13 @@ class AppServiceProvider extends ServiceProvider
 
         RateLimiter::for('viewing_requests', function (Request $request) {
             $key = $request->user()?->id ?? $request->ip();
+
             return Limit::perMinute(30)->by($key);
         });
 
         RateLimiter::for('landlord_write', function (Request $request) {
             $key = $request->user()?->id ?? $request->ip();
+
             return Limit::perMinute(30)->by($key);
         });
 
@@ -174,6 +178,7 @@ class AppServiceProvider extends ServiceProvider
 
         RateLimiter::for('mfa_verify', function (Request $request) {
             $key = sprintf('mfa_verify:%s:%s', $request->user()?->id ?? 'guest', $request->ip());
+
             return Limit::perMinute(5)
                 ->by($key)
                 ->response(function () {
@@ -183,12 +188,14 @@ class AppServiceProvider extends ServiceProvider
                             'ip' => request()->ip(),
                         ]);
                     }
+
                     return response()->json(['message' => 'Too many MFA attempts. Please wait a minute.'], 429);
                 });
         });
 
         RateLimiter::for('mfa_sensitive', function (Request $request) {
             $key = sprintf('mfa_sensitive:%s:%s', $request->user()?->id ?? 'guest', $request->ip());
+
             return Limit::perMinute(5)->by($key);
         });
     }

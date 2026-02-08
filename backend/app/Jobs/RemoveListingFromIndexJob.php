@@ -15,9 +15,7 @@ class RemoveListingFromIndexJob implements ShouldQueue
 
     public int $tries = 3;
 
-    public function __construct(public int $listingId)
-    {
-    }
+    public function __construct(public int $listingId) {}
 
     public function handle(ListingSearchIndexer $indexer): void
     {

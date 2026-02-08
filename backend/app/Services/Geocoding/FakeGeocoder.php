@@ -8,8 +8,7 @@ class FakeGeocoder implements Geocoder
         private readonly float $baseLat = 45.0,
         private readonly float $baseLng = 15.0,
         private readonly float $spreadKm = 120.0
-    ) {
-    }
+    ) {}
 
     public function geocode(string $address): ?array
     {
@@ -37,6 +36,7 @@ class FakeGeocoder implements Geocoder
     private function offsetValue(string $seed): float
     {
         $hash = hexdec(substr(hash('sha256', $seed), 0, 12));
+
         // Map 48-bit hash to range [-1, 1]
         return ($hash / 0xFFFFFFFFFFFF) * 2 - 1;
     }

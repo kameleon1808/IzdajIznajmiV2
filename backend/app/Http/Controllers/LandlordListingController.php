@@ -5,20 +5,20 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreListingRequest;
 use App\Http\Requests\UpdateListingRequest;
 use App\Http\Resources\ListingResource;
-use App\Jobs\ProcessListingImage;
 use App\Jobs\IndexListingJob;
+use App\Jobs\ProcessListingImage;
 use App\Models\Facility;
 use App\Models\Listing;
 use App\Models\ListingImage;
+use App\Services\FraudSignalService;
 use App\Services\ListingAddressGuardService;
 use App\Services\ListingStatusService;
-use App\Services\FraudSignalService;
 use App\Services\StructuredLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use Illuminate\Support\Facades\DB;
 
 class LandlordListingController extends Controller
 {
@@ -27,8 +27,7 @@ class LandlordListingController extends Controller
         private readonly ListingAddressGuardService $addressGuard,
         private readonly StructuredLogger $log,
         private FraudSignalService $fraudSignals
-    ) {
-    }
+    ) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -166,7 +165,7 @@ class LandlordListingController extends Controller
         if ($resetManualLocation) {
             $payload['location_source'] = 'geocoded';
             $payload['location_overridden_at'] = null;
-            if (!$latProvided) {
+            if (! $latProvided) {
                 $payload['lat'] = null;
                 $payload['lng'] = null;
             }
@@ -175,7 +174,7 @@ class LandlordListingController extends Controller
         $payload['address_key'] = $addressKey;
 
         DB::transaction(function () use ($listing, $data, $payload, $request) {
-            if (!empty($payload)) {
+            if (! empty($payload)) {
                 $listing->update($payload);
             }
 
@@ -363,7 +362,7 @@ class LandlordListingController extends Controller
         $newUrls = collect($newUploads)->pluck('url');
 
         // delete removed (exclude freshly uploaded)
-        $existing->filter(fn ($img) => !$keepUrls->contains($img->url) && !$newUrls->contains($img->url))->each->delete();
+        $existing->filter(fn ($img) => ! $keepUrls->contains($img->url) && ! $newUrls->contains($img->url))->each->delete();
 
         // update kept
         foreach ($keepImages as $img) {
@@ -395,11 +394,11 @@ class LandlordListingController extends Controller
     {
         foreach ($urls as $url) {
             $path = parse_url($url, PHP_URL_PATH);
-            if (!$path) {
+            if (! $path) {
                 continue;
             }
             $relative = ltrim(str_replace('/storage/', '', $path), '/');
-            if (!str_starts_with($relative, "listings/{$listing->id}/")) {
+            if (! str_starts_with($relative, "listings/{$listing->id}/")) {
                 continue;
             }
             Storage::disk('public')->delete($relative);
@@ -454,7 +453,7 @@ class LandlordListingController extends Controller
 
     private function recordDuplicateAddressAttempt($user, ?string $addressKey): void
     {
-        if (!$user || !$addressKey) {
+        if (! $user || ! $addressKey) {
             return;
         }
 
@@ -462,7 +461,7 @@ class LandlordListingController extends Controller
             ->where('address_key', $addressKey)
             ->exists();
 
-        if (!$exists) {
+        if (! $exists) {
             return;
         }
 

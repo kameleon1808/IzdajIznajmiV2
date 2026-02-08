@@ -72,7 +72,7 @@ class BookingRequestController extends Controller
         $newStatus = $request->validated()['status'];
         Gate::authorize('updateStatus', [$bookingRequest, $newStatus]);
 
-        if (!in_array($bookingRequest->status, ['pending']) && !$this->userHasRole(auth()->user(), 'admin')) {
+        if (! in_array($bookingRequest->status, ['pending']) && ! $this->userHasRole(auth()->user(), 'admin')) {
             return response()->json(['message' => 'Cannot change finalized request'], 422);
         }
 
@@ -83,7 +83,7 @@ class BookingRequestController extends Controller
 
     private function normalizeRole(?string $role): ?string
     {
-        if (!$role) {
+        if (! $role) {
             return null;
         }
 

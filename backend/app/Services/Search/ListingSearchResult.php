@@ -5,16 +5,15 @@ namespace App\Services\Search;
 class ListingSearchResult
 {
     /**
-     * @param array<int, array<string, mixed>> $items
-     * @param array<string, mixed> $meta
-     * @param array<string, array<int, array{value: string, count: int}>> $facets
+     * @param  array<int, array<string, mixed>>  $items
+     * @param  array<string, mixed>  $meta
+     * @param  array<string, array<int, array{value: string, count: int}>>  $facets
      */
     public function __construct(
         public array $items,
         public array $meta,
         public array $facets,
-    ) {
-    }
+    ) {}
 
     /**
      * @return array<string, mixed>

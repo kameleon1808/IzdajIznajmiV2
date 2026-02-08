@@ -17,14 +17,12 @@ class GeocodeListingJob implements ShouldQueue
 
     public int $tries = 2;
 
-    public function __construct(public int $listingId, public bool $forceRefresh = false)
-    {
-    }
+    public function __construct(public int $listingId, public bool $forceRefresh = false) {}
 
     public function handle(Geocoder $geocoder, CacheRepository $cache): void
     {
         $listing = Listing::find($this->listingId);
-        if (!$listing) {
+        if (! $listing) {
             return;
         }
 
@@ -39,12 +37,13 @@ class GeocodeListingJob implements ShouldQueue
             $latPresent = false;
         }
 
-        if (!$this->forceRefresh && $latPresent && $listing->geocoded_at) {
+        if (! $this->forceRefresh && $latPresent && $listing->geocoded_at) {
             return;
         }
 
-        if ($latPresent && !$this->forceRefresh && !$listing->geocoded_at) {
+        if ($latPresent && ! $this->forceRefresh && ! $listing->geocoded_at) {
             $listing->forceFill(['geocoded_at' => now()])->saveQuietly();
+
             return;
         }
 
@@ -63,8 +62,9 @@ class GeocodeListingJob implements ShouldQueue
             fn () => $geocoder->geocode($address)
         );
 
-        if (!$result || !isset($result['lat'], $result['lng'])) {
+        if (! $result || ! isset($result['lat'], $result['lng'])) {
             $listing->forceFill(['geocoded_at' => null])->saveQuietly();
+
             return;
         }
 

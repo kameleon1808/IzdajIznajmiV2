@@ -14,7 +14,7 @@ class SecuritySessionService
     public function recordSession(User $user, Request $request): ?UserSession
     {
         $sessionId = $request->session()->getId();
-        if (!$sessionId) {
+        if (! $sessionId) {
             return null;
         }
 
@@ -31,7 +31,7 @@ class SecuritySessionService
         $session->user_agent = $userAgent;
         $session->last_active_at = now();
         $session->updated_at = now();
-        if (!$session->created_at) {
+        if (! $session->created_at) {
             $session->created_at = now();
         }
         $session->save();
@@ -43,7 +43,7 @@ class SecuritySessionService
     {
         $sessionId = $request->session()->getId();
         $user = $request->user();
-        if (!$sessionId || !$user) {
+        if (! $sessionId || ! $user) {
             return;
         }
 
@@ -77,20 +77,22 @@ class SecuritySessionService
 
     public function truncateIp(?string $ip): ?string
     {
-        if (!$ip) {
+        if (! $ip) {
             return null;
         }
 
         if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
             $parts = explode('.', $ip);
             $parts[3] = '0';
-            return implode('.', $parts) . '/24';
+
+            return implode('.', $parts).'/24';
         }
 
         if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV6)) {
             $segments = explode(':', $ip);
             $prefix = implode(':', array_slice($segments, 0, 4));
-            return $prefix . '::/64';
+
+            return $prefix.'::/64';
         }
 
         return null;
@@ -98,7 +100,7 @@ class SecuritySessionService
 
     public function normalizeUserAgent(?string $userAgent): ?string
     {
-        if (!$userAgent) {
+        if (! $userAgent) {
             return null;
         }
 
@@ -108,7 +110,7 @@ class SecuritySessionService
     public function isTrustedDevice(User $user, Request $request): bool
     {
         $fingerprint = $this->deviceFingerprint($request);
-        if (!$fingerprint) {
+        if (! $fingerprint) {
             return false;
         }
 
@@ -123,7 +125,7 @@ class SecuritySessionService
     public function rememberDevice(User $user, Request $request, ?string $label = null): ?TrustedDevice
     {
         $fingerprint = $this->deviceFingerprint($request);
-        if (!$fingerprint) {
+        if (! $fingerprint) {
             return null;
         }
 
@@ -138,7 +140,7 @@ class SecuritySessionService
         $device->label = $label ?? $device->label;
         $device->last_used_at = now();
         $device->expires_at = $expiresAt;
-        if (!$device->created_at) {
+        if (! $device->created_at) {
             $device->created_at = now();
         }
         $device->save();

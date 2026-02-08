@@ -2,15 +2,15 @@
 
 namespace Tests\Feature;
 
+use App\Models\Application;
 use App\Models\Conversation;
 use App\Models\Listing;
 use App\Models\Message;
 use App\Models\User;
-use App\Models\Application;
 use App\Services\ListingAddressGuardService;
 use App\Services\ListingStatusService;
-use Illuminate\Http\UploadedFile;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
@@ -22,7 +22,7 @@ class ChatApiTest extends TestCase
     private function createListing(User $owner, string $status = ListingStatusService::STATUS_ACTIVE): Listing
     {
         $addressGuard = app(ListingAddressGuardService::class);
-        $address = 'Chat Street ' . uniqid();
+        $address = 'Chat Street '.uniqid();
         $addressKey = $addressGuard->normalizeAddressKey($address, 'Zagreb', 'Croatia');
 
         return Listing::create([
@@ -140,7 +140,7 @@ class ChatApiTest extends TestCase
             Message::create([
                 'conversation_id' => $conversation->id,
                 'sender_id' => $seeker->id,
-                'body' => 'Ping ' . $i,
+                'body' => 'Ping '.$i,
             ]);
         }
 

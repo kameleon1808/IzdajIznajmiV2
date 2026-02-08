@@ -14,8 +14,7 @@ class NominatimGeocoder implements Geocoder
         private readonly ?string $countryCodes = null,
         private readonly int $rateLimitMs = 1200,
         private readonly int $timeoutSeconds = 8,
-    ) {
-    }
+    ) {}
 
     public function geocode(string $address): ?array
     {
@@ -39,12 +38,12 @@ class NominatimGeocoder implements Geocoder
                 'email' => $this->email,
             ]));
 
-        if (!$response->successful()) {
+        if (! $response->successful()) {
             return null;
         }
 
         $data = $response->json()[0] ?? null;
-        if (!$data || !isset($data['lat'], $data['lon'])) {
+        if (! $data || ! isset($data['lat'], $data['lon'])) {
             return null;
         }
 
@@ -57,6 +56,7 @@ class NominatimGeocoder implements Geocoder
     private function userAgent(): string
     {
         $email = $this->email ?? 'noreply@example.com';
+
         return 'IzdajIznajmiGeocoder/1.0 ('.$email.')';
     }
 

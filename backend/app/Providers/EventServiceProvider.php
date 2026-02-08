@@ -17,10 +17,10 @@ class EventServiceProvider extends ServiceProvider
 {
     protected $listen = [
         ApplicationCreated::class => [
-            SendApplicationNotifications::class . '@onCreated',
+            SendApplicationNotifications::class.'@onCreated',
         ],
         ApplicationStatusChanged::class => [
-            SendApplicationNotifications::class . '@onStatusChanged',
+            SendApplicationNotifications::class.'@onStatusChanged',
         ],
         MessageCreated::class => [
             SendMessageNotification::class,
@@ -33,4 +33,3 @@ class EventServiceProvider extends ServiceProvider
         ],
     ];
 }
-

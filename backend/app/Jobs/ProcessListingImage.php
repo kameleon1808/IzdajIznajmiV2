@@ -19,23 +19,22 @@ class ProcessListingImage implements ShouldQueue
 
     public int $tries = 3;
 
-    public function __construct(public int $listingImageId, public string $originalPath)
-    {
-    }
+    public function __construct(public int $listingImageId, public string $originalPath) {}
 
     public function handle(): void
     {
         $image = ListingImage::find($this->listingImageId);
-        if (!$image) {
+        if (! $image) {
             return;
         }
 
         $disk = Storage::disk('public');
-        if (!$disk->exists($this->originalPath)) {
+        if (! $disk->exists($this->originalPath)) {
             $image->update([
                 'processing_status' => 'failed',
                 'processing_error' => 'Original not found',
             ]);
+
             return;
         }
 
@@ -64,6 +63,7 @@ class ProcessListingImage implements ShouldQueue
                 }
                 // optionally delete original
                 $disk->delete($this->originalPath);
+
                 return;
             }
         } catch (Throwable $e) {
@@ -73,6 +73,7 @@ class ProcessListingImage implements ShouldQueue
                 'processing_status' => 'done',
                 'processing_error' => $e->getMessage(),
             ]);
+
             return;
         }
 

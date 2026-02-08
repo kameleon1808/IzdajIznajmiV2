@@ -18,6 +18,7 @@ class SearchListingsReindexCommand extends Command
     {
         if (config('search.driver', 'sql') !== 'meili') {
             $this->warn('Search driver is sql; reindex skipped.');
+
             return Command::SUCCESS;
         }
 

@@ -2,12 +2,9 @@
 
 namespace Tests\Feature;
 
-use App\Models\Application;
 use App\Models\Listing;
-use App\Models\Message;
 use App\Models\Notification;
 use App\Models\NotificationPreference;
-use App\Models\Rating;
 use App\Models\User;
 use App\Services\ListingStatusService;
 use Illuminate\Foundation\Testing\RefreshDatabase;

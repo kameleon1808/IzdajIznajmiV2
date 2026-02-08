@@ -2,10 +2,9 @@
 
 namespace App\Services;
 
-use App\Models\Notification;
+use App\Jobs\DispatchNotificationJob;
 use App\Models\NotificationPreference;
 use App\Models\User;
-use App\Jobs\DispatchNotificationJob;
 
 class NotificationService
 {
@@ -41,4 +40,3 @@ class NotificationService
         );
     }
 }
-

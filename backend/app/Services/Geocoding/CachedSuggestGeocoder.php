@@ -11,8 +11,7 @@ class CachedSuggestGeocoder implements SuggestGeocoder
         private readonly SuggestGeocoder $inner,
         private readonly CacheRepository $cache,
         private readonly int $ttlMinutes = 15
-    ) {
-    }
+    ) {}
 
     public function suggest(string $query, int $limit = 5): array
     {
@@ -28,7 +27,7 @@ class CachedSuggestGeocoder implements SuggestGeocoder
         }
 
         $fresh = $this->inner->suggest($normalized, $limit);
-        if (!empty($fresh)) {
+        if (! empty($fresh)) {
             $this->cache->put($cacheKey, $fresh, now()->addMinutes($this->ttlMinutes));
         }
 

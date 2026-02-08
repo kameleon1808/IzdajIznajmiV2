@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Contract extends Model
 {
     public const STATUS_DRAFT = 'draft';
+
     public const STATUS_FINAL = 'final';
 
     protected $fillable = [

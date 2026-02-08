@@ -10,7 +10,7 @@ class SearchFilterSnapshotService
 {
     public function record(User $user, array $filters, int $maxSnapshots = 10): void
     {
-        if (!$this->isSeeker($user)) {
+        if (! $this->isSeeker($user)) {
             return;
         }
 

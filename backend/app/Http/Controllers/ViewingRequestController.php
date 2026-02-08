@@ -19,9 +19,7 @@ use Illuminate\Support\Facades\Gate;
 
 class ViewingRequestController extends Controller
 {
-    public function __construct(private NotificationService $notifications)
-    {
-    }
+    public function __construct(private NotificationService $notifications) {}
 
     public function store(StoreViewingRequestRequest $request, ViewingSlot $viewingSlot): JsonResponse
     {
@@ -322,19 +320,19 @@ class ViewingRequestController extends Controller
             "DTSTAMP:{$dtStamp}",
             "DTSTART:{$dtStart}",
             "DTEND:{$dtEnd}",
-            'SUMMARY:' . $this->escapeIcsText($summary),
-            'DESCRIPTION:' . $this->escapeIcsText('Viewing appointment'),
-            'LOCATION:' . $this->escapeIcsText($location),
+            'SUMMARY:'.$this->escapeIcsText($summary),
+            'DESCRIPTION:'.$this->escapeIcsText('Viewing appointment'),
+            'LOCATION:'.$this->escapeIcsText($location),
             'END:VEVENT',
             'END:VCALENDAR',
         ];
 
-        return implode("\r\n", $lines) . "\r\n";
+        return implode("\r\n", $lines)."\r\n";
     }
 
     private function escapeIcsText(string $text): string
     {
-        return addcslashes($text, ",;\\");
+        return addcslashes($text, ',;\\');
     }
 
     private function validateScheduledAt(ViewingSlot $slot, Carbon $scheduledAt): ?string
@@ -404,6 +402,7 @@ class ViewingRequestController extends Controller
         if ($hours < 0 || $hours > 23 || $minutes < 0 || $minutes > 59) {
             return null;
         }
+
         return ($hours * 60) + $minutes;
     }
 

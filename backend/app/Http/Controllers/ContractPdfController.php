@@ -39,7 +39,7 @@ class ContractPdfController extends Controller
             }
         }, 200, [
             'Content-Type' => $mime,
-            'Content-Disposition' => 'inline; filename="' . $safeName . '"',
+            'Content-Disposition' => 'inline; filename="'.$safeName.'"',
             'X-Content-Type-Options' => 'nosniff',
             'Cache-Control' => 'private, no-store, max-age=0',
         ]);

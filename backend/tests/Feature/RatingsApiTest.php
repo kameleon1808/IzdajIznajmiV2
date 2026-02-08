@@ -18,7 +18,7 @@ class RatingsApiTest extends TestCase
     private function createListing(User $owner): Listing
     {
         $guard = app(ListingAddressGuardService::class);
-        $address = 'Rating Street ' . uniqid();
+        $address = 'Rating Street '.uniqid();
 
         return Listing::create([
             'owner_id' => $owner->id,

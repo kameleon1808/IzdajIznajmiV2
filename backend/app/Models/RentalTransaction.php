@@ -10,13 +10,21 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 class RentalTransaction extends Model
 {
     public const STATUS_INITIATED = 'initiated';
+
     public const STATUS_CONTRACT_GENERATED = 'contract_generated';
+
     public const STATUS_SEEKER_SIGNED = 'seeker_signed';
+
     public const STATUS_LANDLORD_SIGNED = 'landlord_signed';
+
     public const STATUS_DEPOSIT_PAID = 'deposit_paid';
+
     public const STATUS_MOVE_IN_CONFIRMED = 'move_in_confirmed';
+
     public const STATUS_COMPLETED = 'completed';
+
     public const STATUS_CANCELLED = 'cancelled';
+
     public const STATUS_DISPUTED = 'disputed';
 
     protected $fillable = [

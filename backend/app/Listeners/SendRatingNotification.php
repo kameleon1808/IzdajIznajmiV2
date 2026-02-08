@@ -8,9 +8,7 @@ use App\Services\NotificationService;
 
 class SendRatingNotification
 {
-    public function __construct(private NotificationService $notifications)
-    {
-    }
+    public function __construct(private NotificationService $notifications) {}
 
     public function handle(RatingCreated $event): void
     {
@@ -34,4 +32,3 @@ class SendRatingNotification
         ]);
     }
 }
-

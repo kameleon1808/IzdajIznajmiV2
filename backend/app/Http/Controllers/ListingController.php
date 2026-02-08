@@ -14,9 +14,7 @@ use Illuminate\Http\Request;
 
 class ListingController extends Controller
 {
-    public function __construct(private readonly ListingSearchService $searchService)
-    {
-    }
+    public function __construct(private readonly ListingSearchService $searchService) {}
 
     public function index(Request $request, SearchFilterSnapshotService $snapshots, SavedSearchNormalizer $normalizer): JsonResponse
     {
@@ -48,7 +46,7 @@ class ListingController extends Controller
             'mapMode' => $mapMode,
         ];
 
-        if ($mapMode && (!is_numeric($filters['centerLat']) || !is_numeric($filters['centerLng']))) {
+        if ($mapMode && (! is_numeric($filters['centerLat']) || ! is_numeric($filters['centerLng']))) {
             return response()->json(['message' => 'Map view requires centerLat and centerLng'], 422);
         }
 
@@ -75,6 +73,7 @@ class ListingController extends Controller
                     'distanceKm' => $item->distance_km !== null ? round((float) $item->distance_km, 2) : null,
                 ];
             });
+
             return response()->json([
                 'data' => $items,
                 'meta' => [
@@ -95,7 +94,7 @@ class ListingController extends Controller
 
         $listing->load([
             'images' => function ($q) use ($isAdmin, $isOwner) {
-                if (!$isAdmin && !$isOwner) {
+                if (! $isAdmin && ! $isOwner) {
                     $q->where('processing_status', 'done');
                 }
                 $q->orderBy('sort_order');
@@ -104,7 +103,7 @@ class ListingController extends Controller
             'owner:id,full_name,name,landlord_verification_status,landlord_verified_at,is_suspicious,badge_override_json',
             'owner.landlordMetric:landlord_id,avg_rating_30d,all_time_avg_rating,ratings_count,median_response_time_minutes,completed_transactions_count,updated_at',
         ]);
-        if ($listing->status !== ListingStatusService::STATUS_ACTIVE && !($user && ($isAdmin || $user->id === $listing->owner_id))) {
+        if ($listing->status !== ListingStatusService::STATUS_ACTIVE && ! ($user && ($isAdmin || $user->id === $listing->owner_id))) {
             abort(404);
         }
 

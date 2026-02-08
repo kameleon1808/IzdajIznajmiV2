@@ -19,7 +19,7 @@ class AdminOperationsTest extends TestCase
     private function createListing(User $owner): Listing
     {
         $guard = app(ListingAddressGuardService::class);
-        $address = 'Moderation Street ' . uniqid();
+        $address = 'Moderation Street '.uniqid();
 
         return Listing::create([
             'owner_id' => $owner->id,

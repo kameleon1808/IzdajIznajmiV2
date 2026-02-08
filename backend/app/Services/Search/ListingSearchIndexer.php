@@ -7,9 +7,7 @@ use App\Services\ListingStatusService;
 
 class ListingSearchIndexer
 {
-    public function __construct(private readonly SearchDriver $driver)
-    {
-    }
+    public function __construct(private readonly SearchDriver $driver) {}
 
     public function indexListingById(int $listingId): void
     {
@@ -17,13 +15,15 @@ class ListingSearchIndexer
             ->with(['facilities', 'owner:id,landlord_verification_status,landlord_verified_at'])
             ->find($listingId);
 
-        if (!$listing) {
+        if (! $listing) {
             $this->driver->removeListing($listingId);
+
             return;
         }
 
         if ($listing->status !== ListingStatusService::STATUS_ACTIVE) {
             $this->driver->removeListing($listingId);
+
             return;
         }
 

@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\GenerateContractRequest;
 use App\Http\Resources\ContractResource;
-use App\Models\Contract;
 use App\Models\Notification;
 use App\Models\RentalTransaction;
 use App\Models\User;
@@ -19,8 +18,7 @@ class TransactionContractController extends Controller
     public function __construct(
         private readonly ContractService $contracts,
         private readonly NotificationService $notifications
-    ) {
-    }
+    ) {}
 
     public function store(GenerateContractRequest $request, RentalTransaction $transaction): JsonResponse
     {

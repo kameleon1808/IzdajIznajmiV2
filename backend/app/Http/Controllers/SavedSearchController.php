@@ -10,9 +10,7 @@ use Illuminate\Http\Request;
 
 class SavedSearchController extends Controller
 {
-    public function __construct(private readonly SavedSearchNormalizer $normalizer)
-    {
-    }
+    public function __construct(private readonly SavedSearchNormalizer $normalizer) {}
 
     public function index(Request $request): JsonResponse
     {

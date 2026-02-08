@@ -72,7 +72,7 @@ class SavedSearchMatchCommand extends Command
 
     private function processSavedSearch(SavedSearch $savedSearch, array $newListingIds, ListingSearchService $searchService, StructuredLogger $log): void
     {
-        if (!empty($newListingIds)) {
+        if (! empty($newListingIds)) {
             $filters = $savedSearch->filters ?? [];
             $mapMode = (bool) ($filters['mapMode'] ?? false);
 
@@ -82,7 +82,7 @@ class SavedSearchMatchCommand extends Command
 
             $matchingIds = $query->pluck('listings.id')->all();
 
-            if (!empty($matchingIds)) {
+            if (! empty($matchingIds)) {
                 $now = now();
                 $rows = array_map(fn ($listingId) => [
                     'saved_search_id' => $savedSearch->id,
@@ -152,7 +152,7 @@ class SavedSearchMatchCommand extends Command
     private function frequencyAllows(SavedSearch $savedSearch): bool
     {
         $lastAlerted = $savedSearch->last_alerted_at;
-        if (!$lastAlerted) {
+        if (! $lastAlerted) {
             return true;
         }
 

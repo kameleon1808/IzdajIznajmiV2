@@ -10,8 +10,8 @@ use App\Http\Resources\ApplicationResource;
 use App\Models\Application;
 use App\Models\FraudSignal;
 use App\Models\Listing;
-use App\Services\ListingStatusService;
 use App\Services\FraudSignalService;
+use App\Services\ListingStatusService;
 use App\Services\StructuredLogger;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\JsonResponse;
@@ -23,8 +23,7 @@ class ApplicationController extends Controller
     public function __construct(
         private readonly StructuredLogger $log,
         private FraudSignalService $fraudSignals
-    ) {
-    }
+    ) {}
 
     public function apply(ApplyToListingRequest $request, Listing $listing): JsonResponse
     {

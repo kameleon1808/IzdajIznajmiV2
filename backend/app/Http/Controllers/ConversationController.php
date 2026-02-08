@@ -2,21 +2,21 @@
 
 namespace App\Http\Controllers;
 
+use App\Events\MessageCreated;
 use App\Http\Requests\SendMessageRequest;
 use App\Http\Resources\ConversationResource;
 use App\Http\Resources\MessageResource;
+use App\Jobs\ProcessChatAttachmentJob;
 use App\Models\Application;
 use App\Models\ChatAttachment;
 use App\Models\Conversation;
 use App\Models\Listing;
 use App\Models\Message;
 use App\Models\User;
-use App\Jobs\ProcessChatAttachmentJob;
 use App\Services\ChatSpamGuardService;
 use App\Services\FraudSignalService;
 use App\Services\ListingStatusService;
 use App\Services\StructuredLogger;
-use App\Events\MessageCreated;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -29,9 +29,7 @@ class ConversationController extends Controller
         private ChatSpamGuardService $spamGuard,
         private StructuredLogger $log,
         private FraudSignalService $fraudSignals
-    )
-    {
-    }
+    ) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -71,7 +69,7 @@ class ConversationController extends Controller
         $user = $request->user();
         abort_unless($user, 401, 'Unauthenticated');
         abort_unless($this->userHasRole($user, ['landlord', 'admin']), 403, 'Only landlords can start this conversation');
-        abort_if($application->landlord_id !== $user->id && !$this->userHasRole($user, 'admin'), 403, 'Forbidden');
+        abort_if($application->landlord_id !== $user->id && ! $this->userHasRole($user, 'admin'), 403, 'Forbidden');
 
         $listing = $application->listing()->with(['images'])->first();
         $this->assertListingActive($listing);
@@ -269,7 +267,7 @@ class ConversationController extends Controller
             return $conversation;
         }
 
-        if (!$createIfMissing) {
+        if (! $createIfMissing) {
             return null;
         }
 
@@ -305,7 +303,7 @@ class ConversationController extends Controller
 
     private function assertListingActive(?Listing $listing): void
     {
-        if (!$listing) {
+        if (! $listing) {
             abort(422, 'Listing is not available for messaging');
         }
 

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Events\ReportUpdated;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\AdminReportResource;
 use App\Models\Listing;
@@ -10,7 +11,6 @@ use App\Models\Rating;
 use App\Models\Report;
 use App\Models\User;
 use App\Services\AuditLogService;
-use App\Events\ReportUpdated;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -18,9 +18,7 @@ use Illuminate\Validation\Rule;
 
 class ModerationController extends Controller
 {
-    public function __construct(private AuditLogService $auditLog)
-    {
-    }
+    public function __construct(private AuditLogService $auditLog) {}
 
     public function queue(Request $request): JsonResponse
     {
@@ -46,8 +44,8 @@ class ModerationController extends Controller
 
         if ($search) {
             $query->where(function ($q) use ($search) {
-                $q->where('reason', 'like', '%' . $search . '%')
-                    ->orWhere('details', 'like', '%' . $search . '%');
+                $q->where('reason', 'like', '%'.$search.'%')
+                    ->orWhere('details', 'like', '%'.$search.'%');
             });
         }
 
@@ -78,11 +76,11 @@ class ModerationController extends Controller
             'flag_user_id' => ['nullable', 'integer', 'exists:users,id'],
         ]);
 
-        if (!empty($data['delete_target'])) {
+        if (! empty($data['delete_target'])) {
             $this->deleteTarget($report);
         }
 
-        if (!empty($data['flag_user_id'])) {
+        if (! empty($data['flag_user_id'])) {
             $user = User::find($data['flag_user_id']);
             if ($user) {
                 $user->is_suspicious = true;
@@ -100,7 +98,7 @@ class ModerationController extends Controller
 
         $this->auditLog->record(
             $admin->id,
-            'report.' . $report->status,
+            'report.'.$report->status,
             $report->target_type,
             $report->target_id,
             [

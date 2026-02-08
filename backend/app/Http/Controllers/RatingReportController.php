@@ -16,7 +16,7 @@ class RatingReportController extends Controller
         $user = $request->user();
         abort_unless($user, 401, 'Unauthenticated');
 
-        if (!in_array($user->id, [$rating->rater_id, $rating->ratee_id], true)) {
+        if (! in_array($user->id, [$rating->rater_id, $rating->ratee_id], true)) {
             abort(403, 'Only participants can report');
         }
 

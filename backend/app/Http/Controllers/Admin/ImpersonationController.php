@@ -12,9 +12,7 @@ use Illuminate\Support\Facades\Auth;
 
 class ImpersonationController extends Controller
 {
-    public function __construct(private AuditLogService $auditLog)
-    {
-    }
+    public function __construct(private AuditLogService $auditLog) {}
 
     public function start(Request $request, User $user): JsonResponse
     {
@@ -47,7 +45,7 @@ class ImpersonationController extends Controller
         $impersonatorId = $session->pull('impersonator_id');
         $impersonatedId = $session->pull('impersonated_id');
 
-        if (!$impersonatorId) {
+        if (! $impersonatorId) {
             return response()->json(['message' => 'No impersonation active']);
         }
 

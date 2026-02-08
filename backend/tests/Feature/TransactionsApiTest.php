@@ -21,7 +21,7 @@ class TransactionsApiTest extends TestCase
     private function createListing(User $owner, string $status = ListingStatusService::STATUS_ACTIVE): Listing
     {
         $addressGuard = app(ListingAddressGuardService::class);
-        $address = 'Test Street ' . uniqid();
+        $address = 'Test Street '.uniqid();
         $addressKey = $addressGuard->normalizeAddressKey($address, 'Split', 'Croatia');
 
         return Listing::create([
@@ -193,7 +193,7 @@ class TransactionsApiTest extends TestCase
         config(['services.stripe.secret' => 'sk_test']);
 
         $timestamp = time();
-        $signedPayload = $timestamp . '.' . $payload;
+        $signedPayload = $timestamp.'.'.$payload;
         $signature = hash_hmac('sha256', $signedPayload, 'whsec_test');
         $header = "t={$timestamp},v1={$signature}";
 

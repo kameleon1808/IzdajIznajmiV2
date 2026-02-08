@@ -8,7 +8,9 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class ListingEvent extends Model
 {
     public const TYPE_VIEW = 'view';
+
     public const TYPE_FAVORITE = 'favorite';
+
     public const TYPE_APPLY = 'apply';
 
     public const UPDATED_AT = null;

@@ -8,10 +8,15 @@ use Carbon\Carbon;
 class ListingStatusService
 {
     public const STATUS_DRAFT = 'draft';
+
     public const STATUS_ACTIVE = 'active';
+
     public const STATUS_PAUSED = 'paused';
+
     public const STATUS_ARCHIVED = 'archived';
+
     public const STATUS_RENTED = 'rented';
+
     public const STATUS_EXPIRED = 'expired';
 
     public function allowedStatuses(): array
@@ -120,7 +125,7 @@ class ListingStatusService
 
     private function assertTransition(string $from, string $to): void
     {
-        if (!$this->canTransition($from, $to)) {
+        if (! $this->canTransition($from, $to)) {
             throw new \RuntimeException("Cannot transition listing status from {$from} to {$to}");
         }
     }

@@ -33,6 +33,7 @@ class RentalTransactionController extends Controller
 
         return response()->json(RentalTransactionResource::collection($transactions));
     }
+
     public function store(StoreRentalTransactionRequest $request): JsonResponse
     {
         $user = $request->user();

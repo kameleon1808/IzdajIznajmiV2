@@ -8,18 +8,24 @@ use Illuminate\Support\Collection;
 class SimilarListingsService
 {
     private const WEIGHT_CITY = 30;
+
     private const WEIGHT_PRICE_CLOSE = 20;
+
     private const WEIGHT_PRICE_NEAR = 10;
+
     private const WEIGHT_ROOMS_SAME = 15;
+
     private const WEIGHT_ROOMS_NEAR = 10;
+
     private const WEIGHT_AREA_CLOSE = 10;
+
     private const WEIGHT_AREA_NEAR = 5;
+
     private const WEIGHT_AMENITY = 20;
+
     private const WEIGHT_VERIFIED = 3;
 
-    public function __construct(private readonly ListingStatusService $statusService)
-    {
-    }
+    public function __construct(private readonly ListingStatusService $statusService) {}
 
     /**
      * @return Collection<int, Listing>
@@ -64,9 +70,10 @@ class SimilarListingsService
         $scored = $candidates->map(function (Listing $candidate) use ($listing) {
             [$score, $reasons] = $this->scoreListing($listing, $candidate);
             $candidate->setAttribute('similarity_score', $score);
-            if (!empty($reasons)) {
+            if (! empty($reasons)) {
                 $candidate->setAttribute('why', $reasons);
             }
+
             return $candidate;
         })->filter(fn (Listing $candidate) => ($candidate->getAttribute('similarity_score') ?? 0) > 0);
 
@@ -126,6 +133,7 @@ class SimilarListingsService
     private function roomsValue(Listing $listing): ?int
     {
         $rooms = $listing->rooms ?? $listing->beds;
+
         return $rooms !== null ? (int) $rooms : null;
     }
 
@@ -141,6 +149,7 @@ class SimilarListingsService
         if ($diff <= 0.2) {
             return ['score' => self::WEIGHT_PRICE_NEAR, 'label' => 'Near your price range'];
         }
+
         return null;
     }
 
@@ -156,6 +165,7 @@ class SimilarListingsService
         if ($diff === 1) {
             return ['score' => self::WEIGHT_ROOMS_NEAR, 'label' => 'Similar rooms'];
         }
+
         return null;
     }
 
@@ -171,6 +181,7 @@ class SimilarListingsService
         if ($diff <= 0.2) {
             return ['score' => self::WEIGHT_AREA_NEAR, 'label' => 'Close in size'];
         }
+
         return null;
     }
 

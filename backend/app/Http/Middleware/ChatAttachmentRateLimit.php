@@ -9,9 +9,7 @@ use Symfony\Component\HttpFoundation\Response;
 
 class ChatAttachmentRateLimit
 {
-    public function __construct(private RateLimiter $limiter)
-    {
-    }
+    public function __construct(private RateLimiter $limiter) {}
 
     public function handle(Request $request, Closure $next): Response
     {
@@ -32,6 +30,7 @@ class ChatAttachmentRateLimit
 
         if ($this->limiter->tooManyAttempts($key, $max)) {
             $retryAfter = $this->limiter->availableIn($key);
+
             return response()->json(
                 ['message' => 'Too many attachments. Please slow down.'],
                 429,

@@ -17,12 +17,14 @@ class RecomputeBadgesCommand extends Command
         $landlordId = $this->option('landlord_id');
         if ($landlordId) {
             $landlord = User::find($landlordId);
-            if (!$landlord) {
+            if (! $landlord) {
                 $this->error('Landlord not found.');
+
                 return self::FAILURE;
             }
             $metricsService->recomputeForLandlord($landlord);
             $this->info('Recomputed metrics for landlord '.$landlord->id.'.');
+
             return self::SUCCESS;
         }
 

@@ -8,8 +8,11 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class KycDocument extends Model
 {
     public const TYPE_ID_FRONT = 'id_front';
+
     public const TYPE_ID_BACK = 'id_back';
+
     public const TYPE_SELFIE = 'selfie';
+
     public const TYPE_PROOF = 'proof_of_address';
 
     protected $fillable = [

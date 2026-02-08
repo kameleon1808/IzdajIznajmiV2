@@ -7,10 +7,8 @@ use App\Models\Listing;
 use App\Models\ListingImage;
 use App\Models\User;
 use App\Services\ListingAddressGuardService;
-use App\Services\ListingStatusService;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 
 class ListingsSeeder extends Seeder
 {
@@ -290,7 +288,7 @@ class ListingsSeeder extends Seeder
 
         foreach ($beogradListings as $i => $data) {
             $ownerId = $landlordIds[$i % max(count($landlordIds), 1)] ?? null;
-            if (!$ownerId) {
+            if (! $ownerId) {
                 break;
             }
 
@@ -300,7 +298,7 @@ class ListingsSeeder extends Seeder
             $rooms = $data['rooms'] ?? $faker->numberBetween(1, 3);
             $area = $data['area'] ?? $faker->numberBetween(35, 120);
             $price = $data['price'] ?? $faker->numberBetween(60, 180);
-            $title = $data['title'] ?? ('Belgrade Stay - ' . $data['address']);
+            $title = $data['title'] ?? ('Belgrade Stay - '.$data['address']);
 
             $listing = Listing::create([
                 'owner_id' => $ownerId,

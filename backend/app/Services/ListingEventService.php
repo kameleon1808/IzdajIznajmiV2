@@ -11,7 +11,7 @@ class ListingEventService
 {
     public function recordView(User $user, Listing $listing, array $meta = []): bool
     {
-        if (!$this->isSeeker($user)) {
+        if (! $this->isSeeker($user)) {
             return false;
         }
 

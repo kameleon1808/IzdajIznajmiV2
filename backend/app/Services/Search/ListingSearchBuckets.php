@@ -41,7 +41,7 @@ class ListingSearchBuckets
     }
 
     /**
-     * @param array<int, array{label: string, min: int, max: int|null}> $buckets
+     * @param  array<int, array{label: string, min: int, max: int|null}>  $buckets
      */
     private static function bucketFor(?float $value, array $buckets): ?string
     {
@@ -65,8 +65,8 @@ class ListingSearchBuckets
     }
 
     /**
-     * @param array<int, string> $labels
-     * @param array<int, array{label: string, min: int, max: int|null}> $buckets
+     * @param  array<int, string>  $labels
+     * @param  array<int, array{label: string, min: int, max: int|null}>  $buckets
      * @return array<int, array{min: int, max: int|null}>
      */
     public static function rangesForBuckets(array $labels, array $buckets): array
@@ -87,7 +87,7 @@ class ListingSearchBuckets
     }
 
     /**
-     * @param array<int, array{label: string, min: int, max: int|null}> $buckets
+     * @param  array<int, array{label: string, min: int, max: int|null}>  $buckets
      */
     public static function caseExpression(string $column, array $buckets): string
     {

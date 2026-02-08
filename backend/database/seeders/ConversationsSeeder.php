@@ -23,7 +23,7 @@ class ConversationsSeeder extends Seeder
         $listingB = Listing::where('owner_id', $landlord?->id)->where('status', 'active')->skip(1)->first();
         $fallbackListing = Listing::where('status', 'active')->first();
 
-        if (!$tenant || !$landlord || !$listingA || !$fallbackListing) {
+        if (! $tenant || ! $landlord || ! $listingA || ! $fallbackListing) {
             return;
         }
 

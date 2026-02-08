@@ -10,9 +10,7 @@ use Illuminate\Http\Request;
 
 class SearchController extends Controller
 {
-    public function __construct(private readonly SearchDriver $driver)
-    {
-    }
+    public function __construct(private readonly SearchDriver $driver) {}
 
     public function listings(Request $request, SearchFilterSnapshotService $snapshots, SavedSearchNormalizer $normalizer): JsonResponse
     {

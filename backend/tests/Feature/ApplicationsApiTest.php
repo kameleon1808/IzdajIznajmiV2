@@ -17,7 +17,7 @@ class ApplicationsApiTest extends TestCase
     private function createListing(User $owner, string $status = ListingStatusService::STATUS_ACTIVE): Listing
     {
         $addressGuard = app(ListingAddressGuardService::class);
-        $address = 'Test Street ' . uniqid();
+        $address = 'Test Street '.uniqid();
         $addressKey = $addressGuard->normalizeAddressKey($address, 'Split', 'Croatia');
 
         return Listing::create([

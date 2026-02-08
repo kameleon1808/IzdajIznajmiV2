@@ -14,9 +14,7 @@ use Illuminate\Http\JsonResponse;
 
 class ContractSignatureController extends Controller
 {
-    public function __construct(private readonly NotificationService $notifications)
-    {
-    }
+    public function __construct(private readonly NotificationService $notifications) {}
 
     public function sign(SignContractRequest $request, Contract $contract): JsonResponse
     {

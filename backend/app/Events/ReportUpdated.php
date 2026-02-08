@@ -10,8 +10,5 @@ class ReportUpdated
 {
     use Dispatchable, SerializesModels;
 
-    public function __construct(public Report $report)
-    {
-    }
+    public function __construct(public Report $report) {}
 }
-
