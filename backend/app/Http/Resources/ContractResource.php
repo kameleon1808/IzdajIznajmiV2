@@ -23,6 +23,6 @@ class ContractResource extends JsonResource
 
     private function pdfUrl(): string
     {
-        return route('contracts.pdf', ['contract' => $this->id]);
+        return route('contracts.pdf', ['contract' => $this->id], false);
     }
 }
