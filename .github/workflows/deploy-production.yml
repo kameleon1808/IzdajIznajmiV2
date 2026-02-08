@@ -25,11 +25,13 @@ jobs:
           fetch-depth: 0
 
       - name: Configure SSH
+        shell: bash
         run: |
-          mkdir -p ~/.ssh
-          echo "$SSH_KEY" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
+          set -euo pipefail
+          install -d -m 700 "$HOME/.ssh"
+          echo "$SSH_KEY" > "$HOME/.ssh/id_rsa"
+          chmod 600 "$HOME/.ssh/id_rsa"
+          ssh-keyscan -H "$SSH_HOST" >> "$HOME/.ssh/known_hosts"
 
       - name: Deploy over SSH
         shell: bash
