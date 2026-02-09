@@ -6,10 +6,13 @@ import Input from '../components/ui/Input.vue'
 import ErrorBanner from '../components/ui/ErrorBanner.vue'
 import { useAuthStore, type Role } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
+import { useLanguageStore } from '../stores/language'
 
 const auth = useAuthStore()
 const toast = useToastStore()
 const router = useRouter()
+const languageStore = useLanguageStore()
+const t = (key: Parameters<typeof languageStore.t>[0]) => languageStore.t(key)
 
 const name = ref('')
 const email = ref('')
@@ -30,61 +33,61 @@ const onSubmit = async () => {
       passwordConfirmation: passwordConfirmation.value,
       role: role.value,
     })
-    toast.push({ title: 'Account created', type: 'success' })
+    toast.push({ title: t('auth.accountCreated'), type: 'success' })
     router.replace('/')
   } catch (err: any) {
-    error.value = err.message ?? 'Registration failed.'
+    error.value = err.message ?? t('auth.registerFailed')
   }
 }
 </script>
 
 <template>
   <div class="space-y-4">
-    <h1 class="text-xl font-semibold text-slate-900">Register</h1>
-    <p class="text-sm text-muted">Kreirajte nalog za seeker ili landlord ulogu.</p>
+    <h1 class="text-xl font-semibold text-slate-900">{{ t('auth.register') }}</h1>
+    <p class="text-sm text-muted">{{ t('auth.registerHint') }}</p>
 
     <ErrorBanner v-if="error" :message="error" />
 
     <div class="space-y-3 rounded-2xl bg-white p-4 shadow-soft border border-white/60">
       <div class="space-y-1">
-        <p class="text-sm font-semibold text-slate-900">Name</p>
-        <Input v-model="name" placeholder="Full name" />
+        <p class="text-sm font-semibold text-slate-900">{{ t('auth.name') }}</p>
+        <Input v-model="name" :placeholder="t('auth.namePlaceholder')" />
       </div>
       <div class="space-y-1">
-        <p class="text-sm font-semibold text-slate-900">Email</p>
-        <Input v-model="email" placeholder="you@example.com" type="email" />
+        <p class="text-sm font-semibold text-slate-900">{{ t('auth.email') }}</p>
+        <Input v-model="email" :placeholder="t('auth.emailPlaceholder')" type="email" />
       </div>
       <div class="space-y-1">
-        <p class="text-sm font-semibold text-slate-900">Phone (optional)</p>
-        <Input v-model="phone" placeholder="+3859..." type="tel" />
+        <p class="text-sm font-semibold text-slate-900">{{ t('auth.phoneOptional') }}</p>
+        <Input v-model="phone" :placeholder="t('auth.phonePlaceholder')" type="tel" />
       </div>
       <div class="space-y-1">
-        <p class="text-sm font-semibold text-slate-900">Password</p>
-        <Input v-model="password" placeholder="••••••" type="password" />
+        <p class="text-sm font-semibold text-slate-900">{{ t('auth.password') }}</p>
+        <Input v-model="password" :placeholder="t('auth.passwordPlaceholder')" type="password" />
       </div>
       <div class="space-y-1">
-        <p class="text-sm font-semibold text-slate-900">Confirm Password</p>
-        <Input v-model="passwordConfirmation" placeholder="••••••" type="password" />
+        <p class="text-sm font-semibold text-slate-900">{{ t('auth.confirmPassword') }}</p>
+        <Input v-model="passwordConfirmation" :placeholder="t('auth.passwordPlaceholder')" type="password" />
       </div>
       <div class="space-y-1">
-        <p class="text-sm font-semibold text-slate-900">Role</p>
+        <p class="text-sm font-semibold text-slate-900">{{ t('auth.role') }}</p>
         <select
           v-model="role"
           class="w-full rounded-xl border border-line px-3 py-3 text-sm capitalize focus:border-primary focus:outline-none"
         >
-          <option value="seeker">Seeker</option>
-          <option value="landlord">Landlord</option>
+          <option value="seeker">{{ t('auth.roles.seeker') }}</option>
+          <option value="landlord">{{ t('auth.roles.landlord') }}</option>
         </select>
       </div>
-      <Button block size="lg" :loading="auth.loading" @click="onSubmit">Register</Button>
+      <Button block size="lg" :loading="auth.loading" @click="onSubmit">{{ t('auth.register') }}</Button>
       <p class="text-center text-sm text-muted">
-        Već imate nalog?
-        <button class="text-primary font-semibold" @click="router.push('/login')">Login</button>
+        {{ t('auth.hasAccount') }}
+        <button class="text-primary font-semibold" @click="router.push('/login')">{{ t('auth.login') }}</button>
       </p>
     </div>
 
     <div v-if="auth.isMockMode" class="rounded-2xl bg-surface p-3 text-sm text-muted border border-dashed border-line">
-      Dev napomena: u mock modu registracija samo postavlja ulogu i prebacuje na početni ekran.
+      {{ t('auth.mockRegisterNote') }}
     </div>
   </div>
 </template>

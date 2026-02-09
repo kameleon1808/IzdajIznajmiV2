@@ -7,8 +7,11 @@ import ListSkeleton from '../components/ui/ListSkeleton.vue'
 import RatingStars from '../components/ui/RatingStars.vue'
 import { getListingById, getListingReviews } from '../services'
 import type { Review } from '../types'
+import { useLanguageStore } from '../stores/language'
 
 const route = useRoute()
+const languageStore = useLanguageStore()
+const t = (key: Parameters<typeof languageStore.t>[0]) => languageStore.t(key)
 const reviews = ref<Review[]>([])
 const rating = ref(4.4)
 const loading = ref(true)
@@ -23,7 +26,7 @@ onMounted(async () => {
     const listing = await getListingById(id)
     if (listing) rating.value = listing.rating
   } catch (err) {
-    error.value = (err as Error).message || 'Failed to load reviews.'
+    error.value = (err as Error).message || t('reviews.loadFailed')
   } finally {
     loading.value = false
   }
@@ -49,7 +52,9 @@ const maxCount = computed(() => Math.max(...histogram.value.map((h) => h.count),
         <div class="space-y-1">
           <p class="text-3xl font-bold text-slate-900">{{ rating.toFixed(1) }}</p>
           <RatingStars :rating="rating" />
-          <p class="text-sm text-muted">Based on {{ reviews.length || 24 }} reviews</p>
+          <p class="text-sm text-muted">
+            {{ t('reviews.basedOn') }} {{ reviews.length || 24 }} {{ t('reviews.countLabel') }}
+          </p>
         </div>
         <div class="flex flex-col gap-2">
           <div v-for="row in histogram" :key="row.stars" class="flex items-center gap-2">
@@ -71,7 +76,7 @@ const maxCount = computed(() => Math.max(...histogram.value.map((h) => h.count),
           class="rounded-2xl border border-line bg-white p-3 shadow-soft"
         >
           <div class="flex items-start gap-3">
-            <img :src="review.avatarUrl" class="h-11 w-11 rounded-2xl object-cover" alt="avatar" />
+            <img :src="review.avatarUrl" class="h-11 w-11 rounded-2xl object-cover" :alt="t('topbar.avatarAlt')" />
             <div class="flex-1">
               <div class="flex items-center justify-between">
                 <div>
@@ -84,7 +89,11 @@ const maxCount = computed(() => Math.max(...histogram.value.map((h) => h.count),
             </div>
           </div>
         </div>
-        <EmptyState v-if="!reviews.length" title="No reviews yet" subtitle="Be the first to share feedback" />
+        <EmptyState
+          v-if="!reviews.length"
+          :title="t('reviews.emptyTitle')"
+          :subtitle="t('reviews.emptySubtitle')"
+        />
       </div>
     </template>
   </div>

@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { FileText, Paperclip, Send, X } from 'lucide-vue-next'
 import { useToastStore } from '../../stores/toast'
+import { useLanguageStore } from '../../stores/language'
 
 const props = defineProps<{
   modelValue: string
@@ -13,6 +14,8 @@ const props = defineProps<{
 const emit = defineEmits(['update:modelValue', 'update:attachments', 'send', 'blur'])
 
 const toast = useToastStore()
+const languageStore = useLanguageStore()
+const t = (key: Parameters<typeof languageStore.t>[0]) => languageStore.t(key)
 const fileInput = ref<HTMLInputElement | null>(null)
 const previewMap = new Map<File, string>()
 
@@ -58,7 +61,11 @@ const onFileChange = (event: Event) => {
 
   const next = [...attachments.value, ...files]
   if (next.length > 5) {
-    toast.push({ title: 'Attachment limit', message: 'You can attach up to 5 files per message.', type: 'error' })
+    toast.push({
+      title: t('chat.attachmentLimitTitle'),
+      message: t('chat.attachmentLimitMessage'),
+      type: 'error',
+    })
   }
   emit('update:attachments', next.slice(0, 5))
   target.value = ''
@@ -103,7 +110,7 @@ const onKey = (e: KeyboardEvent) => {
         <button
           class="absolute right-1 top-1 rounded-full bg-white/80 p-1 text-slate-600 shadow"
           type="button"
-          aria-label="remove attachment"
+          :aria-label="t('chat.removeAttachment')"
           @click="removeAttachment(idx)"
         >
           <X class="h-3 w-3" />
@@ -116,7 +123,7 @@ const onKey = (e: KeyboardEvent) => {
         class="rounded-full bg-surface p-2 text-slate-600 shadow-inner disabled:opacity-50"
         type="button"
         :disabled="disabled || uploading"
-        aria-label="Add attachment"
+        :aria-label="t('chat.addAttachment')"
         @click="triggerPicker"
       >
         <Paperclip class="h-4 w-4" />
@@ -132,7 +139,7 @@ const onKey = (e: KeyboardEvent) => {
       <textarea
         class="min-h-[48px] flex-1 resize-none bg-transparent text-sm font-medium text-slate-900 placeholder:text-muted focus:outline-none"
         :value="modelValue"
-        placeholder="Write a message"
+        :placeholder="t('chat.writeMessage')"
         :disabled="disabled || uploading"
         rows="1"
         @input="emit('update:modelValue', ($event.target as HTMLTextAreaElement).value)"
@@ -143,7 +150,7 @@ const onKey = (e: KeyboardEvent) => {
         class="rounded-full bg-primary p-3 text-white shadow-card disabled:opacity-60"
         :disabled="disabled || uploading"
         @click="emit('send')"
-        aria-label="send"
+        :aria-label="t('chat.send')"
       >
         <Send class="h-5 w-5" />
       </button>

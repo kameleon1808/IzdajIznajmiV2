@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { ArrowLeft, ArrowRight, X, ZoomIn, ZoomOut } from 'lucide-vue-next'
+import { useLanguageStore } from '../../stores/language'
 
 const props = defineProps<{
   images: string[]
@@ -10,6 +11,8 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits(['update:open', 'update:index'])
+const languageStore = useLanguageStore()
+const t = (key: Parameters<typeof languageStore.t>[0]) => languageStore.t(key)
 
 const total = computed(() => props.images?.length ?? 0)
 const hasMultiple = computed(() => (props.images?.length ?? 0) > 1)
@@ -83,7 +86,7 @@ onBeforeUnmount(() => {
         <div class="absolute inset-0 flex items-center justify-center px-4">
           <img
             :src="currentImage"
-            :alt="alt || 'Image preview'"
+            :alt="alt || t('chat.imagePreview')"
             class="max-h-[80vh] max-w-[90vw] select-none rounded-2xl shadow-2xl transition-transform duration-150 ease-out"
             :style="{ transform: `scale(${zoomLevel})` }"
             draggable="false"

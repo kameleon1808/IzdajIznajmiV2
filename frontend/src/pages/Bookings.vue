@@ -12,6 +12,7 @@ import Input from '../components/ui/Input.vue'
 import { useAuthStore } from '../stores/auth'
 import { useChatStore } from '../stores/chat'
 import { useBookingsStore } from '../stores/bookings'
+import { useLanguageStore } from '../stores/language'
 import { useListingsStore } from '../stores/listings'
 import { useRequestsStore } from '../stores/requests'
 import { useViewingsStore } from '../stores/viewings'
@@ -30,6 +31,13 @@ const toast = useToastStore()
 const route = useRoute()
 const router = useRouter()
 const chatStore = useChatStore()
+const languageStore = useLanguageStore()
+const t = (key: Parameters<typeof languageStore.t>[0]) => languageStore.t(key)
+const useTranslations = computed(
+  () => route.path === '/bookings' || route.path === '/applications' || route.path === '/landlord/applications',
+)
+const tx = (key: Parameters<typeof languageStore.t>[0], fallback: string) =>
+  useTranslations.value ? t(key) : fallback
 
 const primaryTab = ref<'reservations' | 'viewings'>('reservations')
 const reservationTab = ref<'booked' | 'history' | 'requests'>('booked')
@@ -181,12 +189,16 @@ const listingLookup = computed(() => {
   ;[...listingsStore.recommended, ...listingsStore.popular, ...listingsStore.landlordListings].forEach((l) => map.set(l.id, l.title))
   return map
 })
+const listingFallbackLabel = (id?: string) => {
+  const base = tx('bookings.listingLabel', 'Listing')
+  return id ? `${base} ${id}` : base
+}
 const landlordViewingListings = computed(() => {
   if (!auth.hasRole('landlord')) return []
   const map = new Map<string, string>()
   viewingsStore.landlordRequests.forEach((req) => {
     if (req.listing) {
-      map.set(req.listing.id, req.listing.title ?? `Listing ${req.listing.id}`)
+      map.set(req.listing.id, req.listing.title ?? listingFallbackLabel(req.listing.id))
     }
   })
   return Array.from(map.entries()).map(([id, title]) => ({ id, title }))
@@ -202,11 +214,11 @@ const errorMessage = computed(() => {
   return reservationTab.value === 'requests' ? requestsStore.error : bookingsStore.error
 })
 
-const statusCopy: Record<Application['status'], string> = {
-  submitted: 'Submitted',
-  accepted: 'Accepted',
-  rejected: 'Rejected',
-  withdrawn: 'Withdrawn',
+const statusLabel = (status: Application['status']) => {
+  if (status === 'submitted') return tx('bookings.status.submitted', 'Submitted')
+  if (status === 'accepted') return tx('bookings.status.accepted', 'Accepted')
+  if (status === 'rejected') return tx('bookings.status.rejected', 'Rejected')
+  return tx('bookings.status.withdrawn', 'Withdrawn')
 }
 
 const statusVariant: Record<Application['status'], any> = {
@@ -216,11 +228,11 @@ const statusVariant: Record<Application['status'], any> = {
   withdrawn: 'cancelled',
 }
 
-const viewingStatusCopy: Record<ViewingRequest['status'], string> = {
-  requested: 'Requested',
-  confirmed: 'Confirmed',
-  cancelled: 'Cancelled',
-  rejected: 'Rejected',
+const viewingStatusLabel = (status: ViewingRequest['status']) => {
+  if (status === 'requested') return tx('bookings.viewingStatus.requested', 'Requested')
+  if (status === 'confirmed') return tx('bookings.viewingStatus.confirmed', 'Confirmed')
+  if (status === 'cancelled') return tx('bookings.viewingStatus.cancelled', 'Cancelled')
+  return tx('bookings.viewingStatus.rejected', 'Rejected')
 }
 
 const viewingStatusVariant: Record<ViewingRequest['status'], any> = {
@@ -230,12 +242,19 @@ const viewingStatusVariant: Record<ViewingRequest['status'], any> = {
   rejected: 'rejected',
 }
 
+const requestToastLabel = (status: Application['status']) => {
+  if (status === 'submitted') return tx('bookings.toast.requestSubmitted', 'Request submitted')
+  if (status === 'accepted') return tx('bookings.toast.requestAccepted', 'Request accepted')
+  if (status === 'rejected') return tx('bookings.toast.requestRejected', 'Request rejected')
+  return tx('bookings.toast.requestWithdrawn', 'Request withdrawn')
+}
+
 const updateStatus = async (id: string, status: Application['status']) => {
   try {
     await requestsStore.updateStatus(id, status)
-    toast.push({ title: `Request ${statusCopy[status]}`, type: status === 'accepted' ? 'success' : 'info' })
+    toast.push({ title: requestToastLabel(status), type: status === 'accepted' ? 'success' : 'info' })
   } catch (error) {
-    toast.push({ title: 'Update failed', message: (error as Error).message, type: 'error' })
+    toast.push({ title: tx('bookings.updateFailed', 'Update failed'), message: (error as Error).message, type: 'error' })
   }
 }
 
@@ -264,7 +283,11 @@ const startContract = async () => {
     pendingContractRequest.value = null
     router.push(`/transactions/${tx.id}`)
   } catch (error) {
-    toast.push({ title: 'Failed to start contract', message: (error as Error).message, type: 'error' })
+    toast.push({
+      title: tx('bookings.contractFailed', 'Failed to start contract'),
+      message: (error as Error).message,
+      type: 'error',
+    })
   } finally {
     contractLoading.value = false
   }
@@ -278,27 +301,27 @@ const closeContractSheet = () => {
 const confirmViewing = async (id: string) => {
   try {
     await viewingsStore.confirmRequest(id)
-    toast.push({ title: 'Viewing confirmed', type: 'success' })
+    toast.push({ title: tx('bookings.viewingConfirmed', 'Viewing confirmed'), type: 'success' })
   } catch (error) {
-    toast.push({ title: 'Confirm failed', message: (error as Error).message, type: 'error' })
+    toast.push({ title: tx('bookings.confirmFailed', 'Confirm failed'), message: (error as Error).message, type: 'error' })
   }
 }
 
 const rejectViewing = async (id: string) => {
   try {
     await viewingsStore.rejectRequest(id)
-    toast.push({ title: 'Viewing rejected', type: 'info' })
+    toast.push({ title: tx('bookings.viewingRejected', 'Viewing rejected'), type: 'info' })
   } catch (error) {
-    toast.push({ title: 'Reject failed', message: (error as Error).message, type: 'error' })
+    toast.push({ title: tx('bookings.rejectFailed', 'Reject failed'), message: (error as Error).message, type: 'error' })
   }
 }
 
 const cancelViewing = async (id: string) => {
   try {
     await viewingsStore.cancelRequest(id)
-    toast.push({ title: 'Viewing cancelled', type: 'info' })
+    toast.push({ title: tx('bookings.viewingCancelled', 'Viewing cancelled'), type: 'info' })
   } catch (error) {
-    toast.push({ title: 'Cancel failed', message: (error as Error).message, type: 'error' })
+    toast.push({ title: tx('bookings.cancelFailed', 'Cancel failed'), message: (error as Error).message, type: 'error' })
   }
 }
 
@@ -312,7 +335,7 @@ const downloadIcs = async (id: string, listingTitle?: string) => {
     link.click()
     URL.revokeObjectURL(url)
   } catch (error) {
-    toast.push({ title: 'Download failed', message: (error as Error).message, type: 'error' })
+    toast.push({ title: tx('bookings.downloadFailed', 'Download failed'), message: (error as Error).message, type: 'error' })
   }
 }
 
@@ -324,7 +347,7 @@ const startViewingChat = async (request: ViewingRequest) => {
     await chatStore.fetchMessages(convo.id)
     router.push(`/messages/${convo.id}`)
   } catch (error) {
-    toast.push({ title: 'Chat unavailable', message: (error as Error).message, type: 'error' })
+    toast.push({ title: tx('bookings.chatUnavailable', 'Chat unavailable'), message: (error as Error).message, type: 'error' })
   }
 }
 
@@ -334,26 +357,28 @@ const openMessage = async (applicationId: string) => {
     await chatStore.fetchMessages(convo.id)
     router.push(`/messages/${convo.id}`)
   } catch (error) {
-    toast.push({ title: 'Chat unavailable', message: (error as Error).message, type: 'error' })
+    toast.push({ title: tx('bookings.chatUnavailable', 'Chat unavailable'), message: (error as Error).message, type: 'error' })
   }
 }
 
 const badgeLabel = (request: Application) =>
-  `${statusCopy[request.status]} • ${new Date(request.createdAt ?? Date.now()).toLocaleDateString()}`
+  `${statusLabel(request.status)} • ${new Date(request.createdAt ?? Date.now()).toLocaleDateString()}`
 
 const viewingBadgeLabel = (request: ViewingRequest) =>
-  `${viewingStatusCopy[request.status]} • ${new Date(request.createdAt ?? Date.now()).toLocaleDateString()}`
+  `${viewingStatusLabel(request.status)} • ${new Date(request.createdAt ?? Date.now()).toLocaleDateString()}`
 
 const listingTitle = (request: Application) =>
   request.listing.title ?? listingLookup.value.get(request.listing.id) ?? request.listing.id
 
 const viewingListingTitle = (request: ViewingRequest) =>
-  request.listing?.title ?? listingLookup.value.get(request.listing?.id ?? '') ?? request.listing?.id ?? 'Listing'
+  request.listing?.title ??
+  listingLookup.value.get(request.listing?.id ?? '') ??
+  listingFallbackLabel(request.listing?.id)
 
 const formatSlotTime = (request: ViewingRequest) => {
   if (request.scheduledAt) {
     const start = new Date(request.scheduledAt)
-    if (Number.isNaN(start.getTime())) return 'Time pending'
+    if (Number.isNaN(start.getTime())) return tx('bookings.timePending', 'Time pending')
     let end = new Date(start.getTime() + 60 * 60 * 1000)
     if (request.slot?.timeTo) {
       const [hStr, mStr] = request.slot.timeTo.split(':')
@@ -376,13 +401,19 @@ const formatSlotTime = (request: ViewingRequest) => {
     }
     return `${start.toLocaleDateString()} · ${start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - ${end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
   }
-  if (!request.slot) return 'Time pending'
+  if (!request.slot) return tx('bookings.timePending', 'Time pending')
   const start = new Date(request.slot.startsAt)
   const end = new Date(request.slot.endsAt)
   return `${start.toLocaleDateString()} · ${start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - ${end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
 }
 
 const goToListing = (listingId: string) => router.push(`/listing/${listingId}`)
+
+const reservationTabLabel = (key: string) => {
+  if (key === 'requests') return tx('bookings.tabs.requests', 'Requests')
+  if (key === 'booked') return tx('bookings.tabs.booked', 'Booked')
+  return tx('bookings.tabs.history', 'History')
+}
 
 const setViewingRef = (id: string, el: Element | ComponentPublicInstance | null) => {
   const node = (el as any)?.$el ? ((el as any).$el as Element) : (el as Element | null)
@@ -416,7 +447,7 @@ const scrollToHighlightedViewing = () => {
           }
         "
       >
-        Reservations
+        {{ tx('bookings.tabs.reservations', 'Reservations') }}
       </button>
       <button
         class="rounded-xl py-3 text-sm font-semibold"
@@ -428,11 +459,11 @@ const scrollToHighlightedViewing = () => {
           }
         "
       >
-        Viewings
+        {{ tx('bookings.tabs.viewings', 'Viewings') }}
       </button>
     </div>
 
-    <ErrorState v-if="errorMessage" :message="errorMessage" retry-label="Retry" @retry="retryBookings" />
+    <ErrorState v-if="errorMessage" :message="errorMessage" :retry-label="tx('bookings.retry', 'Retry')" @retry="retryBookings" />
 
     <template v-if="primaryTab === 'reservations'">
       <div class="grid grid-cols-3 gap-2 rounded-2xl bg-surface p-1" v-if="reservationTabs.length > 1">
@@ -448,7 +479,7 @@ const scrollToHighlightedViewing = () => {
             }
           "
         >
-          {{ key === 'requests' ? 'Requests' : key === 'booked' ? 'Booked' : 'History' }}
+          {{ reservationTabLabel(key) }}
         </button>
       </div>
 
@@ -467,38 +498,48 @@ const scrollToHighlightedViewing = () => {
               <div>
                 <p class="text-base font-semibold text-slate-900">{{ listingTitle(request) }}</p>
                 <p class="text-xs text-muted">
-                  {{ request.listing.city || 'View details' }}
-                  <span v-if="request.listing.pricePerNight">· ${{ request.listing.pricePerNight }}/night</span>
+                  {{ request.listing.city || tx('bookings.viewDetails', 'View details') }}
+                  <span v-if="request.listing.pricePerNight">· ${{ request.listing.pricePerNight }}/{{ tx('listing.night', 'night') }}</span>
                 </p>
               </div>
               <Badge :variant="statusVariant[request.status]">{{ badgeLabel(request) }}</Badge>
             </div>
-            <p class="rounded-2xl bg-surface p-3 text-sm text-slate-800">{{ request.message || 'No message' }}</p>
+            <p class="rounded-2xl bg-surface p-3 text-sm text-slate-800">{{ request.message || tx('bookings.noMessage', 'No message') }}</p>
             <div class="flex items-center justify-between text-xs text-muted">
-              <span>Seeker: {{ request.participants.seekerId }}</span>
-              <span>Landlord: {{ request.participants.landlordId }}</span>
+              <span>{{ tx('bookings.seeker', 'Seeker') }}: {{ request.participants.seekerId }}</span>
+              <span>{{ tx('bookings.landlord', 'Landlord') }}: {{ request.participants.landlordId }}</span>
             </div>
             <div class="flex gap-2" v-if="auth.hasRole('landlord') && request.status === 'submitted'">
-              <Button class="flex-1" variant="primary" @click="updateStatus(request.id, 'accepted')">Accept</Button>
-              <Button class="flex-1" variant="secondary" @click="updateStatus(request.id, 'rejected')">Reject</Button>
+              <Button class="flex-1" variant="primary" @click="updateStatus(request.id, 'accepted')">
+                {{ tx('bookings.accept', 'Accept') }}
+              </Button>
+              <Button class="flex-1" variant="secondary" @click="updateStatus(request.id, 'rejected')">
+                {{ tx('bookings.reject', 'Reject') }}
+              </Button>
             </div>
             <div class="flex justify-end" v-else-if="auth.hasRole('seeker') && request.status === 'submitted'">
-              <Button variant="secondary" size="md" @click="updateStatus(request.id, 'withdrawn')">Withdraw</Button>
+              <Button variant="secondary" size="md" @click="updateStatus(request.id, 'withdrawn')">
+                {{ tx('bookings.withdraw', 'Withdraw') }}
+              </Button>
             </div>
             <div class="flex justify-end" v-else-if="auth.hasRole('landlord') && request.status === 'accepted'">
-              <Button variant="primary" size="md" @click="openStartContract(request)">Start contract</Button>
+              <Button variant="primary" size="md" @click="openStartContract(request)">
+                {{ tx('bookings.startContract', 'Start contract') }}
+              </Button>
             </div>
             <div class="flex justify-end gap-2">
               <Button v-if="auth.hasRole('landlord')" variant="primary" size="md" @click="openMessage(request.id)">
-                Message
+                {{ tx('bookings.message', 'Message') }}
               </Button>
-              <Button variant="secondary" size="md" @click="goToListing(request.listing.id)">View listing</Button>
+              <Button variant="secondary" size="md" @click="goToListing(request.listing.id)">
+                {{ tx('bookings.viewListing', 'View listing') }}
+              </Button>
             </div>
           </div>
           <EmptyState
             v-if="!requestItems.length && !errorMessage"
-            title="No requests yet"
-            subtitle="Send an inquiry or wait for seekers to contact you"
+            :title="tx('bookings.noRequestsTitle', 'No requests yet')"
+            :subtitle="tx('bookings.noRequestsSubtitle', 'Send an inquiry or wait for seekers to contact you')"
             :icon="auth.hasRole('landlord') ? ShieldCheck : Inbox"
           />
         </div>
@@ -532,12 +573,16 @@ const scrollToHighlightedViewing = () => {
 
               <div class="flex items-center justify-between text-xs text-muted">
                 <span>{{ booking.guestsText }}</span>
-                <span>${{ booking.pricePerNight }}/night</span>
+                <span>${{ booking.pricePerNight }}/{{ tx('listing.night', 'night') }}</span>
               </div>
 
               <div class="flex gap-2">
-                <Button v-if="reservationTab === 'booked'" variant="primary" class="flex-1">View Ticket</Button>
-                <Button v-else variant="secondary" class="flex-1">Book Again</Button>
+                <Button v-if="reservationTab === 'booked'" variant="primary" class="flex-1">
+                  {{ tx('bookings.viewTicket', 'View Ticket') }}
+                </Button>
+                <Button v-else variant="secondary" class="flex-1">
+                  {{ tx('bookings.bookAgain', 'Book Again') }}
+                </Button>
                 <button class="rounded-xl bg-surface px-3 py-2 text-primary">
                   <CalendarClock class="h-4 w-4" />
                 </button>
@@ -546,8 +591,8 @@ const scrollToHighlightedViewing = () => {
           </div>
           <EmptyState
             v-if="!bookingItems.length && !errorMessage"
-            title="No bookings yet"
-            subtitle="Send an inquiry to start your trip"
+            :title="tx('bookings.noBookingsTitle', 'No bookings yet')"
+            :subtitle="tx('bookings.noBookingsSubtitle', 'Send an inquiry to start your trip')"
             :icon="XOctagon"
           />
         </div>
@@ -558,15 +603,15 @@ const scrollToHighlightedViewing = () => {
       <div class="flex items-center justify-between gap-3">
         <div class="flex items-center gap-2">
           <CalendarRange class="h-5 w-5 text-primary" />
-          <p class="text-sm font-semibold text-slate-900">Viewing requests</p>
+          <p class="text-sm font-semibold text-slate-900">{{ tx('bookings.viewingRequests', 'Viewing requests') }}</p>
         </div>
         <div v-if="auth.hasRole('landlord') && landlordViewingListings.length" class="flex items-center gap-2">
-          <label class="text-xs font-semibold text-muted">Listing</label>
+          <label class="text-xs font-semibold text-muted">{{ tx('bookings.listingLabel', 'Listing') }}</label>
           <select
             v-model="selectedListingFilter"
             class="rounded-xl border border-line bg-white px-3 py-2 text-sm text-slate-900"
           >
-            <option value="">All</option>
+            <option value="">{{ tx('bookings.allListings', 'All') }}</option>
             <option v-for="item in landlordViewingListings" :key="item.id" :value="item.id">{{ item.title }}</option>
           </select>
         </div>
@@ -586,8 +631,8 @@ const scrollToHighlightedViewing = () => {
             <div>
               <p class="text-base font-semibold text-slate-900">{{ viewingListingTitle(request) }}</p>
               <p class="text-xs text-muted">
-                {{ request.listing?.city || 'View details' }}
-                <span v-if="request.listing?.pricePerNight">· ${{ request.listing?.pricePerNight }}/night</span>
+                {{ request.listing?.city || tx('bookings.viewDetails', 'View details') }}
+                <span v-if="request.listing?.pricePerNight">· ${{ request.listing?.pricePerNight }}/{{ tx('listing.night', 'night') }}</span>
               </p>
               <div class="mt-1 flex items-center gap-2 text-xs text-slate-600">
                 <Clock3 class="h-4 w-4 text-primary" />
@@ -597,11 +642,15 @@ const scrollToHighlightedViewing = () => {
             <Badge :variant="viewingStatusVariant[request.status]">{{ viewingBadgeLabel(request) }}</Badge>
           </div>
 
-          <p class="rounded-2xl bg-surface p-3 text-sm text-slate-800">{{ request.message || 'No message' }}</p>
+          <p class="rounded-2xl bg-surface p-3 text-sm text-slate-800">{{ request.message || tx('bookings.noMessage', 'No message') }}</p>
 
           <div class="flex flex-wrap items-center gap-2 text-xs text-muted">
-            <span class="inline-flex items-center gap-1 rounded-full bg-surface px-2 py-1">Seeker: {{ request.participants.seekerId }}</span>
-            <span class="inline-flex items-center gap-1 rounded-full bg-surface px-2 py-1">Landlord: {{ request.participants.landlordId }}</span>
+            <span class="inline-flex items-center gap-1 rounded-full bg-surface px-2 py-1">
+              {{ tx('bookings.seeker', 'Seeker') }}: {{ request.participants.seekerId }}
+            </span>
+            <span class="inline-flex items-center gap-1 rounded-full bg-surface px-2 py-1">
+              {{ tx('bookings.landlord', 'Landlord') }}: {{ request.participants.landlordId }}
+            </span>
           </div>
 
           <div class="flex flex-wrap gap-2">
@@ -612,7 +661,7 @@ const scrollToHighlightedViewing = () => {
               class="flex-1 min-w-[120px]"
               @click="confirmViewing(request.id)"
             >
-              <CheckCircle2 class="mr-1 h-4 w-4" /> Confirm
+              <CheckCircle2 class="mr-1 h-4 w-4" /> {{ tx('bookings.confirm', 'Confirm') }}
             </Button>
             <Button
               v-if="auth.hasRole('landlord') && request.status === 'requested'"
@@ -621,7 +670,7 @@ const scrollToHighlightedViewing = () => {
               class="flex-1 min-w-[120px]"
               @click="rejectViewing(request.id)"
             >
-              Reject
+              {{ tx('bookings.reject', 'Reject') }}
             </Button>
             <Button
               v-if="['requested', 'confirmed'].includes(request.status) && auth.hasRole('seeker')"
@@ -630,7 +679,7 @@ const scrollToHighlightedViewing = () => {
               class="flex-1 min-w-[120px]"
               @click="cancelViewing(request.id)"
             >
-              Cancel
+              {{ tx('bookings.cancel', 'Cancel') }}
             </Button>
             <Button
               v-if="['requested', 'confirmed'].includes(request.status) && auth.hasRole('landlord')"
@@ -639,7 +688,7 @@ const scrollToHighlightedViewing = () => {
               class="flex-1 min-w-[120px]"
               @click="cancelViewing(request.id)"
             >
-              Cancel
+              {{ tx('bookings.cancel', 'Cancel') }}
             </Button>
             <Button
               v-if="['requested', 'confirmed'].includes(request.status)"
@@ -648,7 +697,7 @@ const scrollToHighlightedViewing = () => {
               class="flex-1 min-w-[140px]"
               @click="() => goToListing(request.listing?.id || '')"
             >
-              View listing
+              {{ tx('bookings.viewListing', 'View listing') }}
             </Button>
             <Button
               v-if="['requested', 'confirmed'].includes(request.status)"
@@ -657,7 +706,7 @@ const scrollToHighlightedViewing = () => {
               class="flex-1 min-w-[140px]"
               @click="() => startViewingChat(request)"
             >
-              Message
+              {{ tx('bookings.message', 'Message') }}
             </Button>
             <Button
               v-if="request.status === 'confirmed'"
@@ -666,38 +715,40 @@ const scrollToHighlightedViewing = () => {
               class="flex-1 min-w-[160px]"
               @click="downloadIcs(request.id, request.listing?.title)"
             >
-              <Download class="mr-2 h-4 w-4" /> Add to calendar
+              <Download class="mr-2 h-4 w-4" /> {{ tx('bookings.addToCalendar', 'Add to calendar') }}
             </Button>
           </div>
         </div>
         <EmptyState
           v-if="!viewingItems.length && !errorMessage"
-          title="No viewings yet"
-          subtitle="Schedule a slot to start viewing listings"
+          :title="tx('bookings.noViewingsTitle', 'No viewings yet')"
+          :subtitle="tx('bookings.noViewingsSubtitle', 'Schedule a slot to start viewing listings')"
           :icon="CalendarClock"
         />
       </div>
     </template>
   </div>
 
-  <ModalSheet v-model="showContractSheet" title="Start contract">
+  <ModalSheet v-model="showContractSheet" :title="tx('bookings.contractTitle', 'Start contract')">
     <div class="space-y-4">
       <div class="rounded-2xl border border-line bg-surface p-3 text-sm text-slate-700">
-        <p class="font-semibold text-slate-900">{{ pendingContractRequest?.listing?.title ?? 'Listing' }}</p>
-        <p class="text-xs text-muted">Set deposit and rent before creating the transaction.</p>
+        <p class="font-semibold text-slate-900">{{ pendingContractRequest?.listing?.title ?? tx('bookings.listingLabel', 'Listing') }}</p>
+        <p class="text-xs text-muted">{{ tx('bookings.contractHint', 'Set deposit and rent before creating the transaction.') }}</p>
       </div>
       <div class="space-y-2">
-        <label class="text-xs font-semibold text-muted">Deposit amount</label>
-        <Input v-model="contractDeposit" type="number" placeholder="Deposit amount" />
+        <label class="text-xs font-semibold text-muted">{{ tx('bookings.depositAmount', 'Deposit amount') }}</label>
+        <Input v-model="contractDeposit" type="number" :placeholder="tx('bookings.depositAmount', 'Deposit amount')" />
       </div>
       <div class="space-y-2">
-        <label class="text-xs font-semibold text-muted">Rent amount</label>
-        <Input v-model="contractRent" type="number" placeholder="Rent amount" />
+        <label class="text-xs font-semibold text-muted">{{ tx('bookings.rentAmount', 'Rent amount') }}</label>
+        <Input v-model="contractRent" type="number" :placeholder="tx('bookings.rentAmount', 'Rent amount')" />
       </div>
       <div class="flex gap-2">
-        <Button variant="secondary" class="flex-1" @click="closeContractSheet">Cancel</Button>
+        <Button variant="secondary" class="flex-1" @click="closeContractSheet">
+          {{ tx('bookings.cancel', 'Cancel') }}
+        </Button>
         <Button variant="primary" class="flex-1" :disabled="contractLoading" @click="startContract">
-          {{ contractLoading ? 'Creating...' : 'Create transaction' }}
+          {{ contractLoading ? tx('bookings.creating', 'Creating...') : tx('bookings.createTransaction', 'Create transaction') }}
         </Button>
       </div>
     </div>

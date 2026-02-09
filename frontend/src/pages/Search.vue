@@ -16,6 +16,7 @@ import { defaultFilters, useListingsStore } from '../stores/listings'
 import { useSavedSearchesStore } from '../stores/savedSearches'
 import { useToastStore } from '../stores/toast'
 import { useAuthStore } from '../stores/auth'
+import { useLanguageStore } from '../stores/language'
 import type { ListingFilters, SavedSearch, SearchSuggestion } from '../types'
 
 const MapExplorer = defineAsyncComponent(() => import('../components/search/MapExplorer.vue'))
@@ -26,6 +27,8 @@ const toast = useToastStore()
 const authStore = useAuthStore()
 const router = useRouter()
 const route = useRoute()
+const languageStore = useLanguageStore()
+const t = (key: Parameters<typeof languageStore.t>[0]) => languageStore.t(key)
 
 const viewMode = ref<'list' | 'map'>((route.query.view as string) === 'map' ? 'map' : 'list')
 const searchQuery = ref<string>((route.query.q as string) ?? '')
@@ -45,6 +48,33 @@ type FilterDraft = ListingFilters & {
   areaMinInput: string
   areaMaxInput: string
   roomsInput: string
+}
+
+const amenityLabel = (value: string) => {
+  if (value === 'Pool') return t('amenities.pool')
+  if (value === 'Spa') return t('amenities.spa')
+  if (value === 'Wi-Fi') return t('amenities.wifi')
+  if (value === 'Breakfast') return t('amenities.breakfast')
+  if (value === 'Parking') return t('amenities.parking')
+  if (value === 'Kitchen') return t('amenities.kitchen')
+  if (value === 'Workspace') return t('amenities.workspace')
+  return value
+}
+
+const statusLabel = (value: string) => {
+  if (value === 'active') return t('status.active')
+  if (value === 'paused') return t('status.paused')
+  if (value === 'archived') return t('status.archived')
+  if (value === 'rented') return t('status.rented')
+  if (value === 'expired') return t('status.expired')
+  if (value === 'draft') return t('status.draft')
+  return value
+}
+
+const suggestionTypeLabel = (value: SearchSuggestion['type']) => {
+  if (value === 'city') return t('search.suggestion.city')
+  if (value === 'amenity') return t('search.suggestion.amenity')
+  return t('search.suggestion.query')
 }
 
 const buildFilterDraft = (filters: ListingFilters): FilterDraft => {
@@ -238,7 +268,7 @@ const loadSavedSearchFromRoute = async () => {
     return false
   }
   if (!authStore.isAuthenticated && !authStore.isMockMode) {
-    toast.push({ title: 'Log in to use saved searches', type: 'info' })
+    toast.push({ title: t('search.loginUseSaved'), type: 'info' })
     return false
   }
   if (appliedSavedSearchId.value === savedSearchId.value && activeSavedSearch.value) {
@@ -248,13 +278,13 @@ const loadSavedSearchFromRoute = async () => {
     try {
       await savedSearchesStore.fetchSavedSearches()
     } catch (error) {
-      toast.push({ title: 'Unable to load saved search', type: 'error' })
+      toast.push({ title: t('search.savedSearchLoadFailed'), type: 'error' })
       return false
     }
   }
   const saved = savedSearchesStore.byId(savedSearchId.value)
   if (!saved) {
-    toast.push({ title: 'Saved search not found', type: 'error' })
+    toast.push({ title: t('search.savedSearchNotFound'), type: 'error' })
     activeSavedSearch.value = null
     appliedSavedSearchId.value = null
     return false
@@ -275,7 +305,7 @@ const clearSavedSearch = async () => {
 
 const saveSearch = async () => {
   if (!authStore.isAuthenticated && !authStore.isMockMode) {
-    toast.push({ title: 'Log in to save searches', type: 'info' })
+    toast.push({ title: t('search.loginToSave'), type: 'info' })
     router.push('/login')
     return
   }
@@ -290,13 +320,17 @@ const saveSearch = async () => {
     })
     activeSavedSearch.value = saved
     saveSearchOpen.value = false
-    toast.push({ title: 'Saved search created', type: 'success' })
+    toast.push({ title: t('search.savedSearchCreated'), type: 'success' })
   } catch (error) {
     const err = error as { status?: number; message?: string }
     if (err.status === 409) {
-      toast.push({ title: 'Already saved', message: err.message ?? 'Search already exists.', type: 'info' })
+      toast.push({
+        title: t('search.alreadySaved'),
+        message: err.message ?? t('search.searchAlreadyExists'),
+        type: 'info',
+      })
     } else {
-      toast.push({ title: 'Save failed', message: err.message ?? 'Unable to save search.', type: 'error' })
+      toast.push({ title: t('search.saveFailed'), message: err.message ?? t('search.saveUnable'), type: 'error' })
     }
   } finally {
     savingSearch.value = false
@@ -407,7 +441,7 @@ const ensureMapCenter = async () => {
     listingsStore.updateGeoFilters(lat, lng, listingsStore.filters.radiusKm ?? defaultFilters.radiusKm)
     syncQueryParams()
   } catch (err) {
-    geocodeError.value = (err as Error).message || 'Unable to locate that place.'
+    geocodeError.value = (err as Error).message || t('search.geocodeFailed')
   } finally {
     geocoding.value = false
   }
@@ -682,13 +716,13 @@ watch(
 
 <template>
   <div class="space-y-5">
-    <ErrorState v-if="error" :message="error" retry-label="Retry search" @retry="retrySearch" />
+    <ErrorState v-if="error" :message="error" :retry-label="t('search.retry')" @retry="retrySearch" />
     <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
       <div class="w-full md:max-w-xl relative">
         <Input
           v-model="searchQuery"
           class="w-full"
-          placeholder="Search location or stay"
+          :placeholder="t('search.searchPlaceholder')"
           :left-icon="SearchIcon"
           :right-icon="SlidersHorizontal"
           @leftIconClick="runSearch"
@@ -711,7 +745,7 @@ watch(
             <SearchIcon v-else class="h-4 w-4 text-primary" />
             <div>
               <p class="text-sm font-semibold text-slate-900">{{ item.label }}</p>
-              <p class="text-[11px] uppercase tracking-[0.08em] text-muted">{{ item.type }}</p>
+              <p class="text-[11px] uppercase tracking-[0.08em] text-muted">{{ suggestionTypeLabel(item.type) }}</p>
             </div>
           </button>
         </div>
@@ -726,7 +760,7 @@ watch(
             @click="setViewMode('list')"
           >
             <ListIcon class="h-4 w-4" />
-            List
+            {{ t('search.list') }}
           </button>
           <button
             :class="[
@@ -736,16 +770,16 @@ watch(
             @click="setViewMode('map')"
           >
             <MapIcon class="h-4 w-4" />
-            Map
+            {{ t('search.map') }}
           </button>
         </div>
         <Button size="sm" variant="secondary" @click="saveSearchOpen = true">
           <BookmarkPlus class="mr-2 h-4 w-4" />
-          Save search
+          {{ t('search.saveSearch') }}
         </Button>
         <Button size="sm" variant="ghost" @click="router.push('/saved-searches')">
           <Bookmark class="mr-2 h-4 w-4" />
-          Saved searches
+          {{ t('search.savedSearches') }}
         </Button>
       </div>
     </div>
@@ -756,19 +790,19 @@ watch(
     >
       <div>
         <p class="font-semibold text-slate-900">
-          Showing results for saved search
-          <span class="text-primary">{{ activeSavedSearch.name || 'Saved search' }}</span>
+          {{ t('search.showingResults') }}
+          <span class="text-primary">{{ activeSavedSearch.name || t('savedSearches.savedSearch') }}</span>
         </p>
-        <p class="text-xs text-muted">Results are refreshed from the saved filters.</p>
+        <p class="text-xs text-muted">{{ t('search.resultsRefreshed') }}</p>
       </div>
-      <Button size="sm" variant="ghost" @click="clearSavedSearch">Clear</Button>
+      <Button size="sm" variant="ghost" @click="clearSavedSearch">{{ t('common.clear') }}</Button>
     </div>
 
     <div v-if="viewMode === 'list'" class="space-y-5">
       <div class="space-y-5">
         <div class="flex items-center justify-between px-1">
-          <h3 class="section-title">Recently viewed</h3>
-          <button class="text-sm font-semibold text-primary" @click="router.push('/favorites')">See all</button>
+          <h3 class="section-title">{{ t('search.recentlyViewed') }}</h3>
+          <button class="text-sm font-semibold text-primary" @click="router.push('/favorites')">{{ t('search.seeAll') }}</button>
         </div>
         <div class="grid grid-cols-1 gap-3">
           <ListSkeleton v-if="loading && !popular.length" :count="2" />
@@ -776,16 +810,17 @@ watch(
             v-for="item in popular"
             :key="item.id"
             :listing="item"
+            :use-translations="true"
             @toggle="listingsStore.toggleFavorite"
             @click="router.push(`/listing/${item.id}`)"
           />
         </div>
 
         <div class="flex items-center justify-between px-1">
-          <h3 class="section-title">Results</h3>
+          <h3 class="section-title">{{ t('search.results') }}</h3>
           <div class="flex items-center gap-2 text-xs text-muted">
             <Flame class="h-4 w-4 text-primary" />
-            Dynamic based on filters
+            {{ t('search.dynamicFilters') }}
           </div>
         </div>
         <div class="space-y-3">
@@ -794,16 +829,17 @@ watch(
             v-for="item in results"
             :key="item.id"
             :listing="item"
+            :use-translations="true"
             @toggle="listingsStore.toggleFavorite"
             @click="router.push(`/listing/${item.id}`)"
           />
           <EmptyState
             v-if="!loading && !results.length && !error"
-            title="No results yet"
-            subtitle="Try adjusting filters or search text"
+            :title="t('search.noResultsTitle')"
+            :subtitle="t('search.noResultsSubtitle')"
             :icon="SearchIcon"
           >
-            <Button size="sm" variant="secondary" @click="resetFilters">Reset filters</Button>
+            <Button size="sm" variant="secondary" @click="resetFilters">{{ t('search.resetFilters') }}</Button>
           </EmptyState>
           <div class="flex justify-center">
             <Button
@@ -812,7 +848,7 @@ watch(
               variant="secondary"
               @click="loadMoreResults"
             >
-              Load more
+              {{ t('search.loadMore') }}
             </Button>
           </div>
         </div>
@@ -823,15 +859,15 @@ watch(
       <div class="flex flex-wrap items-center gap-3 px-1 text-sm text-muted">
         <div class="flex items-center gap-2 font-semibold text-slate-700">
           <MapPin class="h-4 w-4 text-primary" />
-          <span>Within {{ radiusValue }} km radius</span>
+          <span>{{ t('search.withinRadius') }} {{ radiusValue }} km {{ t('search.radius') }}</span>
         </div>
         <Button size="sm" variant="secondary" :loading="geocoding" @click="snapCurrentLocation">
-          Snap this location
+          {{ t('search.snapLocation') }}
         </Button>
       </div>
 
       <div class="rounded-3xl bg-white px-4 py-3 shadow-soft border border-line/60">
-        <p class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Radius</p>
+        <p class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">{{ t('search.radius') }}</p>
         <div class="mt-1 flex items-center gap-3">
           <span class="text-sm font-semibold text-slate-900 w-12">{{ inlineRadius }} km</span>
           <input
@@ -866,6 +902,7 @@ watch(
           v-for="item in results"
           :key="item.id"
           :listing="item"
+          :use-translations="true"
           @toggle="listingsStore.toggleFavorite"
           @click="router.push(`/listing/${item.id}`)"
         />
@@ -873,13 +910,13 @@ watch(
 
       <EmptyState
         v-if="!loading && !results.length && !error"
-        title="Nothing nearby yet"
-        subtitle="Move the map or widen the radius to explore more places."
+        :title="t('search.nothingNearbyTitle')"
+        :subtitle="t('search.nothingNearbySubtitle')"
         :icon="MapPin"
       >
         <div class="flex justify-center gap-2">
-          <Button size="sm" variant="secondary" @click="widenRadius">Widen radius</Button>
-          <Button size="sm" variant="ghost" @click="resetFilters">Reset filters</Button>
+          <Button size="sm" variant="secondary" @click="widenRadius">{{ t('search.widenRadius') }}</Button>
+          <Button size="sm" variant="ghost" @click="resetFilters">{{ t('search.resetFilters') }}</Button>
         </div>
       </EmptyState>
 
@@ -890,22 +927,26 @@ watch(
           variant="secondary"
           @click="loadMoreResults"
         >
-          Load more results
+          {{ t('search.loadMoreResults') }}
         </Button>
       </div>
     </div>
   </div>
 
-  <ModalSheet v-model="filterOpen" title="Filter by">
+  <ModalSheet v-model="filterOpen" :title="t('search.filterBy')">
     <div class="space-y-4">
       <div v-if="searchV2Enabled" class="space-y-3">
-        <p class="text-sm font-semibold text-slate-900">Search v2 facets</p>
+        <p class="text-sm font-semibold text-slate-900">{{ t('search.facetsTitle') }}</p>
         <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
           <div class="rounded-2xl border border-line bg-white p-4 shadow-soft">
             <div class="flex items-center justify-between">
-              <p class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">City</p>
-              <button v-if="listingsStore.filters.city" class="text-xs font-semibold text-primary" @click="clearCityFacet">
-                Clear
+              <p class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">{{ t('filters.city') }}</p>
+              <button
+                v-if="listingsStore.filters.city"
+                class="text-xs font-semibold text-primary"
+                @click="clearCityFacet"
+              >
+                {{ t('common.clear') }}
               </button>
             </div>
             <div class="mt-3 space-y-2">
@@ -921,19 +962,19 @@ watch(
                 <span>{{ item.value }}</span>
                 <span class="text-xs text-muted">{{ item.count }}</span>
               </button>
-              <p v-if="!facetCityOptions.length" class="text-xs text-muted">No city facets yet.</p>
+              <p v-if="!facetCityOptions.length" class="text-xs text-muted">{{ t('search.noCityFacets') }}</p>
             </div>
           </div>
 
           <div v-if="facetPriceOptions.length" class="rounded-2xl border border-line bg-white p-4 shadow-soft">
             <div class="flex items-center justify-between">
-              <p class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Price</p>
+              <p class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">{{ t('filters.price') }}</p>
               <button
                 v-if="listingsStore.filters.priceBucket"
                 class="text-xs font-semibold text-primary"
                 @click="clearPriceBucketFacet"
               >
-                Clear
+                {{ t('common.clear') }}
               </button>
             </div>
             <div class="mt-3 space-y-2">
@@ -953,7 +994,7 @@ watch(
           </div>
 
           <div v-if="facetRoomsOptions.length" class="rounded-2xl border border-line bg-white p-4 shadow-soft">
-            <p class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Rooms</p>
+            <p class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">{{ t('filters.rooms') }}</p>
             <div class="mt-3 space-y-2">
               <button
                 v-for="item in facetRoomsOptions"
@@ -971,7 +1012,7 @@ watch(
           </div>
 
           <div v-if="facetAmenityOptions.length" class="rounded-2xl border border-line bg-white p-4 shadow-soft">
-            <p class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Amenities</p>
+            <p class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">{{ t('filters.amenities') }}</p>
             <div class="mt-3 space-y-2">
               <button
                 v-for="item in facetAmenityOptions"
@@ -984,14 +1025,14 @@ watch(
                 ]"
                 @click="toggleAmenityFacet(item.value)"
               >
-                <span>{{ item.value }}</span>
+                <span>{{ amenityLabel(item.value) }}</span>
                 <span class="text-xs text-muted">{{ item.count }}</span>
               </button>
             </div>
           </div>
 
           <div v-if="facetAreaOptions.length" class="rounded-2xl border border-line bg-white p-4 shadow-soft">
-            <p class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Area</p>
+            <p class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">{{ t('filters.area') }}</p>
             <div class="mt-3 space-y-2">
               <button
                 v-for="item in facetAreaOptions"
@@ -1009,7 +1050,7 @@ watch(
           </div>
 
           <div v-if="facetStatusOptions.length" class="rounded-2xl border border-line bg-white p-4 shadow-soft">
-            <p class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Status</p>
+            <p class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">{{ t('filters.status') }}</p>
             <div class="mt-3 space-y-2">
               <button
                 v-for="item in facetStatusOptions"
@@ -1020,7 +1061,7 @@ watch(
                 ]"
                 @click="selectStatusFacet(item.value)"
               >
-                <span class="capitalize">{{ item.value }}</span>
+                <span class="capitalize">{{ statusLabel(item.value) }}</span>
                 <span class="text-xs text-muted">{{ item.count }}</span>
               </button>
             </div>
@@ -1029,11 +1070,11 @@ watch(
       </div>
 
       <div class="space-y-2">
-        <p class="font-semibold text-slate-900">Location</p>
+        <p class="font-semibold text-slate-900">{{ t('filters.location') }}</p>
         <label class="flex items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow-soft border border-white/70 mt-2">
           <input
             v-model="localFilters.city"
-            placeholder="City contains (e.g. Zagreb)"
+            :placeholder="t('search.cityPlaceholder')"
             type="text"
             class="flex-1 bg-transparent text-sm font-medium text-slate-900 placeholder:text-muted focus:outline-none"
           />
@@ -1042,17 +1083,17 @@ watch(
 
       <div class="space-y-2">
         <div class="flex items-center justify-between">
-          <p class="font-semibold text-slate-900">Price range</p>
+          <p class="font-semibold text-slate-900">{{ t('search.priceRange') }}</p>
           <span class="text-sm text-muted">
-            {{ localFilters.priceMinInput ? `$${localFilters.priceMinInput}` : 'Any' }} -
-            {{ localFilters.priceMaxInput ? `$${localFilters.priceMaxInput}` : 'Any' }}
+            {{ localFilters.priceMinInput ? `$${localFilters.priceMinInput}` : t('filters.any') }} -
+            {{ localFilters.priceMaxInput ? `$${localFilters.priceMaxInput}` : t('filters.any') }}
           </span>
         </div>
         <div class="grid grid-cols-2 gap-3">
           <label class="flex items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow-soft border border-white/70" inputmode="decimal" step="0.01" min="0">
             <input
               v-model="localFilters.priceMinInput"
-              placeholder="Min"
+              :placeholder="t('filters.min')"
               type="number"
               class="flex-1 bg-transparent text-sm font-medium text-slate-900 placeholder:text-muted focus:outline-none"
               min="0"
@@ -1062,7 +1103,7 @@ watch(
           <label class="flex items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow-soft border border-white/70" inputmode="decimal" step="0.01" min="0">
             <input
               v-model="localFilters.priceMaxInput"
-              placeholder="Max"
+              :placeholder="t('filters.max')"
               type="number"
               class="flex-1 bg-transparent text-sm font-medium text-slate-900 placeholder:text-muted focus:outline-none"
               min="0"
@@ -1074,16 +1115,16 @@ watch(
 
       <div class="space-y-2">
         <div class="flex items-center justify-between">
-          <p class="font-semibold text-slate-900">Area (sqm)</p>
+          <p class="font-semibold text-slate-900">{{ t('search.areaSqm') }}</p>
           <span class="text-sm text-muted">
-            {{ localFilters.areaMinInput || 'Any' }} - {{ localFilters.areaMaxInput || 'Any' }}
+            {{ localFilters.areaMinInput || t('filters.any') }} - {{ localFilters.areaMaxInput || t('filters.any') }}
           </span>
         </div>
         <div class="grid grid-cols-2 gap-3">
           <label class="flex items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow-soft border border-white/70" min="0">
             <input
               v-model="localFilters.areaMinInput"
-              placeholder="Min"
+              :placeholder="t('filters.min')"
               type="number"
               class="flex-1 bg-transparent text-sm font-medium text-slate-900 placeholder:text-muted focus:outline-none"
               min="0"
@@ -1092,7 +1133,7 @@ watch(
           <label class="flex items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow-soft border border-white/70" min="0">
             <input
               v-model="localFilters.areaMaxInput"
-              placeholder="Max"
+              :placeholder="t('filters.max')"
               type="number"
               class="flex-1 bg-transparent text-sm font-medium text-slate-900 placeholder:text-muted focus:outline-none"
               min="0"
@@ -1103,13 +1144,13 @@ watch(
 
       <div class="space-y-2">
         <div class="flex items-center justify-between">
-          <p class="font-semibold text-slate-900">Rooms</p>
-          <span class="text-sm text-muted">{{ localFilters.roomsInput || 'Any' }}</span>
+          <p class="font-semibold text-slate-900">{{ t('filters.rooms') }}</p>
+          <span class="text-sm text-muted">{{ localFilters.roomsInput || t('filters.any') }}</span>
         </div>
         <label class="flex items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow-soft border border-white/70">
           <input
             v-model="localFilters.roomsInput"
-            placeholder="Any"
+            :placeholder="t('filters.any')"
             type="number"
             class="flex-1 bg-transparent text-sm font-medium text-slate-900 placeholder:text-muted focus:outline-none"
             min="0"
@@ -1118,7 +1159,7 @@ watch(
       </div>
 
       <div class="space-y-2">
-        <p class="font-semibold text-slate-900">Amenities</p>
+        <p class="font-semibold text-slate-900">{{ t('filters.amenities') }}</p>
         <div class="grid grid-cols-2 gap-2">
           <label
             v-for="facility in ['Pool', 'Spa', 'Wi-Fi', 'Breakfast', 'Parking', 'Kitchen', 'Workspace']"
@@ -1126,15 +1167,15 @@ watch(
             class="flex items-center gap-2 rounded-xl border border-line px-3 py-2 text-sm font-semibold text-slate-800"
           >
             <input v-model="localFilters.amenities" :value="facility" type="checkbox" class="h-4 w-4 accent-primary" />
-            {{ facility }}
+            {{ amenityLabel(facility) }}
           </label>
         </div>
       </div>
 
       <div class="space-y-2">
         <div class="flex items-center justify-between">
-          <p class="font-semibold text-slate-900">Guests</p>
-          <span class="text-sm text-muted">{{ localFilters.guests }} people</span>
+          <p class="font-semibold text-slate-900">{{ t('filters.guests') }}</p>
+          <span class="text-sm text-muted">{{ localFilters.guests }} {{ t('search.people') }}</span>
         </div>
         <div class="flex gap-2">
           <button
@@ -1162,8 +1203,8 @@ watch(
 
       <div class="flex items-center justify-between rounded-2xl bg-surface px-4 py-3">
         <div>
-          <p class="font-semibold text-slate-900">Instant book</p>
-          <p class="text-sm text-muted">Book without waiting</p>
+          <p class="font-semibold text-slate-900">{{ t('filters.instantBook') }}</p>
+          <p class="text-sm text-muted">{{ t('search.instantBookHint') }}</p>
         </div>
         <label class="relative inline-flex cursor-pointer items-center">
           <input v-model="localFilters.instantBook" type="checkbox" class="peer sr-only" />
@@ -1174,7 +1215,7 @@ watch(
       </div>
 
       <div class="space-y-2">
-        <p class="font-semibold text-slate-900">Rating</p>
+        <p class="font-semibold text-slate-900">{{ t('filters.rating') }}</p>
         <div class="flex gap-2">
           <button
             v-for="rate in [5, 4, 3, 2, 1]"
@@ -1196,7 +1237,7 @@ watch(
             ]"
             @click="localFilters.rating = null"
           >
-            Any
+            {{ t('filters.any') }}
           </button>
         </div>
       </div>
@@ -1206,26 +1247,26 @@ watch(
         class="inline-flex items-center justify-center rounded-full font-semibold transition shadow-soft bg-primary text-white hover:bg-primary-dark h-14 px-6 text-base w-full"
         @click="applyFilters"
       >
-        Apply Filters
+        {{ t('search.applyFilters') }}
       </button>
       <button
         type="button"
         class="inline-flex items-center justify-center rounded-full font-semibold transition shadow-soft bg-white text-slate-900 border border-line hover:border-primary/50 h-14 px-6 text-base w-full"
         @click="resetFilters"
       >
-        Reset Filters
+        {{ t('search.resetFilters') }}
       </button>
     </div>
   </ModalSheet>
 
-  <ModalSheet v-model="saveSearchOpen" title="Save search">
+  <ModalSheet v-model="saveSearchOpen" :title="t('search.saveSearch')">
     <div class="space-y-4">
-      <Input v-model="saveSearchForm.name" placeholder="Search name (optional)" />
+      <Input v-model="saveSearchForm.name" :placeholder="t('search.searchNamePlaceholder')" />
 
       <div class="flex items-center justify-between rounded-2xl bg-surface px-4 py-3">
         <div>
-          <p class="font-semibold text-slate-900">Alerts</p>
-          <p class="text-sm text-muted">Enable in-app notifications</p>
+          <p class="font-semibold text-slate-900">{{ t('search.alerts') }}</p>
+          <p class="text-sm text-muted">{{ t('search.alertsHint') }}</p>
         </div>
         <label class="relative inline-flex cursor-pointer items-center">
           <input v-model="saveSearchForm.alertsEnabled" type="checkbox" class="peer sr-only" />
@@ -1236,18 +1277,18 @@ watch(
       </div>
 
       <div class="space-y-2">
-        <p class="font-semibold text-slate-900">Alert frequency</p>
+        <p class="font-semibold text-slate-900">{{ t('search.alertFrequency') }}</p>
         <select
           v-model="saveSearchForm.frequency"
           class="w-full rounded-xl border border-line bg-white px-3 py-2 text-sm font-semibold text-slate-700"
         >
-          <option value="instant">Instant</option>
-          <option value="daily">Daily</option>
-          <option value="weekly">Weekly</option>
+          <option value="instant">{{ t('common.instant') }}</option>
+          <option value="daily">{{ t('common.daily') }}</option>
+          <option value="weekly">{{ t('common.weekly') }}</option>
         </select>
       </div>
 
-      <Button size="lg" :loading="savingSearch" block @click="saveSearch">Save search</Button>
+      <Button size="lg" :loading="savingSearch" block @click="saveSearch">{{ t('search.saveSearch') }}</Button>
     </div>
   </ModalSheet>
 </template>

@@ -9,16 +9,37 @@ import EmptyState from '../components/ui/EmptyState.vue'
 import ErrorState from '../components/ui/ErrorState.vue'
 import ListSkeleton from '../components/ui/ListSkeleton.vue'
 import { useListingsStore } from '../stores/listings'
+import { useLanguageStore } from '../stores/language'
 
 const router = useRouter()
 const listingsStore = useListingsStore()
+const languageStore = useLanguageStore()
 
-const categories = [
-  { key: 'all', label: 'All' },
-  { key: 'villa', label: 'Villas' },
-  { key: 'hotel', label: 'Hotels' },
-  { key: 'apartment', label: 'Apartments' },
-]
+const t = (key: Parameters<typeof languageStore.t>[0]) => languageStore.t(key)
+
+const formatWhy = (reason: string) => {
+  const becausePrefix = 'Because you viewed '
+  if (reason.startsWith(becausePrefix)) {
+    return `${t('home.becauseViewed')} ${reason.slice(becausePrefix.length)}`
+  }
+  const popularPrefix = 'Popular in '
+  if (reason.startsWith(popularPrefix)) {
+    return `${t('home.popularIn')} ${reason.slice(popularPrefix.length)}`
+  }
+  if (reason === 'Fits your budget') {
+    return t('home.fitsBudget')
+  }
+  return reason
+}
+
+const formatWhyList = (reasons: string[]) => reasons.map((reason) => formatWhy(reason)).join(' - ')
+
+const categories = computed(() => [
+  { key: 'all', label: t('home.categoryAll') },
+  { key: 'villa', label: t('home.categoryVilla') },
+  { key: 'hotel', label: t('home.categoryHotel') },
+  { key: 'apartment', label: t('home.categoryApartment') },
+])
 
 onMounted(() => {
   listingsStore.fetchFavorites()
@@ -45,15 +66,17 @@ const retryHome = async () => {
 
 <template>
   <section class="space-y-6 lg:space-y-8">
-    <ErrorState v-if="error" :message="error" retry-label="Retry" @retry="retryHome" />
+    <ErrorState v-if="error" :message="error" :retry-label="t('home.retry')" @retry="retryHome" />
 
     <div class="card-base px-4 py-3">
       <div class="flex items-center justify-between gap-3">
         <div>
-          <p class="text-base font-semibold text-slate-900">Browse by type</p>
-          <p class="text-xs text-muted">Quick filters to narrow your stay.</p>
+          <p class="text-base font-semibold text-slate-900">{{ t('home.browseByType') }}</p>
+          <p class="text-xs text-muted">{{ t('home.quickFilters') }}</p>
         </div>
-        <button class="text-xs font-semibold text-primary" @click="router.push('/search')">Explore</button>
+        <button class="text-xs font-semibold text-primary" @click="router.push('/search')">
+          {{ t('home.explore') }}
+        </button>
       </div>
       <div class="mt-3 flex gap-2 overflow-x-auto pb-1 lg:flex-wrap lg:overflow-visible">
         <Chip
@@ -68,8 +91,10 @@ const retryHome = async () => {
     </div>
 
     <div class="flex items-center justify-between px-1">
-      <h2 class="section-title">Most Popular</h2>
-      <button class="text-sm font-semibold text-primary" @click="router.push('/search')">See all</button>
+      <h2 class="section-title">{{ t('home.mostPopular') }}</h2>
+      <button class="text-sm font-semibold text-primary" @click="router.push('/search')">
+        {{ t('home.seeAll') }}
+      </button>
     </div>
     <div class="flex gap-4 overflow-x-auto pb-2 lg:grid lg:grid-cols-3 lg:gap-6 lg:overflow-visible lg:pb-0">
       <CardSkeleton v-if="loading && !popular.length" class="w-72 shrink-0 lg:w-full" />
@@ -78,14 +103,17 @@ const retryHome = async () => {
         :key="item.id"
         class="w-72 shrink-0 lg:w-full"
         :listing="item"
+        :use-translations="true"
         @click="openListing(item.id)"
         @toggle="listingsStore.toggleFavorite"
       />
     </div>
 
     <div class="flex items-center justify-between px-1">
-      <h2 class="section-title">Recommended for you</h2>
-      <button class="text-sm font-semibold text-primary" @click="router.push('/search')">See all</button>
+      <h2 class="section-title">{{ t('home.recommended') }}</h2>
+      <button class="text-sm font-semibold text-primary" @click="router.push('/search')">
+        {{ t('home.seeAll') }}
+      </button>
     </div>
 
     <div class="space-y-3 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0">
@@ -93,15 +121,18 @@ const retryHome = async () => {
       <div v-for="item in recommended" :key="item.id" class="space-y-1">
         <ListingCardHorizontal
           :listing="item"
+          :use-translations="true"
           @toggle="listingsStore.toggleFavorite"
           @click="openListing(item.id)"
         />
-        <p v-if="item.why?.length" class="px-2 text-xs text-muted">Why this? {{ item.why.join(' - ') }}</p>
+        <p v-if="item.why?.length" class="px-2 text-xs text-muted">
+          {{ t('home.whyThis') }} {{ formatWhyList(item.why) }}
+        </p>
       </div>
       <EmptyState
         v-if="!loading && !recommended.length && !error"
-        title="No stays yet"
-        subtitle="Try adjusting filters"
+        :title="t('home.noStaysYet')"
+        :subtitle="t('home.tryAdjusting')"
         class="lg:col-span-2"
       />
     </div>

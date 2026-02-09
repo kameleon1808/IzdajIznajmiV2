@@ -31,6 +31,7 @@ import SettingsNotifications from '../pages/SettingsNotifications.vue'
 import SettingsSecurity from '../pages/SettingsSecurity.vue'
 import Notifications from '../pages/Notifications.vue'
 import { useAuthStore, type Role } from '../stores/auth'
+import { useLanguageStore } from '../stores/language'
 import { useToastStore } from '../stores/toast'
 import Login from '../pages/Login.vue'
 import Register from '../pages/Register.vue'
@@ -59,61 +60,61 @@ const router = createRouter({
       path: '/listing/:id/facilities',
       name: 'listing-facilities',
       component: Facilities,
-      meta: { topBar: { type: 'back', title: 'Facilities' }, showTabs: false },
+      meta: { topBar: { type: 'back', title: 'Facilities', titleKey: 'titles.facilities' }, showTabs: false },
     },
     {
       path: '/listing/:id/reviews',
       name: 'listing-reviews',
       component: Reviews,
-      meta: { topBar: { type: 'back', title: 'Reviews' }, showTabs: false },
+      meta: { topBar: { type: 'back', title: 'Reviews', titleKey: 'titles.reviews' }, showTabs: false },
     },
     {
       path: '/favorites',
       name: 'favorites',
       component: Favorites,
-      meta: { topBar: { type: 'title', title: 'My Favorite' }, showTabs: true, roles: ['seeker'] },
+      meta: { topBar: { type: 'title', title: 'My Favorite', titleKey: 'titles.favorites' }, showTabs: true, roles: ['seeker'] },
     },
     {
       path: '/saved-searches',
       name: 'saved-searches',
       component: SavedSearches,
-      meta: { topBar: { type: 'title', title: 'Saved Searches' }, showTabs: true, roles: ['seeker'] },
+      meta: { topBar: { type: 'title', title: 'Saved Searches', titleKey: 'titles.savedSearches' }, showTabs: true, roles: ['seeker'] },
     },
     {
       path: '/bookings',
       name: 'bookings',
       component: Bookings,
-      meta: { topBar: { type: 'title', title: 'My Booking' }, showTabs: true, roles: ['seeker', 'landlord'] },
+      meta: { topBar: { type: 'title', title: 'My Booking', titleKey: 'nav.bookings' }, showTabs: true, roles: ['seeker', 'landlord'] },
     },
     {
       path: '/viewings',
       name: 'viewings',
       redirect: { path: '/bookings', query: { tab: 'viewings' } },
-      meta: { topBar: { type: 'title', title: 'Viewings' }, showTabs: true, roles: ['seeker', 'landlord'] },
+      meta: { topBar: { type: 'title', title: 'Viewings', titleKey: 'titles.viewings' }, showTabs: true, roles: ['seeker', 'landlord'] },
     },
     {
       path: '/applications',
       name: 'applications',
       component: Bookings,
-      meta: { topBar: { type: 'title', title: 'Applications' }, showTabs: true, roles: ['seeker', 'landlord', 'admin'] },
+      meta: { topBar: { type: 'title', title: 'Applications', titleKey: 'titles.applications' }, showTabs: true, roles: ['seeker', 'landlord', 'admin'] },
     },
     {
       path: '/landlord/applications',
       name: 'landlord-applications',
       component: Bookings,
-      meta: { topBar: { type: 'title', title: 'Applications' }, showTabs: true, roles: ['landlord', 'admin'] },
+      meta: { topBar: { type: 'title', title: 'Applications', titleKey: 'titles.applications' }, showTabs: true, roles: ['landlord', 'admin'] },
     },
     {
       path: '/messages',
       name: 'messages',
       component: Messages,
-      meta: { topBar: { type: 'title', title: 'Messages' }, showTabs: true, roles: ['seeker', 'landlord', 'admin'] },
+      meta: { topBar: { type: 'title', title: 'Messages', titleKey: 'nav.messages' }, showTabs: true, roles: ['seeker', 'landlord', 'admin'] },
     },
     {
       path: '/chat',
       name: 'chat-entry',
       component: ChatDeepLink,
-      meta: { topBar: { type: 'title', title: 'Chat' }, showTabs: false, roles: ['seeker', 'landlord', 'admin'] },
+      meta: { topBar: { type: 'title', title: 'Chat', titleKey: 'titles.chat' }, showTabs: false, roles: ['seeker', 'landlord', 'admin'] },
     },
     {
       path: '/chat/:id',
@@ -129,56 +130,56 @@ const router = createRouter({
       path: '/transactions/:id',
       name: 'transaction-detail',
       component: TransactionDetail,
-      meta: { topBar: { type: 'back', title: 'Transaction' }, showTabs: false, roles: ['seeker', 'landlord', 'admin'] },
+      meta: { topBar: { type: 'back', title: 'Transaction', titleKey: 'titles.transaction' }, showTabs: false, roles: ['seeker', 'landlord', 'admin'] },
     },
     {
       path: '/transactions',
       name: 'transactions',
       component: Transactions,
-      meta: { topBar: { type: 'title', title: 'Transactions' }, showTabs: true, roles: ['seeker', 'landlord'] },
+      meta: { topBar: { type: 'title', title: 'Transactions', titleKey: 'titles.transactions' }, showTabs: true, roles: ['seeker', 'landlord'] },
     },
-    { path: '/profile', name: 'profile', component: Profile, meta: { topBar: { type: 'title', title: 'Profile' }, showTabs: true } },
+    { path: '/profile', name: 'profile', component: Profile, meta: { topBar: { type: 'title', title: 'Profile', titleKey: 'titles.profile' }, showTabs: true } },
     {
       path: '/profile/verification',
       name: 'profile-verification',
       component: KycVerification,
-      meta: { topBar: { type: 'back', title: 'Verification' }, showTabs: false, roles: ['landlord', 'admin'] },
+      meta: { topBar: { type: 'back', title: 'Verification', titleKey: 'titles.verification' }, showTabs: false, roles: ['landlord', 'admin'] },
     },
     {
       path: '/users/:id',
       name: 'public-profile',
       component: PublicProfile,
-      meta: { topBar: { type: 'back', title: 'Profile' }, showTabs: false },
+      meta: { topBar: { type: 'back', title: 'Profile', titleKey: 'titles.profile' }, showTabs: false },
     },
     {
       path: '/settings/personal',
       name: 'settings-personal',
       component: SettingsPersonalInfo,
-      meta: { topBar: { type: 'back', title: 'Personal Info' }, showTabs: false },
+      meta: { topBar: { type: 'back', title: 'Personal Info', titleKey: 'titles.personalInfo' }, showTabs: false },
     },
     {
       path: '/settings/legal',
       name: 'settings-legal',
       component: SettingsLegal,
-      meta: { topBar: { type: 'back', title: 'Legal & Policies' }, showTabs: false },
+      meta: { topBar: { type: 'back', title: 'Legal & Policies', titleKey: 'titles.legalPolicies' }, showTabs: false },
     },
     {
       path: '/settings/language',
       name: 'settings-language',
       component: SettingsLanguage,
-      meta: { topBar: { type: 'back', title: 'Language' }, showTabs: false },
+      meta: { topBar: { type: 'back', title: 'Language', titleKey: 'titles.language' }, showTabs: false },
     },
     {
       path: '/settings/security',
       name: 'settings-security',
       component: SettingsSecurity,
-      meta: { topBar: { type: 'back', title: 'Security' }, showTabs: false },
+      meta: { topBar: { type: 'back', title: 'Security', titleKey: 'titles.security' }, showTabs: false },
     },
     {
       path: '/settings/notifications',
       name: 'settings-notifications',
       component: SettingsNotifications,
-      meta: { topBar: { type: 'back', title: 'Notifications' }, showTabs: false },
+      meta: { topBar: { type: 'back', title: 'Notifications', titleKey: 'titles.notifications' }, showTabs: false },
     },
     {
       path: '/notifications',
@@ -190,80 +191,80 @@ const router = createRouter({
       path: '/landlord/listings',
       name: 'landlord-listings',
       component: LandlordListings,
-      meta: { topBar: { type: 'title', title: 'My Listings' }, showTabs: false, roles: ['landlord', 'admin'] },
+      meta: { topBar: { type: 'title', title: 'My Listings', titleKey: 'titles.myListings' }, showTabs: false, roles: ['landlord', 'admin'] },
     },
     {
       path: '/landlord/listings/new',
       name: 'landlord-listing-new',
       component: ListingForm,
-      meta: { topBar: { type: 'back', title: 'New Listing' }, showTabs: false, roles: ['landlord', 'admin'] },
+      meta: { topBar: { type: 'back', title: 'New Listing', titleKey: 'titles.newListing' }, showTabs: false, roles: ['landlord', 'admin'] },
     },
     {
       path: '/landlord/listings/:id/edit',
       name: 'landlord-listing-edit',
       component: ListingForm,
-      meta: { topBar: { type: 'back', title: 'Edit Listing' }, showTabs: false, roles: ['landlord', 'admin'] },
+      meta: { topBar: { type: 'back', title: 'Edit Listing', titleKey: 'titles.editListing' }, showTabs: false, roles: ['landlord', 'admin'] },
     },
     {
       path: '/admin/ratings',
       name: 'admin-ratings',
       component: AdminRatings,
-      meta: { topBar: { type: 'title', title: 'Ratings Admin' }, showTabs: false, roles: ['admin'] },
+      meta: { topBar: { type: 'title', title: 'Ratings Admin', titleKey: 'titles.ratingsAdmin' }, showTabs: false, roles: ['admin'] },
     },
     {
       path: '/admin',
       name: 'admin-dashboard',
       component: AdminDashboard,
-      meta: { topBar: { type: 'title', title: 'Admin Ops' }, showTabs: false, roles: ['admin'] },
+      meta: { topBar: { type: 'title', title: 'Admin Ops', titleKey: 'titles.adminOps' }, showTabs: false, roles: ['admin'] },
     },
     {
       path: '/admin/moderation',
       name: 'admin-moderation',
       component: AdminModeration,
-      meta: { topBar: { type: 'title', title: 'Moderation' }, showTabs: false, roles: ['admin'] },
+      meta: { topBar: { type: 'title', title: 'Moderation', titleKey: 'titles.moderation' }, showTabs: false, roles: ['admin'] },
     },
     {
       path: '/admin/kyc',
       name: 'admin-kyc',
       component: AdminKyc,
-      meta: { topBar: { type: 'title', title: 'KYC Review' }, showTabs: false, roles: ['admin'] },
+      meta: { topBar: { type: 'title', title: 'KYC Review', titleKey: 'titles.kycReview' }, showTabs: false, roles: ['admin'] },
     },
     {
       path: '/admin/transactions',
       name: 'admin-transactions',
       component: AdminTransactions,
-      meta: { topBar: { type: 'title', title: 'Transactions' }, showTabs: false, roles: ['admin'] },
+      meta: { topBar: { type: 'title', title: 'Transactions', titleKey: 'titles.transactions' }, showTabs: false, roles: ['admin'] },
     },
     {
       path: '/admin/transactions/:id',
       name: 'admin-transaction-detail',
       component: AdminTransactionDetail,
-      meta: { topBar: { type: 'back', title: 'Transaction Detail' }, showTabs: false, roles: ['admin'] },
+      meta: { topBar: { type: 'back', title: 'Transaction Detail', titleKey: 'titles.transactionDetail' }, showTabs: false, roles: ['admin'] },
     },
     {
       path: '/admin/users',
       name: 'admin-users',
       component: AdminUsers,
-      meta: { topBar: { type: 'title', title: 'Users' }, showTabs: false, roles: ['admin'] },
+      meta: { topBar: { type: 'title', title: 'Users', titleKey: 'titles.users' }, showTabs: false, roles: ['admin'] },
     },
     {
       path: '/admin/users/:id',
       name: 'admin-user-security',
       component: AdminUserSecurity,
-      meta: { topBar: { type: 'back', title: 'User Security' }, showTabs: false, roles: ['admin'] },
+      meta: { topBar: { type: 'back', title: 'User Security', titleKey: 'titles.userSecurity' }, showTabs: false, roles: ['admin'] },
     },
     {
       path: '/admin/moderation/reports/:id',
       name: 'admin-report-detail',
       component: () => import('../pages/AdminReportDetail.vue'),
-      meta: { topBar: { type: 'back', title: 'Report Detail' }, showTabs: false, roles: ['admin'] },
+      meta: { topBar: { type: 'back', title: 'Report Detail', titleKey: 'titles.reportDetail' }, showTabs: false, roles: ['admin'] },
     },
-    { path: '/login', name: 'login', component: Login, meta: { topBar: { type: 'title', title: 'Login' }, showTabs: false } },
+    { path: '/login', name: 'login', component: Login, meta: { topBar: { type: 'title', title: 'Login', titleKey: 'titles.login' }, showTabs: false } },
     {
       path: '/register',
       name: 'register',
       component: Register,
-      meta: { topBar: { type: 'title', title: 'Register' }, showTabs: false },
+      meta: { topBar: { type: 'title', title: 'Register', titleKey: 'titles.register' }, showTabs: false },
     },
   ],
   scrollBehavior() {
@@ -288,7 +289,9 @@ router.beforeEach(async (to, _from, next) => {
       return next({ path: '/login', query: { returnUrl: to.fullPath } })
     }
     if (!allowedRoles.some((role) => auth.hasRole(role))) {
-      toast.push({ title: 'Access denied', message: 'Switch role to continue.', type: 'error' })
+      const languageStore = useLanguageStore()
+      const t = (key: Parameters<typeof languageStore.t>[0]) => languageStore.t(key)
+      toast.push({ title: t('router.accessDenied'), message: t('router.switchRole'), type: 'error' })
       return next('/')
     }
   }

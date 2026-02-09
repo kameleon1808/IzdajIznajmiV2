@@ -9,15 +9,32 @@ import EmptyState from '../components/ui/EmptyState.vue'
 import { getAdminReport, updateAdminReport } from '../services'
 import type { Report } from '../types'
 import { useToastStore } from '../stores/toast'
+import { useLanguageStore } from '../stores/language'
 
 const route = useRoute()
 const router = useRouter()
 const toast = useToastStore()
+const languageStore = useLanguageStore()
+const t = (key: Parameters<typeof languageStore.t>[0]) => languageStore.t(key)
 
 const loading = ref(true)
 const saving = ref(false)
 const error = ref('')
 const report = ref<Report | null>(null)
+
+const statusLabel = (value: string) => {
+  if (value === 'open') return t('admin.moderation.status.open')
+  if (value === 'resolved') return t('admin.moderation.status.resolved')
+  if (value === 'dismissed') return t('admin.moderation.status.dismissed')
+  return value
+}
+
+const typeLabel = (value: string) => {
+  if (value === 'rating') return t('admin.moderation.types.rating')
+  if (value === 'message') return t('admin.moderation.types.message')
+  if (value === 'listing') return t('admin.moderation.types.listing')
+  return value
+}
 
 const load = async () => {
   loading.value = true
@@ -25,7 +42,7 @@ const load = async () => {
   try {
     report.value = await getAdminReport(route.params.id as string)
   } catch (err) {
-    error.value = (err as Error).message || 'Report not found.'
+    error.value = (err as Error).message || t('admin.reportDetail.notFound')
   } finally {
     loading.value = false
   }
@@ -45,12 +62,12 @@ const update = async (action: 'dismiss' | 'resolve') => {
   try {
     report.value = await updateAdminReport(report.value.id, {
       action,
-      resolution: action === 'resolve' ? 'Resolved via deep link' : 'Dismissed',
+      resolution: action === 'resolve' ? t('admin.reportDetail.resolvedViaDeepLink') : t('admin.reportDetail.dismissed'),
       deleteTarget: action === 'resolve' && report.value.type === 'rating',
     })
-    toast.push({ title: 'Updated', message: 'Report status saved.', type: 'success' })
+    toast.push({ title: t('common.updated'), message: t('admin.reportDetail.saved'), type: 'success' })
   } catch (err) {
-    error.value = (err as Error).message || 'Could not update report.'
+    error.value = (err as Error).message || t('admin.reportDetail.updateFailed')
   } finally {
     saving.value = false
   }
@@ -67,33 +84,35 @@ onMounted(load)
       <div v-if="report" class="space-y-3 rounded-2xl border border-white/60 bg-white p-4 shadow-soft">
         <div class="flex items-start justify-between gap-3">
           <div>
-            <p class="text-xs uppercase text-muted">Report #{{ report.id }}</p>
+            <p class="text-xs uppercase text-muted">{{ t('admin.reportDetail.reportLabel') }} #{{ report.id }}</p>
             <h1 class="text-lg font-semibold text-slate-900">{{ report.reason }}</h1>
-            <p class="text-sm text-muted">Type: {{ report.type }} · Created: {{ report.createdAt }}</p>
+            <p class="text-sm text-muted">
+              {{ t('admin.reportDetail.type') }}: {{ typeLabel(report.type) }} · {{ t('admin.reportDetail.created') }}: {{ report.createdAt }}
+            </p>
           </div>
           <span class="rounded-full px-3 py-1 text-xs font-semibold" :class="statusBadge">
-            {{ report.status }}
+            {{ statusLabel(report.status) }}
           </span>
         </div>
-        <p class="text-sm text-slate-800">{{ report.details || 'No additional details.' }}</p>
+        <p class="text-sm text-slate-800">{{ report.details || t('admin.reportDetail.noDetails') }}</p>
         <div class="rounded-xl bg-surface p-3 text-sm text-muted">
-          <p class="mb-1 font-semibold text-slate-900">Target</p>
+          <p class="mb-1 font-semibold text-slate-900">{{ t('admin.reportDetail.target') }}</p>
           <pre class="overflow-auto text-xs text-slate-700">{{ JSON.stringify(report.target, null, 2) }}</pre>
         </div>
         <div class="flex gap-2">
-          <Button size="sm" variant="secondary" :disabled="saving" @click="update('dismiss')">Dismiss</Button>
-          <Button size="sm" variant="primary" :disabled="saving" @click="update('resolve')">Resolve</Button>
-          <Button size="sm" variant="ghost" @click="router.push('/admin/moderation')">Back</Button>
+          <Button size="sm" variant="secondary" :disabled="saving" @click="update('dismiss')">{{ t('admin.reportDetail.dismiss') }}</Button>
+          <Button size="sm" variant="primary" :disabled="saving" @click="update('resolve')">{{ t('admin.reportDetail.resolve') }}</Button>
+          <Button size="sm" variant="ghost" @click="router.push('/admin/moderation')">{{ t('common.back') }}</Button>
         </div>
       </div>
       <EmptyState
         v-else
-        title="Report missing"
-        subtitle="The report could not be found or you lack access."
+        :title="t('admin.reportDetail.missingTitle')"
+        :subtitle="t('admin.reportDetail.missingSubtitle')"
         :icon="AlertTriangle"
       >
         <template #actions>
-          <Button variant="secondary" @click="router.push('/admin/moderation')">Back to moderation</Button>
+          <Button variant="secondary" @click="router.push('/admin/moderation')">{{ t('admin.reportDetail.backToModeration') }}</Button>
         </template>
       </EmptyState>
     </template>

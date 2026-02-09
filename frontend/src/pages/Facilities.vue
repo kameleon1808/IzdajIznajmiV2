@@ -6,8 +6,11 @@ import EmptyState from '../components/ui/EmptyState.vue'
 import ErrorBanner from '../components/ui/ErrorBanner.vue'
 import ListSkeleton from '../components/ui/ListSkeleton.vue'
 import { getListingFacilities } from '../services'
+import { useLanguageStore } from '../stores/language'
 
 const route = useRoute()
+const languageStore = useLanguageStore()
+const t = (key: Parameters<typeof languageStore.t>[0]) => languageStore.t(key)
 const groups = ref<{ title: string; items: string[] }[]>([])
 const loading = ref(true)
 const error = ref('')
@@ -18,7 +21,7 @@ onMounted(async () => {
   try {
     groups.value = await getListingFacilities(route.params.id as string)
   } catch (err) {
-    error.value = (err as Error).message || 'Failed to load facilities.'
+    error.value = (err as Error).message || t('facilities.loadFailed')
   } finally {
     loading.value = false
   }
@@ -39,7 +42,7 @@ onMounted(async () => {
           <summary class="flex cursor-pointer items-center justify-between text-lg font-semibold text-slate-900">
             <span>{{ group.title }}</span>
             <div class="flex items-center gap-2 text-sm text-muted">
-              <span>{{ group.items.length }} items</span>
+              <span>{{ group.items.length }} {{ t('facilities.items') }}</span>
               <ChevronDown class="h-4 w-4 transition group-open:rotate-180" />
             </div>
           </summary>
@@ -48,7 +51,11 @@ onMounted(async () => {
           </ul>
         </details>
       </div>
-      <EmptyState v-if="!groups.length" title="No facilities" subtitle="Facilities will appear once added" />
+      <EmptyState
+        v-if="!groups.length"
+        :title="t('facilities.emptyTitle')"
+        :subtitle="t('facilities.emptySubtitle')"
+      />
     </template>
   </div>
 </template>

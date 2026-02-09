@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
+import { useLanguageStore } from '../../stores/language'
 
 const props = defineProps<{
   lat?: number
@@ -19,6 +20,8 @@ const error = ref('')
 const map = shallowRef<any>(null)
 const marker = shallowRef<any>(null)
 let leaflet: typeof import('leaflet') | null = null
+const languageStore = useLanguageStore()
+const t = (key: Parameters<typeof languageStore.t>[0]) => languageStore.t(key)
 
 const initMap = async () => {
   if (ready.value || loading.value || props.lat == null || props.lng == null || !mapEl.value) return
@@ -49,7 +52,7 @@ const initMap = async () => {
 
     ready.value = true
   } catch (err) {
-    error.value = (err as Error).message || 'Map unavailable'
+    error.value = (err as Error).message || t('map.unavailable')
   } finally {
     loading.value = false
   }

@@ -2,11 +2,14 @@
 import { computed, onMounted, ref } from 'vue'
 import { ArrowLeft, ArrowRight } from 'lucide-vue-next'
 import ImageLightbox from '../ui/ImageLightbox.vue'
+import { useLanguageStore } from '../../stores/language'
 
 const props = defineProps<{
   images: string[]
   alt?: string
 }>()
+const languageStore = useLanguageStore()
+const t = (key: Parameters<typeof languageStore.t>[0]) => languageStore.t(key)
 
 const currentIndex = ref(0)
 const lightboxOpen = ref(false)
@@ -53,7 +56,7 @@ onMounted(() => preloadAdjacent())
       <img
         v-if="currentImage"
         :src="currentImage"
-        :alt="alt || 'Listing image'"
+        :alt="alt || t('listing.imageAlt')"
         loading="lazy"
         class="h-72 w-full object-cover md:h-96"
         @click="openLightbox"
@@ -85,7 +88,7 @@ onMounted(() => preloadAdjacent())
         :class="idx === currentIndex ? 'border-primary' : 'border-transparent'"
         @click="setIndex(idx)"
       >
-        <img :src="img" :alt="alt || 'thumb'" loading="lazy" class="h-full w-full object-cover" />
+        <img :src="img" :alt="alt || t('listing.thumbAlt')" loading="lazy" class="h-full w-full object-cover" />
       </button>
     </div>
   </div>
@@ -94,7 +97,7 @@ onMounted(() => preloadAdjacent())
     :images="images"
     :open="lightboxOpen"
     :index="currentIndex"
-    :alt="alt || 'Listing image zoomed'"
+    :alt="alt || t('listing.imageZoomAlt')"
     @update:open="lightboxOpen = $event"
     @update:index="currentIndex = $event"
   />

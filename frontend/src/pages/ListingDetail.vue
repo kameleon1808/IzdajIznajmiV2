@@ -18,6 +18,7 @@ import { useChatStore } from '../stores/chat'
 import { useRequestsStore } from '../stores/requests'
 import { useViewingsStore } from '../stores/viewings'
 import { useToastStore } from '../stores/toast'
+import { useLanguageStore } from '../stores/language'
 import {
   geocodeLocation,
   getListingById,
@@ -38,6 +39,8 @@ const requestsStore = useRequestsStore()
 const viewingsStore = useViewingsStore()
 const chatStore = useChatStore()
 const toast = useToastStore()
+const languageStore = useLanguageStore()
+const t = (key: Parameters<typeof languageStore.t>[0]) => languageStore.t(key)
 
 const ListingMap = defineAsyncComponent(() => import('../components/listing/ListingMap.vue'))
 
@@ -90,14 +93,14 @@ const viewingTimes = reactive<Record<string, string>>({})
 const description = computed(
   () =>
     listing.value?.description ||
-    'Enjoy a minimalist coastal escape with airy rooms, private pool, and endless ocean views. Perfect for workcation or slow holidays with friends.',
+    t('listing.descriptionFallback'),
 )
 
 const isFormValid = computed(() => requestForm.guests > 0 && requestForm.message.trim().length >= 5)
 const hasApplied = computed(
   () => !!listing.value && requestsStore.tenantRequests.some((app) => app.listing.id === listing.value?.id),
 )
-const landlordName = computed(() => listing.value?.landlord?.fullName || `User ${listing.value?.ownerId ?? ''}`)
+const landlordName = computed(() => listing.value?.landlord?.fullName || `${t('common.user')} ${listing.value?.ownerId ?? ''}`)
 const viewingSlots = computed(() => {
   const listingId = listing.value?.id
   if (!listingId) return []
@@ -131,6 +134,15 @@ const mapUrl = computed(() => {
 })
 const canAdjustLocation = computed(() => isOwner.value && hasCoords.value)
 const showDevCoords = computed(() => import.meta.env.DEV)
+const dayLabels = computed(() => [
+  t('days.sun'),
+  t('days.mon'),
+  t('days.tue'),
+  t('days.wed'),
+  t('days.thu'),
+  t('days.fri'),
+  t('days.sat'),
+])
 
 const loadData = async () => {
   loading.value = true
@@ -157,7 +169,7 @@ const loadData = async () => {
       void loadSimilar()
     }, 0)
   } catch (err) {
-    error.value = (err as Error).message || 'Failed to load listing.'
+    error.value = (err as Error).message || t('listing.loadFailed')
   } finally {
     loading.value = false
   }
@@ -191,7 +203,7 @@ const loadViewingSlots = async () => {
     autoFillSingleSlotTimes()
     seedViewingDefaults()
   } catch (err) {
-    viewingError.value = (err as Error).message || 'Failed to load viewing slots.'
+    viewingError.value = (err as Error).message || t('listing.viewingLoadFailed')
   }
 }
 
@@ -202,7 +214,7 @@ const loadSimilar = async () => {
   try {
     similarListings.value = await getSimilarListings(String(listing.value.id), 8)
   } catch (err) {
-    similarError.value = (err as Error).message || 'Failed to load similar listings.'
+    similarError.value = (err as Error).message || t('listing.similarLoadFailed')
   } finally {
     similarLoading.value = false
   }
@@ -259,16 +271,24 @@ const buildScheduledAt = (slot: ViewingSlot): string | null => {
   const date = viewingDates[slot.id]
   const time = viewingTimes[slot.id]
   if (!date || !time) {
-    toast.push({ title: 'Odaberi datum i vreme', message: 'Potrebno je odabrati termin pre slanja zahteva.', type: 'error' })
+    toast.push({
+      title: t('listing.viewing.selectDateTimeTitle'),
+      message: t('listing.viewing.selectDateTimeMessage'),
+      type: 'error',
+    })
     return null
   }
   const scheduled = new Date(`${date}T${time}:00`)
   if (Number.isNaN(scheduled.getTime())) {
-    toast.push({ title: 'Neispravan termin', message: 'Odabrani datum ili vreme nisu validni.', type: 'error' })
+    toast.push({
+      title: t('listing.viewing.invalidDateTitle'),
+      message: t('listing.viewing.invalidDateMessage'),
+      type: 'error',
+    })
     return null
   }
   if (scheduled.getTime() <= Date.now()) {
-    toast.push({ title: 'Termin mora biti u budućnosti', type: 'error' })
+    toast.push({ title: t('listing.viewing.futureOnly'), type: 'error' })
     return null
   }
 
@@ -281,31 +301,31 @@ const buildScheduledAt = (slot: ViewingSlot): string | null => {
   const hasRangeEnd = endDate.getTime() - startDate.getTime() >= 24 * 60 * 60 * 1000
   if (!isRecurring) {
     if (selectedDate < startDate || selectedDate > endDate) {
-      toast.push({ title: 'Datum nije u opsegu slot-a', type: 'error' })
+      toast.push({ title: t('listing.viewing.dateOutOfRange'), type: 'error' })
       return null
     }
   } else {
     if (selectedDate < startDate) {
-      toast.push({ title: 'Datum nije u opsegu slot-a', type: 'error' })
+      toast.push({ title: t('listing.viewing.dateOutOfRange'), type: 'error' })
       return null
     }
     if (hasRangeEnd && selectedDate > endDate) {
-      toast.push({ title: 'Datum nije u opsegu slot-a', type: 'error' })
+      toast.push({ title: t('listing.viewing.dateOutOfRange'), type: 'error' })
       return null
     }
   }
 
   const dayOfWeek = scheduled.getDay()
   if (slot.pattern === 'weekends' && !isWeekend(dayOfWeek)) {
-    toast.push({ title: 'Odaberi vikend termin', type: 'error' })
+    toast.push({ title: t('listing.viewing.weekendOnly'), type: 'error' })
     return null
   }
   if (slot.pattern === 'weekdays' && isWeekend(dayOfWeek)) {
-    toast.push({ title: 'Odaberi radni dan', type: 'error' })
+    toast.push({ title: t('listing.viewing.weekdayOnly'), type: 'error' })
     return null
   }
   if (slot.pattern === 'custom' && slot.daysOfWeek?.length && !slot.daysOfWeek.includes(dayOfWeek)) {
-    toast.push({ title: 'Odabrani dan nije dostupan', type: 'error' })
+    toast.push({ title: t('listing.viewing.dayUnavailable'), type: 'error' })
     return null
   }
 
@@ -314,15 +334,15 @@ const buildScheduledAt = (slot: ViewingSlot): string | null => {
     const fromMinutes = parseTimeToMinutes(slot.timeFrom)
     const toMinutes = parseTimeToMinutes(slot.timeTo)
     if (fromMinutes == null || toMinutes == null || toMinutes < fromMinutes) {
-      toast.push({ title: 'Neispravan opseg vremena', type: 'error' })
+      toast.push({ title: t('listing.viewing.invalidTimeRange'), type: 'error' })
       return null
     }
     if (selectedMinutes < fromMinutes || selectedMinutes > toMinutes) {
-      toast.push({ title: 'Vreme nije u okviru slot-a', type: 'error' })
+      toast.push({ title: t('listing.viewing.timeOutOfRange'), type: 'error' })
       return null
     }
   } else if (scheduled < slotStart || scheduled > slotEnd) {
-    toast.push({ title: 'Vreme nije u okviru slot-a', type: 'error' })
+    toast.push({ title: t('listing.viewing.timeOutOfRange'), type: 'error' })
     return null
   }
 
@@ -337,7 +357,11 @@ const toggleFavorite = () => {
 
 const openExternalMap = () => {
   if (!mapUrl.value) {
-    toast.push({ title: 'No coordinates', message: 'Location is not available yet.', type: 'error' })
+    toast.push({
+      title: t('listing.location.noCoordsTitle'),
+      message: t('listing.location.noCoordsMessage'),
+      type: 'error',
+    })
     return
   }
   window.open(mapUrl.value, '_blank')
@@ -357,10 +381,10 @@ const geocodeFallback = async () => {
       fallbackLocation.value = coords
       mapVisible.value = true
     } else {
-      fallbackError.value = 'Geocoding returned invalid coordinates. Please adjust manually.'
+      fallbackError.value = t('listing.location.geocodeInvalid')
     }
   } catch (err) {
-    fallbackError.value = (err as Error).message || 'Geocode failed'
+    fallbackError.value = (err as Error).message || t('listing.location.geocodeFailed')
   } finally {
     geocodingFallback.value = false
   }
@@ -368,11 +392,19 @@ const geocodeFallback = async () => {
 
 const startAdjustLocation = () => {
   if (!listing.value) {
-    toast.push({ title: 'No coordinates', message: 'Add an address first to place the pin.', type: 'error' })
+    toast.push({
+      title: t('listing.location.noCoordsTitle'),
+      message: t('listing.location.addAddressFirst'),
+      type: 'error',
+    })
     return
   }
   if (!mapCoords.value) {
-    toast.push({ title: 'No coordinates', message: 'Location missing—trying to re-geocode from address.', type: 'error' })
+    toast.push({
+      title: t('listing.location.noCoordsTitle'),
+      message: t('listing.location.reGeocode'),
+      type: 'error',
+    })
     geocodeFallback()
     return
   }
@@ -393,7 +425,11 @@ const cancelAdjustLocation = () => {
 const saveAdjustedLocation = async () => {
   if (!listing.value || !draftLocation.value) return
   if (!isValidCoord(draftLocation.value.lat, draftLocation.value.lng)) {
-    toast.push({ title: 'Invalid coordinates', message: 'Lat must be between -90..90 and lng between -180..180.', type: 'error' })
+    toast.push({
+      title: t('listing.location.invalidCoordsTitle'),
+      message: t('listing.location.invalidCoordsMessage'),
+      type: 'error',
+    })
     return
   }
   savingLocation.value = true
@@ -404,9 +440,9 @@ const saveAdjustedLocation = async () => {
     })
     listing.value = updated
     adjustingLocation.value = false
-    toast.push({ title: 'Location updated', message: 'Map pin saved for this listing.', type: 'success' })
+    toast.push({ title: t('listing.location.updatedTitle'), message: t('listing.location.updatedMessage'), type: 'success' })
   } catch (err) {
-    toast.push({ title: 'Unable to save', message: (err as Error).message, type: 'error' })
+    toast.push({ title: t('common.unableToSave'), message: (err as Error).message, type: 'error' })
   } finally {
     savingLocation.value = false
   }
@@ -421,9 +457,9 @@ const resetLocationToGeocoded = async () => {
     draftLocation.value = null
     adjustingLocation.value = false
     mapVisible.value = !!(updated.lat != null && updated.lng != null)
-    toast.push({ title: 'Location reset', message: 'Pin refreshed from the address.', type: 'info' })
+    toast.push({ title: t('listing.location.resetTitle'), message: t('listing.location.resetMessage'), type: 'info' })
   } catch (err) {
-    toast.push({ title: 'Reset failed', message: (err as Error).message, type: 'error' })
+    toast.push({ title: t('common.resetFailed'), message: (err as Error).message, type: 'error' })
   } finally {
     resettingLocation.value = false
   }
@@ -435,11 +471,11 @@ const openInquiry = () => {
     return
   }
   if (!auth.hasRole('seeker')) {
-    toast.push({ title: 'Access denied', message: 'Switch to Seeker role to send request.', type: 'error' })
+    toast.push({ title: t('listing.request.accessDenied'), message: t('listing.request.switchToSeeker'), type: 'error' })
     return
   }
   if (hasApplied.value) {
-    toast.push({ title: 'Already applied', message: 'You can only apply once to this listing.', type: 'info' })
+    toast.push({ title: t('listing.request.alreadyAppliedTitle'), message: t('listing.request.alreadyAppliedMessage'), type: 'info' })
     return
   }
   requestSheet.value = true
@@ -453,14 +489,14 @@ const submitRequest = async () => {
       listingId: listing.value.id,
       message: requestForm.message,
     })
-    toast.push({ title: 'Request sent', message: 'Landlord will respond shortly.', type: 'success' })
+    toast.push({ title: t('listing.request.sentTitle'), message: t('listing.request.sentMessage'), type: 'success' })
     requestSheet.value = false
     requestForm.startDate = ''
     requestForm.endDate = ''
     requestForm.message = ''
     router.push({ path: '/bookings', query: { tab: 'requests' } })
   } catch (err) {
-    toast.push({ title: 'Failed to send', message: (err as Error).message, type: 'error' })
+    toast.push({ title: t('common.failedToSend'), message: (err as Error).message, type: 'error' })
   } finally {
     submitting.value = false
   }
@@ -473,7 +509,7 @@ const openChat = async () => {
     return
   }
   if (!auth.hasRole('seeker')) {
-    toast.push({ title: 'Access denied', message: 'Switch to Seeker role to chat with hosts.', type: 'error' })
+    toast.push({ title: t('listing.chat.accessDenied'), message: t('listing.chat.switchToSeeker'), type: 'error' })
     return
   }
   chatLoading.value = true
@@ -482,7 +518,7 @@ const openChat = async () => {
     await chatStore.fetchMessages(conversation.id)
     router.push(`/chat/${conversation.id}`)
   } catch (err) {
-    toast.push({ title: 'Chat unavailable', message: (err as Error).message, type: 'error' })
+    toast.push({ title: t('chat.unavailable'), message: (err as Error).message, type: 'error' })
   } finally {
     chatLoading.value = false
   }
@@ -497,12 +533,12 @@ const formatSlotWindow = (slot: ViewingSlot) => {
   if (slot.timeFrom && slot.timeTo) {
     const label =
       slot.pattern === 'weekdays'
-        ? 'Radni dani'
+        ? t('listing.weekdays')
         : slot.pattern === 'weekends'
-          ? 'Vikend'
+          ? t('listing.weekends')
           : slot.pattern === 'everyday'
-            ? 'Svaki dan'
-            : 'Dani u nedelji'
+            ? t('listing.everyday')
+            : t('listing.customDays')
     return `${label}: ${slot.timeFrom} - ${slot.timeTo}`
   }
   const start = new Date(slot.startsAt)
@@ -519,14 +555,14 @@ const requestViewingSlot = async (slotId: string) => {
     return
   }
   if (!auth.hasRole('seeker')) {
-    toast.push({ title: 'Switch to seeker', message: 'Only seekers can request viewings.', type: 'error' })
+    toast.push({ title: t('listing.viewing.switchToSeeker'), message: t('listing.viewing.onlySeekers'), type: 'error' })
     return
   }
   viewingSubmitting.value = true
   try {
     const slot = viewingSlots.value.find((item) => item.id === slotId)
     if (!slot) {
-      toast.push({ title: 'Termin nije pronađen', type: 'error' })
+      toast.push({ title: t('listing.viewing.slotNotFound'), type: 'error' })
       return
     }
     const scheduledAt = buildScheduledAt(slot)
@@ -534,10 +570,10 @@ const requestViewingSlot = async (slotId: string) => {
     const note = viewingNotes[slotId] ?? ''
     const created = await viewingsStore.requestSlot(slotId, note, scheduledAt)
     viewingNotes[slotId] = ''
-    toast.push({ title: 'Viewing requested', message: 'Host will confirm your visit.', type: 'success' })
+    toast.push({ title: t('listing.viewing.requestedTitle'), message: t('listing.viewing.requestedMessage'), type: 'success' })
     router.push({ path: '/bookings', query: { tab: 'viewings', viewingRequestId: created.id } })
   } catch (err) {
-    toast.push({ title: 'Unable to request', message: (err as Error).message, type: 'error' })
+    toast.push({ title: t('listing.viewing.unableToRequest'), message: (err as Error).message, type: 'error' })
   } finally {
     viewingSubmitting.value = false
   }
@@ -562,7 +598,7 @@ const galleryImages = computed(() => {
 const createViewingSlot = async () => {
   if (!listing.value) return
   if (!slotForm.timeFrom || !slotForm.timeTo) {
-    toast.push({ title: 'Izaberi vremenski opseg', type: 'error' })
+    toast.push({ title: t('listing.viewing.selectTimeRange'), type: 'error' })
     return
   }
   const [fromH, fromM] = slotForm.timeFrom.split(':').map((v) => parseInt(v, 10))
@@ -573,7 +609,7 @@ const createViewingSlot = async () => {
   const end = new Date(`${baseDate}T00:00:00`)
   end.setHours(toH || 0, toM || 0, 0, 0)
   if (end <= start) {
-    toast.push({ title: 'Kraj mora biti posle početka', type: 'error' })
+    toast.push({ title: t('listing.viewing.endAfterStart'), type: 'error' })
     return
   }
   slotSubmitting.value = true
@@ -587,14 +623,14 @@ const createViewingSlot = async () => {
       timeFrom: slotForm.timeFrom,
       timeTo: slotForm.timeTo,
     })
-    toast.push({ title: 'Termin dodat', type: 'success' })
+    toast.push({ title: t('listing.viewing.slotAdded'), type: 'success' })
     slotForm.startsAt = ''
     slotForm.endsAt = ''
     slotForm.capacity = 1
     slotForm.pattern = 'everyday'
     slotForm.daysOfWeek = []
   } catch (err) {
-    toast.push({ title: 'Failed to add slot', message: (err as Error).message, type: 'error' })
+    toast.push({ title: t('listing.viewing.addSlotFailed'), message: (err as Error).message, type: 'error' })
   } finally {
     slotSubmitting.value = false
   }
@@ -604,9 +640,9 @@ const toggleSlotActive = async (slotId: string, isActive: boolean) => {
   slotSubmitting.value = true
   try {
     await viewingsStore.updateSlot(slotId, { isActive })
-    toast.push({ title: isActive ? 'Slot activated' : 'Slot paused', type: 'info' })
+    toast.push({ title: isActive ? t('listing.viewing.slotActivated') : t('listing.viewing.slotPaused'), type: 'info' })
   } catch (err) {
-    toast.push({ title: 'Update failed', message: (err as Error).message, type: 'error' })
+    toast.push({ title: t('common.updateFailed'), message: (err as Error).message, type: 'error' })
   } finally {
     slotSubmitting.value = false
   }
@@ -616,9 +652,9 @@ const deleteViewingSlot = async (slotId: string) => {
   slotSubmitting.value = true
   try {
     await viewingsStore.deleteSlot(slotId)
-    toast.push({ title: 'Viewing slot removed', type: 'info' })
+    toast.push({ title: t('listing.viewing.slotRemoved'), type: 'info' })
   } catch (err) {
-    toast.push({ title: 'Cannot remove slot', message: (err as Error).message, type: 'error' })
+    toast.push({ title: t('listing.viewing.removeFailed'), message: (err as Error).message, type: 'error' })
   } finally {
     slotSubmitting.value = false
   }
@@ -636,11 +672,11 @@ const deleteViewingSlot = async (slotId: string) => {
     </div>
 
     <div v-if="error && !listing" class="px-4 pt-4">
-      <ErrorState :message="error" retry-label="Retry" @retry="retryLoad" />
+      <ErrorState :message="error" :retry-label="t('common.retry')" @retry="retryLoad" />
     </div>
 
     <div v-if="listing" class="-mt-6 space-y-6 rounded-t-[28px] bg-surface px-4 pb-28 pt-6">
-      <ErrorState v-if="error" :message="error" retry-label="Reload" @retry="retryLoad" />
+      <ErrorState v-if="error" :message="error" :retry-label="t('common.reload')" @retry="retryLoad" />
       <div class="flex items-start justify-between gap-3">
         <div class="space-y-1">
           <h1 class="text-xl font-semibold text-slate-900">{{ listing.title }}</h1>
@@ -663,44 +699,44 @@ const deleteViewingSlot = async (slotId: string) => {
 
       <div class="space-y-3">
         <div class="flex items-center justify-between">
-          <h3 class="section-title">Common Facilities</h3>
+          <h3 class="section-title">{{ t('listing.commonFacilities') }}</h3>
           <button class="text-sm font-semibold text-primary" @click="router.push(`/listing/${route.params.id}/facilities`)">
-            See all
+            {{ t('common.seeAll') }}
           </button>
         </div>
         <div class="flex gap-2 overflow-x-auto pb-1">
           <FacilityPill v-for="item in facilities.flatMap((g) => g.items).slice(0, 6)" :key="item" :label="item" />
         </div>
         <p class="text-sm text-muted">
-          Rooms: {{ listing.rooms ?? listing.beds }}
-          · Beds: {{ listing.beds }}
-          · Baths: {{ listing.baths }}
-          <span v-if="listing.area">· Area: {{ listing.area }} sqm</span>
-          <span v-if="listing.beds">· Guests: {{ Math.max(listing.beds, listing.rooms ?? listing.beds) }}</span>
+          {{ t('listing.rooms') }}: {{ listing.rooms ?? listing.beds }}
+          · {{ t('listing.bedsLabel') }}: {{ listing.beds }}
+          · {{ t('listing.bathsLabel') }}: {{ listing.baths }}
+          <span v-if="listing.area">· {{ t('listing.area') }}: {{ listing.area }} {{ t('filters.sqm') }}</span>
+          <span v-if="listing.beds">· {{ t('listing.guests') }}: {{ Math.max(listing.beds, listing.rooms ?? listing.beds) }}</span>
         </p>
       </div>
 
       <div class="space-y-2">
-        <h3 class="section-title">Description</h3>
+        <h3 class="section-title">{{ t('listing.description') }}</h3>
         <p class="text-sm leading-relaxed text-muted">
           {{ expanded ? description : description.slice(0, 160) + (description.length > 160 ? '...' : '') }}
         </p>
         <button class="text-sm font-semibold text-primary" @click="expanded = !expanded">
-          {{ expanded ? 'Read less' : 'Read more' }}
+          {{ expanded ? t('common.readLess') : t('common.readMore') }}
         </button>
       </div>
 
       <div class="space-y-3">
         <div class="flex items-center justify-between gap-2">
           <div class="flex items-center gap-2">
-            <h3 class="section-title">Location</h3>
-            <Badge v-if="locationSource === 'manual'" variant="info">Manual pin</Badge>
+            <h3 class="section-title">{{ t('listing.location') }}</h3>
+            <Badge v-if="locationSource === 'manual'" variant="info">{{ t('listing.manualPin') }}</Badge>
           </div>
           <Button variant="ghost" size="sm" class="text-sm font-semibold text-primary" :disabled="!hasCoords" @click="openExternalMap">
-            View on map
+            {{ t('listing.viewOnMap') }}
           </Button>
         </div>
-        <p class="text-xs text-muted">Preview uses stored coordinates—adjust if the pin looks off.</p>
+        <p class="text-xs text-muted">{{ t('listing.locationHint') }}</p>
         <div class="space-y-3 rounded-2xl border border-line bg-white p-3 shadow-soft">
           <component
             :is="ListingMap"
@@ -711,16 +747,16 @@ const deleteViewingSlot = async (slotId: string) => {
             @update="onMarkerMove"
           />
           <div v-else class="flex h-64 items-center justify-center rounded-2xl bg-surface text-sm text-muted">
-            Location not available yet.
+            {{ t('listing.locationUnavailable') }}
           </div>
           <div v-if="showDevCoords && hasCoords" class="flex items-center justify-between text-[11px] font-mono text-muted">
-            <span>lat: {{ mapCoords?.lat?.toFixed(6) }}</span>
-            <span>lng: {{ mapCoords?.lng?.toFixed(6) }}</span>
+            <span>{{ t('listing.lat') }}: {{ mapCoords?.lat?.toFixed(6) }}</span>
+            <span>{{ t('listing.lng') }}: {{ mapCoords?.lng?.toFixed(6) }}</span>
           </div>
           <p v-if="fallbackError" class="text-xs font-semibold text-red-500">{{ fallbackError }}</p>
           <div v-if="canAdjustLocation" class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <p class="text-xs text-muted">
-              {{ adjustingLocation ? 'Drag the pin to the correct spot, then save.' : 'Owners can fine-tune the map pin.' }}
+              {{ adjustingLocation ? t('listing.locationDragPin') : t('listing.locationOwnerHint') }}
             </p>
             <div class="flex flex-wrap gap-2">
               <Button
@@ -729,12 +765,12 @@ const deleteViewingSlot = async (slotId: string) => {
                 :loading="savingLocation"
                 @click="saveAdjustedLocation"
               >
-                Save pin
+                {{ t('listing.savePin') }}
               </Button>
-              <Button v-if="adjustingLocation" variant="ghost" size="sm" @click="cancelAdjustLocation">Cancel</Button>
-              <Button v-else variant="secondary" size="sm" @click="startAdjustLocation">Adjust pin</Button>
+              <Button v-if="adjustingLocation" variant="ghost" size="sm" @click="cancelAdjustLocation">{{ t('common.cancel') }}</Button>
+              <Button v-else variant="secondary" size="sm" @click="startAdjustLocation">{{ t('listing.adjustPin') }}</Button>
               <Button variant="ghost" size="sm" :loading="resettingLocation" @click="resetLocationToGeocoded">
-                Reset to address
+                {{ t('listing.resetToAddress') }}
               </Button>
             </div>
           </div>
@@ -743,18 +779,18 @@ const deleteViewingSlot = async (slotId: string) => {
 
       <div class="space-y-3">
         <div class="flex items-center justify-between">
-          <h3 class="section-title">Reviews</h3>
+          <h3 class="section-title">{{ t('titles.reviews') }}</h3>
           <button class="text-sm font-semibold text-primary" @click="router.push(`/listing/${route.params.id}/reviews`)">
-            View all
+            {{ t('common.viewAll') }}
           </button>
         </div>
         <div class="space-y-2">
           <div
-            v-for="review in reviews"
-            :key="review.id"
-            class="flex items-start gap-3 rounded-2xl bg-white p-3 shadow-soft"
-          >
-            <img :src="review.avatarUrl" alt="avatar" class="h-10 w-10 rounded-2xl object-cover" />
+          v-for="review in reviews"
+          :key="review.id"
+          class="flex items-start gap-3 rounded-2xl bg-white p-3 shadow-soft"
+        >
+            <img :src="review.avatarUrl" :alt="t('topbar.avatarAlt')" class="h-10 w-10 rounded-2xl object-cover" />
             <div class="flex-1 space-y-1">
               <div class="flex items-center justify-between">
                 <div>
@@ -766,21 +802,21 @@ const deleteViewingSlot = async (slotId: string) => {
               <p class="text-sm text-slate-700">{{ review.text }}</p>
             </div>
           </div>
-          <p v-if="!reviews.length" class="text-sm text-muted">No reviews yet.</p>
+          <p v-if="!reviews.length" class="text-sm text-muted">{{ t('reviews.emptyTitle') }}.</p>
         </div>
       </div>
 
       <div class="space-y-3">
         <div class="flex items-center justify-between">
-          <h3 class="section-title">Viewings</h3>
-          <Badge variant="info">Visit in person</Badge>
+          <h3 class="section-title">{{ t('listing.viewings') }}</h3>
+          <Badge variant="info">{{ t('listing.viewingsHint') }}</Badge>
         </div>
         <ErrorBanner v-if="viewingError" :message="viewingError" />
         <div class="space-y-3">
           <div v-if="isOwner" class="rounded-2xl border border-line bg-white p-4 shadow-soft">
             <div class="grid grid-cols-1 gap-3 md:grid-cols-3">
               <label class="space-y-1 text-xs font-semibold text-slate-900">
-                Vremenski opseg od
+                {{ t('listing.timeRangeFrom') }}
                 <input
                   v-model="slotForm.timeFrom"
                   type="time"
@@ -788,7 +824,7 @@ const deleteViewingSlot = async (slotId: string) => {
                 />
               </label>
               <label class="space-y-1 text-xs font-semibold text-slate-900">
-                do
+                {{ t('listing.timeRangeTo') }}
                 <input
                   v-model="slotForm.timeTo"
                   type="time"
@@ -796,7 +832,7 @@ const deleteViewingSlot = async (slotId: string) => {
                 />
               </label>
               <label class="space-y-1 text-xs font-semibold text-slate-900">
-                Kapacitet
+                {{ t('listing.capacity') }}
                 <input
                   v-model.number="slotForm.capacity"
                   min="1"
@@ -807,7 +843,7 @@ const deleteViewingSlot = async (slotId: string) => {
             </div>
             <div class="mt-2 grid grid-cols-1 gap-3 md:grid-cols-2">
               <label class="space-y-1 text-xs font-semibold text-slate-900">
-                Počinje od (datum)
+                {{ t('listing.startsAtDate') }}
                 <input
                   v-model="slotForm.startsAt"
                   type="date"
@@ -815,24 +851,24 @@ const deleteViewingSlot = async (slotId: string) => {
                 />
               </label>
               <div class="space-y-1 text-xs font-semibold text-slate-900">
-                Opseg dana
+                {{ t('listing.dayRange') }}
                 <div class="grid grid-cols-2 gap-2 text-[11px] font-semibold text-slate-800">
                   <label class="flex items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2">
-                    <input type="radio" value="everyday" v-model="slotForm.pattern" /> Svaki dan
+                    <input type="radio" value="everyday" v-model="slotForm.pattern" /> {{ t('listing.everyday') }}
                   </label>
                   <label class="flex items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2">
-                    <input type="radio" value="weekdays" v-model="slotForm.pattern" /> Radni dani
+                    <input type="radio" value="weekdays" v-model="slotForm.pattern" /> {{ t('listing.weekdays') }}
                   </label>
                   <label class="flex items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2">
-                    <input type="radio" value="weekends" v-model="slotForm.pattern" /> Vikend
+                    <input type="radio" value="weekends" v-model="slotForm.pattern" /> {{ t('listing.weekends') }}
                   </label>
                   <label class="flex items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2">
-                    <input type="radio" value="custom" v-model="slotForm.pattern" /> Odabrani dani
+                    <input type="radio" value="custom" v-model="slotForm.pattern" /> {{ t('listing.customDays') }}
                   </label>
                 </div>
                 <div v-if="slotForm.pattern === 'custom'" class="mt-2 flex flex-wrap gap-2">
                   <label
-                    v-for="(day, idx) in ['N','P','U','S','Č','P','S']"
+                    v-for="(day, idx) in dayLabels"
                     :key="day"
                     class="flex items-center gap-1 rounded-xl border border-line bg-surface px-2 py-1 text-[11px] font-semibold text-slate-800"
                   >
@@ -847,7 +883,7 @@ const deleteViewingSlot = async (slotId: string) => {
               </div>
             </div>
             <div class="mt-3 flex justify-end">
-              <Button size="md" :loading="slotSubmitting" @click="createViewingSlot">Dodaj slot</Button>
+              <Button size="md" :loading="slotSubmitting" @click="createViewingSlot">{{ t('listing.addSlot') }}</Button>
             </div>
           </div>
 
@@ -855,8 +891,8 @@ const deleteViewingSlot = async (slotId: string) => {
 
           <EmptyState
             v-else-if="!visibleViewingSlots.length"
-            :title="isOwner ? 'No slots yet' : 'No viewing slots'"
-            :subtitle="isOwner ? 'Add slots for seekers to book a visit' : 'Check back soon for available viewing times'"
+            :title="isOwner ? t('listing.noSlotsTitleOwner') : t('listing.noSlotsTitle')"
+            :subtitle="isOwner ? t('listing.noSlotsSubtitleOwner') : t('listing.noSlotsSubtitle')"
             :icon="CalendarClock"
           />
 
@@ -870,10 +906,10 @@ const deleteViewingSlot = async (slotId: string) => {
                 <div>
                   <p class="font-semibold text-slate-900">{{ formatSlotWindow(slot) }}</p>
                   <p class="text-xs text-muted">
-                    Capacity {{ slot.capacity }} · {{ slot.isActive ? 'Active' : 'Paused' }}
+                    {{ t('listing.capacity') }} {{ slot.capacity }} · {{ slot.isActive ? t('listing.active') : t('listing.paused') }}
                   </p>
                 </div>
-                <Badge :variant="slot.isActive ? 'accepted' : 'info'">{{ slot.isActive ? 'Open' : 'Paused' }}</Badge>
+                <Badge :variant="slot.isActive ? 'accepted' : 'info'">{{ slot.isActive ? t('listing.open') : t('listing.paused') }}</Badge>
               </div>
 
               <div class="mt-3 flex flex-col gap-2">
@@ -886,7 +922,7 @@ const deleteViewingSlot = async (slotId: string) => {
                       class="flex-1"
                       @click="toggleSlotActive(slot.id, !slot.isActive)"
                     >
-                      {{ slot.isActive ? 'Pause slot' : 'Activate slot' }}
+                      {{ slot.isActive ? t('listing.pauseSlot') : t('listing.activateSlot') }}
                     </Button>
                     <Button
                       variant="ghost"
@@ -895,14 +931,14 @@ const deleteViewingSlot = async (slotId: string) => {
                       class="flex-1"
                       @click="deleteViewingSlot(slot.id)"
                     >
-                      Delete
+                      {{ t('common.delete') }}
                     </Button>
                   </div>
                 </template>
                 <template v-else>
                   <div class="grid grid-cols-1 gap-2 md:grid-cols-2">
                     <label class="space-y-1 text-xs font-semibold text-slate-900">
-                      Datum
+                      {{ t('listing.date') }}
                       <input
                         v-model="viewingDates[slot.id]"
                         type="date"
@@ -910,7 +946,7 @@ const deleteViewingSlot = async (slotId: string) => {
                       />
                     </label>
                     <label class="space-y-1 text-xs font-semibold text-slate-900">
-                      Vreme
+                      {{ t('listing.time') }}
                       <input
                         v-model="viewingTimes[slot.id]"
                         type="time"
@@ -924,7 +960,7 @@ const deleteViewingSlot = async (slotId: string) => {
                     v-model="viewingNotes[slot.id]"
                     rows="2"
                     class="w-full rounded-xl border border-line px-3 py-2 text-sm text-slate-900 placeholder:text-muted focus:border-primary focus:outline-none"
-                    placeholder="Optional note for the host"
+                    :placeholder="t('listing.optionalNote')"
                   ></textarea>
                   <Button
                     variant="primary"
@@ -933,7 +969,7 @@ const deleteViewingSlot = async (slotId: string) => {
                     :loading="viewingSubmitting"
                     @click="requestViewingSlot(slot.id)"
                   >
-                    Request this slot
+                    {{ t('listing.requestSlot') }}
                   </Button>
                 </template>
               </div>
@@ -945,24 +981,24 @@ const deleteViewingSlot = async (slotId: string) => {
       <div class="rounded-2xl border border-line bg-white p-4 shadow-soft">
         <div class="flex items-center justify-between gap-3">
           <div>
-            <p class="text-xs text-muted">Published by</p>
+            <p class="text-xs text-muted">{{ t('listing.publishedBy') }}</p>
             <div class="flex flex-wrap items-center gap-2">
               <p class="text-base font-semibold text-slate-900">{{ landlordName }}</p>
               <Badge v-if="listing?.landlord?.verificationStatus === 'approved'" variant="accepted">
-                Verified landlord
+                {{ t('listing.verifiedLandlord') }}
               </Badge>
               <Badge v-if="listing?.landlord?.badges?.includes('top_landlord')" variant="info">
-                Top landlord
+                {{ t('listing.topLandlord') }}
               </Badge>
             </div>
           </div>
-          <Button variant="secondary" size="md" @click="viewProfile">View profile</Button>
+          <Button variant="secondary" size="md" @click="viewProfile">{{ t('listing.viewProfile') }}</Button>
         </div>
       </div>
 
       <div class="space-y-3">
         <div class="flex items-center justify-between px-1">
-          <h2 class="section-title">Similar listings</h2>
+          <h2 class="section-title">{{ t('listing.similarListings') }}</h2>
         </div>
         <ErrorBanner v-if="similarError" :message="similarError" />
         <ListSkeleton v-if="similarLoading && !similarListings.length" :count="3" />
@@ -972,49 +1008,58 @@ const deleteViewingSlot = async (slotId: string) => {
             :key="item.id"
             class="w-72 shrink-0"
             :listing="item"
+            :use-translations="true"
             @toggle="listingsStore.toggleFavorite"
             @click="router.push(`/listing/${item.id}`)"
           />
         </div>
-        <EmptyState v-if="!similarLoading && !similarListings.length && !similarError" title="No similar stays yet" subtitle="Check back after new listings appear" />
+        <EmptyState
+          v-if="!similarLoading && !similarListings.length && !similarError"
+          :title="t('listing.noSimilarTitle')"
+          :subtitle="t('listing.noSimilarSubtitle')"
+        />
       </div>
     </div>
 
-    <EmptyState v-else-if="!loading" title="Listing unavailable" subtitle="Try again later or choose another stay" />
+    <EmptyState
+      v-else-if="!loading"
+      :title="t('listing.unavailableTitle')"
+      :subtitle="t('listing.unavailableSubtitle')"
+    />
 
     <div v-if="listing" class="fixed bottom-4 left-0 right-0 z-[1200] mx-auto max-w-md px-4">
       <div class="flex items-center gap-3 rounded-3xl bg-white p-4 shadow-card">
         <div class="flex-1">
-          <p class="text-xs text-muted">Price</p>
-          <p class="text-lg font-semibold text-slate-900">${{ listing.pricePerNight }}/night</p>
+          <p class="text-xs text-muted">{{ t('listing.price') }}</p>
+          <p class="text-lg font-semibold text-slate-900">${{ listing.pricePerNight }}/{{ t('listing.night') }}</p>
         </div>
-        <Badge variant="info">Rating {{ listing.rating }}</Badge>
+        <Badge variant="info">{{ t('listing.rating') }} {{ listing.rating }}</Badge>
         <Button variant="secondary" size="lg" :disabled="chatLoading" @click="openChat">
-          {{ chatLoading ? 'Opening...' : 'Message host' }}
+          {{ chatLoading ? t('listing.openingChat') : t('listing.messageHost') }}
         </Button>
         <Button size="lg" :disabled="hasApplied" @click="openInquiry">
-          {{ hasApplied ? 'Already applied' : 'Apply' }}
+          {{ hasApplied ? t('listing.alreadyApplied') : t('listing.apply') }}
         </Button>
       </div>
     </div>
   </div>
 
-  <ModalSheet v-model="requestSheet" title="Request to book">
+  <ModalSheet v-model="requestSheet" :title="t('listing.requestTitle')">
     <div class="space-y-4">
       <div class="grid grid-cols-2 gap-2">
         <label class="space-y-1 text-xs font-semibold text-slate-900">
-          Check in
+          {{ t('listing.checkIn') }}
           <input v-model="requestForm.startDate" type="date" class="w-full rounded-xl border border-line px-3 py-3 text-sm focus:border-primary focus:outline-none" />
         </label>
         <label class="space-y-1 text-xs font-semibold text-slate-900">
-          Check out
+          {{ t('listing.checkOut') }}
           <input v-model="requestForm.endDate" type="date" class="w-full rounded-xl border border-line px-3 py-3 text-sm focus:border-primary focus:outline-none" />
         </label>
       </div>
       <div class="flex items-center justify-between rounded-2xl bg-surface px-3 py-3">
         <div>
-          <p class="text-sm font-semibold text-slate-900">Guests</p>
-          <p class="text-xs text-muted">Choose group size</p>
+          <p class="text-sm font-semibold text-slate-900">{{ t('filters.guests') }}</p>
+          <p class="text-xs text-muted">{{ t('listing.chooseGroupSize') }}</p>
         </div>
         <div class="flex items-center gap-2">
           <Button size="md" variant="secondary" @click="requestForm.guests = Math.max(1, requestForm.guests - 1)">-</Button>
@@ -1023,37 +1068,37 @@ const deleteViewingSlot = async (slotId: string) => {
         </div>
       </div>
       <label class="space-y-2 text-sm font-semibold text-slate-900">
-        Message to host
+        {{ t('listing.messageToHost') }}
         <textarea
           v-model="requestForm.message"
           rows="3"
           class="w-full rounded-2xl border border-line bg-white px-3 py-3 text-sm text-slate-900 placeholder:text-muted focus:border-primary focus:outline-none"
-          placeholder="Share your plans or timing"
+          :placeholder="t('listing.messagePlaceholder')"
         ></textarea>
       </label>
       <Button block size="lg" :disabled="!isFormValid || submitting" @click="submitRequest">
-        {{ submitting ? 'Sending...' : 'Send Request' }}
+        {{ submitting ? t('listing.sending') : t('listing.sendRequest') }}
       </Button>
     </div>
   </ModalSheet>
 
-  <ModalSheet v-model="showShare" title="Share this stay">
+  <ModalSheet v-model="showShare" :title="t('listing.shareTitle')">
     <div class="space-y-4">
       <div class="flex items-center gap-3 rounded-2xl bg-surface px-3 py-2">
         <div class="h-16 w-16 overflow-hidden rounded-2xl">
-          <img :src="listing?.coverImage" alt="preview" class="h-full w-full object-cover" />
+          <img :src="listing?.coverImage" :alt="t('listing.previewAlt')" class="h-full w-full object-cover" />
         </div>
         <div class="flex-1">
           <h4 class="font-semibold text-slate-900">{{ listing?.title }}</h4>
-          <p class="text-sm text-muted">{{ listing?.rating }} ★ · ${{ listing?.pricePerNight }}/night</p>
+          <p class="text-sm text-muted">{{ listing?.rating }} ★ · ${{ listing?.pricePerNight }}/{{ t('listing.night') }}</p>
         </div>
       </div>
 
       <div class="rounded-2xl border border-line p-3">
-        <p class="text-sm font-semibold text-slate-900">Copy link</p>
+        <p class="text-sm font-semibold text-slate-900">{{ t('listing.copyLink') }}</p>
         <div class="mt-2 flex items-center gap-2 rounded-xl bg-surface px-3 py-2">
           <span class="flex-1 truncate text-sm text-muted">https://izdaj-iznajmi.app/l/{{ listing?.id }}</span>
-          <Button variant="secondary" size="md">Copy</Button>
+          <Button variant="secondary" size="md">{{ t('common.copy') }}</Button>
         </div>
       </div>
 

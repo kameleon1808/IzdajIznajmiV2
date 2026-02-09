@@ -11,11 +11,14 @@ import Button from '../components/ui/Button.vue'
 import { getPublicProfile, getUserRatings, reportRating, getSharedTransactions, reportTransaction, leaveRating } from '../services'
 import { useAuthStore } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
+import { useLanguageStore } from '../stores/language'
 import type { PublicProfile, Rating, RentalTransaction } from '../types'
 
 const route = useRoute()
 const auth = useAuthStore()
 const toast = useToastStore()
+const languageStore = useLanguageStore()
+const t = (key: Parameters<typeof languageStore.t>[0]) => languageStore.t(key)
 const profile = ref<PublicProfile | null>(null)
 const loading = ref(true)
 const error = ref('')
@@ -50,9 +53,9 @@ const isSelf = computed(() =>
 )
 const isGuest = computed(() => !auth.isAuthenticated)
 const ratingLockedReason = computed(() => {
-  if (isGuest.value) return 'Log in to rate this user.'
-  if (isSelf.value) return 'You cannot rate your own profile.'
-  if (!hasRatingListings.value) return 'No shared listings yet. Complete a stay before leaving a rating.'
+  if (isGuest.value) return t('publicProfile.rating.login')
+  if (isSelf.value) return t('publicProfile.rating.self')
+  if (!hasRatingListings.value) return t('publicProfile.rating.noShared')
   return ''
 })
 const canSubmitRating = computed(() => !isGuest.value && !isSelf.value && hasRatingListings.value)
@@ -77,7 +80,7 @@ const load = async () => {
       }
     }
   } catch (err) {
-    error.value = (err as Error).message || 'Failed to load profile.'
+    error.value = (err as Error).message || t('publicProfile.loadFailed')
     profile.value = null
   } finally {
     loading.value = false
@@ -98,7 +101,7 @@ const submitReport = async () => {
     reportReason.value = 'spam'
     reportDetails.value = ''
   } catch (err) {
-    error.value = (err as Error).message || 'Failed to report rating.'
+    error.value = (err as Error).message || t('publicProfile.reportRatingFailed')
   } finally {
     reportSubmitting.value = false
   }
@@ -128,7 +131,7 @@ const submitTransactionReport = async () => {
     transactionReason.value = 'issue'
     transactionDetails.value = ''
   } catch (err) {
-    error.value = (err as Error).message || 'Failed to report transaction.'
+    error.value = (err as Error).message || t('publicProfile.reportTransactionFailed')
   } finally {
     transactionSubmitting.value = false
   }
@@ -146,7 +149,7 @@ watch(
 const submitRating = async () => {
   if (!profile.value?.id) return
   if (!ratingListingId.value || ratingScore.value < 1) {
-    toast.push({ title: 'Rating incomplete', message: 'Select a listing and stars first.', type: 'error' })
+    toast.push({ title: t('publicProfile.rating.incompleteTitle'), message: t('publicProfile.rating.incompleteMessage'), type: 'error' })
     return
   }
   ratingSubmitting.value = true
@@ -166,9 +169,9 @@ const submitRating = async () => {
     }
     ratingSubmitted.value = true
     ratingComment.value = ''
-    toast.push({ title: 'Thank you!', message: 'Rating submitted.', type: 'success' })
+    toast.push({ title: t('publicProfile.rating.thankYou'), message: t('publicProfile.rating.submitted'), type: 'success' })
   } catch (err) {
-    toast.push({ title: 'Could not rate', message: (err as Error).message ?? 'Try again later.', type: 'error' })
+    toast.push({ title: t('publicProfile.rating.failedTitle'), message: (err as Error).message ?? t('publicProfile.rating.failedMessage'), type: 'error' })
   } finally {
     ratingSubmitting.value = false
   }
@@ -183,27 +186,27 @@ const submitRating = async () => {
     <template v-else-if="profile">
       <div class="rounded-2xl bg-white p-4 shadow-soft border border-white/60 space-y-2">
         <h1 class="text-xl font-semibold text-slate-900">{{ profile.fullName }}</h1>
-        <p class="text-sm text-muted">Joined {{ formatDate(profile.joinedAt) }}</p>
+        <p class="text-sm text-muted">{{ t('publicProfile.joined') }} {{ formatDate(profile.joinedAt) }}</p>
         <div class="flex flex-wrap gap-2 pt-2">
           <Badge :variant="profile.verifications.email ? 'accepted' : 'cancelled'">
             <span class="inline-flex items-center gap-1">
               <ShieldCheck v-if="profile.verifications.email" class="h-4 w-4" />
               <ShieldX v-else class="h-4 w-4" />
-              Email
+              {{ t('publicProfile.email') }}
             </span>
           </Badge>
           <Badge :variant="profile.verifications.phone ? 'accepted' : 'cancelled'">
             <span class="inline-flex items-center gap-1">
               <ShieldCheck v-if="profile.verifications.phone" class="h-4 w-4" />
               <ShieldX v-else class="h-4 w-4" />
-              Phone
+              {{ t('publicProfile.phone') }}
             </span>
           </Badge>
           <Badge :variant="profile.verifications.address ? 'accepted' : 'cancelled'">
             <span class="inline-flex items-center gap-1">
               <ShieldCheck v-if="profile.verifications.address" class="h-4 w-4" />
               <ShieldX v-else class="h-4 w-4" />
-              Address
+              {{ t('publicProfile.address') }}
             </span>
           </Badge>
           <Badge
@@ -212,34 +215,35 @@ const submitRating = async () => {
           >
             <span class="inline-flex items-center gap-1">
               <ShieldCheck class="h-4 w-4" />
-              Verified landlord {{ profile.landlordVerification.verifiedAt ? `· ${formatDate(profile.landlordVerification.verifiedAt)}` : '' }}
+              {{ t('publicProfile.verifiedLandlord') }}
+              {{ profile.landlordVerification.verifiedAt ? `· ${formatDate(profile.landlordVerification.verifiedAt)}` : '' }}
             </span>
           </Badge>
           <Badge v-if="profile.badges?.includes('top_landlord')" variant="info">
             <span class="inline-flex items-center gap-1">
               <ShieldCheck class="h-4 w-4" />
-              Top landlord
+              {{ t('publicProfile.topLandlord') }}
             </span>
           </Badge>
         </div>
         <div v-if="sharedTransactions.length" class="pt-2">
-          <Button variant="secondary" size="sm" @click="openTransactionReport">Prijavi transakciju</Button>
+          <Button variant="secondary" size="sm" @click="openTransactionReport">{{ t('publicProfile.reportTransaction') }}</Button>
         </div>
       </div>
 
       <div class="rounded-2xl bg-white p-4 shadow-soft border border-white/60 space-y-3">
         <div class="flex items-center justify-between">
-          <p class="font-semibold text-slate-900">Leave a rating</p>
-          <span v-if="ratingListingId" class="text-xs text-muted">Listing #{{ ratingListingId }}</span>
+          <p class="font-semibold text-slate-900">{{ t('publicProfile.leaveRating') }}</p>
+          <span v-if="ratingListingId" class="text-xs text-muted">{{ t('publicProfile.listingLabel') }} #{{ ratingListingId }}</span>
         </div>
         <div v-if="ratingLockedReason" class="rounded-xl border border-dashed border-line bg-surface px-3 py-2 text-sm text-muted">
           {{ ratingLockedReason }}
         </div>
         <div class="space-y-3">
-          <label class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Listing</label>
+          <label class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">{{ t('publicProfile.listing') }}</label>
           <select v-model="ratingListingId" class="w-full rounded-xl border border-line px-3 py-2 text-sm" :disabled="!hasRatingListings">
             <option v-for="listing in ratingListings" :key="listing.id" :value="listing.id">
-              {{ listing.title ?? `Listing #${listing.id}` }}{{ listing.city ? ` · ${listing.city}` : '' }}
+              {{ listing.title ?? `${t('publicProfile.listingLabel')} #${listing.id}` }}{{ listing.city ? ` · ${listing.city}` : '' }}
             </option>
           </select>
         </div>
@@ -260,7 +264,7 @@ const submitRating = async () => {
           v-model="ratingComment"
           rows="3"
           class="w-full rounded-2xl border border-line bg-surface px-3 py-2 text-sm text-slate-900 focus:border-primary focus:outline-none"
-          placeholder="Share your experience (optional)"
+          :placeholder="t('publicProfile.rating.placeholder')"
           :disabled="!canSubmitRating"
         ></textarea>
         <Button
@@ -270,7 +274,7 @@ const submitRating = async () => {
           :disabled="!canSubmitRating || ratingSubmitting || ratingSubmitted || ratingScore < 1"
           @click="submitRating"
         >
-          {{ ratingSubmitted ? 'Rating submitted' : ratingSubmitting ? 'Submitting...' : 'Submit rating' }}
+          {{ ratingSubmitted ? t('publicProfile.rating.submittedButton') : ratingSubmitting ? t('common.submitting') : t('publicProfile.rating.submit') }}
         </Button>
       </div>
 
@@ -281,76 +285,76 @@ const submitRating = async () => {
           </div>
           <div>
             <p class="text-2xl font-semibold text-slate-900">{{ profile.ratingStats.average.toFixed(1) }}</p>
-            <p class="text-sm text-muted">{{ profile.ratingStats.total }} ratings</p>
+            <p class="text-sm text-muted">{{ profile.ratingStats.total }} {{ t('publicProfile.ratingsCount') }}</p>
           </div>
         </div>
-        <EmptyState v-if="!ratings.length" title="No ratings yet" subtitle="This host has not received ratings." />
+        <EmptyState v-if="!ratings.length" :title="t('publicProfile.noRatingsTitle')" :subtitle="t('publicProfile.noRatingsSubtitle')" />
         <div v-else class="space-y-3">
           <div v-for="rating in ratings" :key="rating.id" class="rounded-xl border border-line bg-surface p-3">
             <div class="flex items-center justify-between">
-              <p class="font-semibold text-slate-900">{{ rating.rater?.name || 'Guest' }}</p>
+              <p class="font-semibold text-slate-900">{{ rating.rater?.name || t('publicProfile.guest') }}</p>
               <span class="rounded-full bg-primary/10 px-3 py-1 text-sm font-semibold text-primary">
                 {{ rating.rating }} ★
               </span>
             </div>
             <p class="text-sm text-muted">
-              {{ rating.comment || 'No comment provided.' }}
+              {{ rating.comment || t('publicProfile.noComment') }}
             </p>
             <p class="text-xs text-muted mt-1">{{ formatDate(rating.createdAt) }}</p>
             <div class="flex justify-end">
               <Button variant="secondary" size="sm" @click="openReport(rating)">
-                Report
+                {{ t('publicProfile.report') }}
               </Button>
             </div>
           </div>
         </div>
       </div>
     </template>
-    <EmptyState v-else title="Profile unavailable" subtitle="This user is not visible." />
+    <EmptyState v-else :title="t('publicProfile.unavailableTitle')" :subtitle="t('publicProfile.unavailableSubtitle')" />
   </div>
 
-  <ModalSheet v-model="showReport" title="Report rating">
+  <ModalSheet v-model="showReport" :title="t('publicProfile.reportRatingTitle')">
     <div class="space-y-3">
-      <label class="text-sm font-semibold text-slate-900">Reason</label>
+      <label class="text-sm font-semibold text-slate-900">{{ t('publicProfile.reason') }}</label>
       <select v-model="reportReason" class="w-full rounded-xl border border-line px-3 py-2 text-sm">
-        <option value="spam">Spam or fake</option>
-        <option value="abuse">Abusive content</option>
-        <option value="other">Other</option>
+        <option value="spam">{{ t('publicProfile.reportReasons.spam') }}</option>
+        <option value="abuse">{{ t('publicProfile.reportReasons.abuse') }}</option>
+        <option value="other">{{ t('publicProfile.reportReasons.other') }}</option>
       </select>
       <textarea
         v-model="reportDetails"
         rows="3"
         class="w-full rounded-2xl border border-line bg-surface px-3 py-2 text-sm text-slate-900 focus:border-primary focus:outline-none"
-        placeholder="Additional details (optional)"
+        :placeholder="t('publicProfile.detailsOptional')"
       ></textarea>
       <Button :disabled="reportSubmitting" variant="primary" block @click="submitReport">
-        {{ reportSubmitting ? 'Submitting...' : 'Submit report' }}
+        {{ reportSubmitting ? t('common.submitting') : t('publicProfile.submitReport') }}
       </Button>
     </div>
   </ModalSheet>
 
-  <ModalSheet v-model="showTransactionReport" title="Report transaction">
+  <ModalSheet v-model="showTransactionReport" :title="t('publicProfile.reportTransactionTitle')">
     <div class="space-y-3">
-      <label class="text-sm font-semibold text-slate-900">Transaction</label>
+      <label class="text-sm font-semibold text-slate-900">{{ t('publicProfile.transaction') }}</label>
       <select v-model="reportTransactionId" class="w-full rounded-xl border border-line px-3 py-2 text-sm">
         <option v-for="tx in sharedTransactions" :key="tx.id" :value="tx.id">
-          #{{ tx.id }} · {{ tx.listing?.title ?? 'Listing' }} · {{ tx.status }}
+          #{{ tx.id }} · {{ tx.listing?.title ?? t('publicProfile.listingLabel') }} · {{ tx.status }}
         </option>
       </select>
-      <label class="text-sm font-semibold text-slate-900">Reason</label>
+      <label class="text-sm font-semibold text-slate-900">{{ t('publicProfile.reason') }}</label>
       <select v-model="transactionReason" class="w-full rounded-xl border border-line px-3 py-2 text-sm">
-        <option value="issue">Issue with transaction</option>
-        <option value="abuse">Abusive behavior</option>
-        <option value="other">Other</option>
+        <option value="issue">{{ t('publicProfile.transactionReasons.issue') }}</option>
+        <option value="abuse">{{ t('publicProfile.transactionReasons.abuse') }}</option>
+        <option value="other">{{ t('publicProfile.reportReasons.other') }}</option>
       </select>
       <textarea
         v-model="transactionDetails"
         rows="3"
         class="w-full rounded-2xl border border-line bg-surface px-3 py-2 text-sm text-slate-900 focus:border-primary focus:outline-none"
-        placeholder="Additional details (optional)"
+        :placeholder="t('publicProfile.detailsOptional')"
       ></textarea>
       <Button :disabled="transactionSubmitting" variant="primary" block @click="submitTransactionReport">
-        {{ transactionSubmitting ? 'Submitting...' : 'Submit report' }}
+        {{ transactionSubmitting ? t('common.submitting') : t('publicProfile.submitReport') }}
       </Button>
     </div>
   </ModalSheet>

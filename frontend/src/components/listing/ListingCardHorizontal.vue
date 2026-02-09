@@ -1,14 +1,32 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { Award, Heart, MapPin, ShieldCheck, Star } from 'lucide-vue-next'
 import type { Listing } from '../../types'
+import { useLanguageStore } from '../../stores/language'
 
-defineProps<{ listing: Listing }>()
+const props = withDefaults(defineProps<{ listing: Listing; useTranslations?: boolean }>(), {
+  useTranslations: false,
+})
 const emit = defineEmits(['toggle', 'click'])
 
 const toggle = (e: Event, id: string) => {
   e.stopPropagation()
   emit('toggle', id)
 }
+
+const languageStore = useLanguageStore()
+const t = (key: Parameters<typeof languageStore.t>[0]) => languageStore.t(key)
+
+const nightLabel = computed(() => (props.useTranslations ? t('listing.night') : 'night'))
+const verifiedLabel = computed(() => (props.useTranslations ? t('listing.verifiedLandlord') : 'Verified landlord'))
+const topLandlordLabel = computed(() => (props.useTranslations ? t('listing.topLandlord') : 'Top landlord'))
+const categoryLabel = computed(() => {
+  if (!props.useTranslations) return props.listing.category
+  if (props.listing.category === 'villa') return t('listing.categoryVilla')
+  if (props.listing.category === 'hotel') return t('listing.categoryHotel')
+  if (props.listing.category === 'apartment') return t('listing.categoryApartment')
+  return props.listing.category
+})
 </script>
 
 <template>
@@ -40,14 +58,14 @@ const toggle = (e: Event, id: string) => {
               class="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 lg:px-3 lg:py-1 lg:text-xs"
             >
               <ShieldCheck class="h-3 w-3 lg:h-4 lg:w-4" />
-              Verified landlord
+              {{ verifiedLabel }}
             </div>
             <div
               v-if="listing.landlord?.badges?.includes('top_landlord')"
               class="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-700 lg:px-3 lg:py-1 lg:text-xs"
             >
               <Award class="h-3 w-3 lg:h-4 lg:w-4" />
-              Top landlord
+              {{ topLandlordLabel }}
             </div>
           </div>
         </div>
@@ -57,9 +75,9 @@ const toggle = (e: Event, id: string) => {
         </div>
       </div>
       <div class="flex items-center justify-between">
-        <span class="text-sm text-muted lg:text-base">${{ listing.pricePerNight }}/night</span>
+        <span class="text-sm text-muted lg:text-base">${{ listing.pricePerNight }}/{{ nightLabel }}</span>
         <span class="rounded-pill bg-primary/10 px-3 py-1 text-xs font-semibold capitalize text-primary lg:px-4 lg:py-1.5 lg:text-sm">
-          {{ listing.category }}
+          {{ categoryLabel }}
         </span>
       </div>
     </div>

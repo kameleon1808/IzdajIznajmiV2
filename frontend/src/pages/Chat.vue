@@ -8,6 +8,7 @@ import ListSkeleton from '../components/ui/ListSkeleton.vue'
 import { useChatStore } from '../stores/chat'
 import { useAuthStore } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
+import { useLanguageStore } from '../stores/language'
 import Button from '../components/ui/Button.vue'
 import { getTypingStatus, getUserPresence, pingPresence, setTypingStatus } from '../services'
 import ErrorState from '../components/ui/ErrorState.vue'
@@ -25,6 +26,8 @@ const uploading = ref(false)
 const uploadProgress = ref<number | null>(null)
 const auth = useAuthStore()
 const toast = useToastStore()
+const languageStore = useLanguageStore()
+const t = (key: Parameters<typeof languageStore.t>[0]) => languageStore.t(key)
 const typingUsers = ref<Array<{ id: string; name: string; expiresIn: number }>>([])
 const otherOnline = ref(false)
 
@@ -78,7 +81,7 @@ const resolveConversation = async (id?: string) => {
     chatStore.setActiveConversation(id)
     await chatStore.openByConversationId(id)
   } catch (err) {
-    toast.push({ title: 'Chat unavailable', message: (err as Error).message, type: 'error' })
+    toast.push({ title: t('chat.unavailable'), message: (err as Error).message, type: 'error' })
   }
 }
 
@@ -89,14 +92,14 @@ const retryChat = async () => {
       await chatStore.fetchMessages(conversation.value.id)
     }
   } catch (err) {
-    toast.push({ title: 'Retry failed', message: (err as Error).message, type: 'error' })
+    toast.push({ title: t('chat.retryFailed'), message: (err as Error).message, type: 'error' })
   }
 }
 
 const send = async () => {
   if (!message.value.trim() && !attachments.value.length) return
   if (!conversation.value?.id) {
-    toast.push({ title: 'Select a chat', message: 'Open a conversation first.', type: 'error' })
+    toast.push({ title: t('chat.selectChat'), message: t('chat.openConversationFirst'), type: 'error' })
     return
   }
   try {
@@ -295,7 +298,7 @@ onBeforeUnmount(() => {
 <template>
   <div class="flex min-h-screen flex-col bg-surface">
     <div class="mx-4 mt-4" v-if="error">
-      <ErrorState :message="error" retry-label="Retry" @retry="retryChat" />
+      <ErrorState :message="error" :retry-label="t('chat.retry')" @retry="retryChat" />
     </div>
     <div class="flex-1 space-y-3 px-4 pt-4 pb-28">
       <ListSkeleton v-if="loading" :count="3" />
@@ -303,7 +306,7 @@ onBeforeUnmount(() => {
         <div v-if="conversation" class="rounded-2xl border border-line bg-white p-3 shadow-soft">
           <div class="flex items-center justify-between gap-2">
             <div>
-              <p class="text-sm font-semibold text-slate-900">{{ conversation.listingTitle || 'Chat thread' }}</p>
+              <p class="text-sm font-semibold text-slate-900">{{ conversation.listingTitle || t('chat.thread') }}</p>
               <p class="text-xs text-muted">
                 {{ conversation.userName }}
                 <span v-if="conversation.listingCity">· {{ conversation.listingCity }}</span>
@@ -312,11 +315,11 @@ onBeforeUnmount(() => {
                   class="ml-2 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700"
                 >
                   <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
-                  Online
+                  {{ t('chat.online') }}
                 </span>
               </p>
               <p v-if="typingUsers.length" class="mt-1 text-[11px] text-primary">
-                {{ typingUsers[0]?.name || conversation.userName }} is typing...
+                {{ typingUsers[0]?.name || conversation.userName }} {{ t('chat.typing') }}
               </p>
             </div>
             <Button
@@ -325,7 +328,7 @@ onBeforeUnmount(() => {
               :disabled="!conversation.listingId"
               @click="router.push(`/listing/${conversation.listingId}`)"
             >
-              View listing
+              {{ t('chat.viewListing') }}
             </Button>
           </div>
         </div>
@@ -339,16 +342,16 @@ onBeforeUnmount(() => {
         />
         <EmptyState
           v-if="!messages.length && !error && conversation"
-          title="No messages"
-          subtitle="Say hello to start the conversation"
+          :title="t('chat.noMessagesTitle')"
+          :subtitle="t('chat.noMessagesSubtitle')"
         />
         <EmptyState
           v-else-if="!conversation && !error"
-          title="No conversation selected"
-          subtitle="Open chat from Notifications or Messages."
+          :title="t('chat.noConversationTitle')"
+          :subtitle="t('chat.noConversationSubtitle')"
         >
           <template #actions>
-            <Button variant="primary" @click="router.push('/messages')">Back to messages</Button>
+            <Button variant="primary" @click="router.push('/messages')">{{ t('chat.backToMessages') }}</Button>
           </template>
         </EmptyState>
       </template>

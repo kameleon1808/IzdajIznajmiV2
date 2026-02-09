@@ -8,6 +8,7 @@ import type { Report } from '../types'
 import { flagUserSuspicious, getAdminReports, updateAdminReport } from '../services'
 import { useToastStore } from '../stores/toast'
 import { useAuthStore } from '../stores/auth'
+import { useLanguageStore } from '../stores/language'
 
 const loading = ref(true)
 const actionLoading = ref(false)
@@ -22,6 +23,8 @@ const filters = ref<{ type: 'all' | 'rating' | 'message' | 'listing'; status: 'o
 
 const toast = useToastStore()
 const auth = useAuthStore()
+const languageStore = useLanguageStore()
+const t = (key: Parameters<typeof languageStore.t>[0]) => languageStore.t(key)
 
 const load = async () => {
   loading.value = true
@@ -33,7 +36,7 @@ const load = async () => {
     if (filters.value.q) params.q = filters.value.q
     reports.value = await getAdminReports(params)
   } catch (err) {
-    error.value = (err as any)?.message || 'Neuspešno učitavanje prijava.'
+    error.value = (err as any)?.message || t('admin.moderation.loadFailed')
   } finally {
     loading.value = false
   }
@@ -51,36 +54,49 @@ const updateReport = async (report: Report, action: 'dismiss' | 'resolve', delet
     const updated = await updateAdminReport(report.id, {
       action,
       deleteTarget,
-      resolution: action === 'resolve' ? 'Content addressed' : 'No action',
+      resolution: action === 'resolve' ? t('admin.moderation.resolutionResolved') : t('admin.moderation.resolutionNoAction'),
     })
     reports.value = reports.value.map((r) => (r.id === updated.id ? updated : r))
     if (selected.value?.id === updated.id) selected.value = updated
-    toast.push({ title: 'Ažurirano', message: 'Status prijave je sačuvan.', type: 'success' })
+    toast.push({ title: t('common.updated'), message: t('admin.moderation.saved'), type: 'success' })
   } catch (err) {
-    toast.push({ title: 'Greška', message: (err as any)?.message || 'Neuspešno ažuriranje prijave.', type: 'error' })
+    toast.push({ title: t('common.error'), message: (err as any)?.message || t('admin.moderation.updateFailed'), type: 'error' })
   } finally {
     actionLoading.value = false
   }
 }
 
 const formatDate = (value?: string) => (value ? new Date(value).toLocaleDateString() : '–')
+const statusLabel = (value: string) => {
+  if (value === 'open') return t('admin.moderation.status.open')
+  if (value === 'resolved') return t('admin.moderation.status.resolved')
+  if (value === 'dismissed') return t('admin.moderation.status.dismissed')
+  return value
+}
+const typeLabel = (value: string) => {
+  if (value === 'all') return t('admin.moderation.types.all')
+  if (value === 'rating') return t('admin.moderation.types.rating')
+  if (value === 'message') return t('admin.moderation.types.message')
+  if (value === 'listing') return t('admin.moderation.types.listing')
+  return value
+}
 
 const impersonateReporter = async () => {
   if (!selected.value?.reporter?.id) return
   try {
     await auth.startImpersonation(selected.value.reporter.id)
-    toast.push({ title: 'Impersonacija aktivna', message: 'Prebačeni ste u nalog korisnika.', type: 'info' })
+    toast.push({ title: t('admin.moderation.impersonationTitle'), message: t('admin.moderation.impersonationMessage'), type: 'info' })
   } catch (err) {
-    toast.push({ title: 'Greška', message: (err as any)?.message || 'Neuspešna impersonacija.', type: 'error' })
+    toast.push({ title: t('common.error'), message: (err as any)?.message || t('admin.moderation.impersonationFailed'), type: 'error' })
   }
 }
 const flagReporter = async () => {
   if (!selected.value?.reporter?.id) return
   try {
     await flagUserSuspicious(selected.value.reporter.id, true)
-    toast.push({ title: 'Označeno', message: 'Korisnik je označen kao sumnjiv.', type: 'success' })
+    toast.push({ title: t('common.updated'), message: t('admin.moderation.markedSuspicious'), type: 'success' })
   } catch (err) {
-    toast.push({ title: 'Greška', message: (err as any)?.message || 'Nije uspelo označavanje.', type: 'error' })
+    toast.push({ title: t('common.error'), message: (err as any)?.message || t('admin.moderation.markFailed'), type: 'error' })
   }
 }
 </script>
@@ -88,16 +104,16 @@ const flagReporter = async () => {
 <template>
   <div class="space-y-4">
     <div class="rounded-3xl bg-gradient-to-r from-indigo-600 to-purple-600 px-5 py-5 text-white shadow-lg">
-      <p class="text-sm opacity-85">Moderacija</p>
-      <h1 class="text-xl font-semibold leading-tight">Prijave i eskalacije</h1>
-      <p class="text-sm opacity-80">Pregledaj i zatvori prijave uz brzo označavanje sadržaja.</p>
+      <p class="text-sm opacity-85">{{ t('admin.moderation.header') }}</p>
+      <h1 class="text-xl font-semibold leading-tight">{{ t('admin.moderation.title') }}</h1>
+      <p class="text-sm opacity-80">{{ t('admin.moderation.subtitle') }}</p>
     </div>
 
     <div class="flex flex-wrap gap-3 text-sm font-semibold text-indigo-600">
-      <router-link to="/admin" class="opacity-80 hover:opacity-100">Dashboard</router-link>
-      <router-link to="/admin/moderation">Moderacija</router-link>
-      <router-link to="/admin/ratings" class="opacity-80 hover:opacity-100">Ocene</router-link>
-      <router-link to="/admin/kyc" class="opacity-80 hover:opacity-100">KYC</router-link>
+      <router-link to="/admin" class="opacity-80 hover:opacity-100">{{ t('admin.nav.dashboard') }}</router-link>
+      <router-link to="/admin/moderation">{{ t('admin.nav.moderation') }}</router-link>
+      <router-link to="/admin/ratings" class="opacity-80 hover:opacity-100">{{ t('admin.nav.ratings') }}</router-link>
+      <router-link to="/admin/kyc" class="opacity-80 hover:opacity-100">{{ t('admin.nav.kyc') }}</router-link>
     </div>
 
     <div class="flex flex-wrap gap-2">
@@ -108,7 +124,7 @@ const flagReporter = async () => {
         :variant="filters.type === type ? 'primary' : 'secondary'"
         @click="filters.type = type as any; load()"
       >
-        {{ type === 'all' ? 'Sve' : type }}
+        {{ typeLabel(type) }}
       </Button>
       <div class="ml-auto flex gap-2">
         <Button
@@ -118,7 +134,7 @@ const flagReporter = async () => {
           :variant="filters.status === status ? 'primary' : 'ghost'"
           @click="filters.status = status as any; load()"
         >
-          {{ status }}
+          {{ statusLabel(status) }}
         </Button>
       </div>
     </div>
@@ -127,11 +143,11 @@ const flagReporter = async () => {
       <input
         v-model="filters.q"
         type="search"
-        placeholder="Pretraži razlog/detalje"
+        :placeholder="t('admin.moderation.searchPlaceholder')"
         class="w-full rounded-xl border border-line bg-white px-3 py-2 text-sm shadow-inner focus:outline-none focus:ring-2 focus:ring-indigo-200"
         @keyup.enter="load()"
       />
-      <Button size="sm" variant="secondary" @click="load()">Filtriraj</Button>
+      <Button size="sm" variant="secondary" @click="load()">{{ t('common.filter') }}</Button>
     </div>
 
     <ErrorBanner v-if="error" :message="error" />
@@ -148,7 +164,10 @@ const flagReporter = async () => {
           <div>
             <p class="text-xs uppercase text-muted">#{{ report.id }}</p>
             <p class="text-base font-semibold">{{ report.reason }}</p>
-            <p class="text-sm text-muted">Tip: {{ report.type }} · Prijavio: {{ report.reporter?.name || 'N/A' }}</p>
+            <p class="text-sm text-muted">
+              {{ t('admin.moderation.typeLabel') }}: {{ typeLabel(report.type) }} ·
+              {{ t('admin.moderation.reporter') }}: {{ report.reporter?.name || t('common.na') }}
+            </p>
           </div>
           <span
             class="rounded-full px-3 py-1 text-xs font-semibold"
@@ -158,32 +177,33 @@ const flagReporter = async () => {
               'bg-slate-100 text-slate-700': report.status === 'dismissed',
             }"
           >
-            {{ report.status }}
+            {{ statusLabel(report.status) }}
           </span>
         </div>
 
         <div class="mt-2 text-sm text-slate-700">
           <div v-if="report.type === 'rating'">
-            Ocena: {{ report.target?.rating ?? '—' }}★ · {{ report.target?.comment || 'Bez komentara' }}
+            {{ t('admin.moderation.rating') }}: {{ report.target?.rating ?? '—' }}★ ·
+            {{ report.target?.comment || t('admin.moderation.noComment') }}
           </div>
           <div v-else-if="report.type === 'message'">
-            Poruka: “{{ report.target?.body || report.target?.text || 'Nedostupno' }}”
+            {{ t('admin.moderation.message') }}: “{{ report.target?.body || report.target?.text || t('common.unavailable') }}”
           </div>
           <div v-else-if="report.type === 'listing'">
-            Oglas: {{ report.target?.title || report.target?.id }} · {{ report.target?.city || '' }}
+            {{ t('admin.moderation.listing') }}: {{ report.target?.title || report.target?.id }} · {{ report.target?.city || '' }}
           </div>
-          <div v-else class="text-muted">Detalji nedostupni</div>
+          <div v-else class="text-muted">{{ t('admin.moderation.detailsUnavailable') }}</div>
         </div>
 
         <div class="mt-3 flex flex-wrap items-center gap-2 text-xs text-muted">
-          <span>Prijavljeno: {{ formatDate(report.createdAt) }}</span>
-          <span v-if="report.totalReports">· {{ report.totalReports }} prijave</span>
-          <span v-if="report.resolution">· Rešenje: {{ report.resolution }}</span>
+          <span>{{ t('admin.moderation.reportedAt') }}: {{ formatDate(report.createdAt) }}</span>
+          <span v-if="report.totalReports">· {{ report.totalReports }} {{ t('admin.moderation.reportsCount') }}</span>
+          <span v-if="report.resolution">· {{ t('admin.moderation.resolution') }}: {{ report.resolution }}</span>
         </div>
 
         <div class="mt-3 flex flex-wrap gap-2">
           <Button size="sm" variant="secondary" :disabled="actionLoading" @click.stop="updateReport(report, 'dismiss')">
-            Odbij
+            {{ t('admin.moderation.dismiss') }}
           </Button>
           <Button
             size="sm"
@@ -191,21 +211,21 @@ const flagReporter = async () => {
             :disabled="actionLoading"
             @click.stop="updateReport(report, 'resolve', report.type === 'rating')"
           >
-            Reši (obriši sadržaj)
+            {{ t('admin.moderation.resolveAndDelete') }}
           </Button>
         </div>
       </div>
 
-      <EmptyState v-if="!reports.length" title="Nema prijava" subtitle="Sve je čisto. Nema otvorenih prijava." />
+      <EmptyState v-if="!reports.length" :title="t('admin.moderation.emptyTitle')" :subtitle="t('admin.moderation.emptySubtitle')" />
     </div>
 
     <div v-if="selected" class="rounded-2xl border border-indigo-200 bg-indigo-50 p-4 shadow-inner">
       <div class="flex items-start justify-between gap-3">
         <div>
-          <p class="text-xs uppercase text-indigo-600">Detalj prijave</p>
+          <p class="text-xs uppercase text-indigo-600">{{ t('admin.moderation.detailTitle') }}</p>
           <p class="text-lg font-semibold">{{ selected.reason }}</p>
           <p class="text-sm text-indigo-900/70">
-            Status: {{ selected.status }} · Kreirano: {{ formatDate(selected.createdAt) }}
+            {{ t('admin.moderation.statusLabel') }}: {{ statusLabel(selected.status) }} · {{ t('admin.moderation.createdAt') }}: {{ formatDate(selected.createdAt) }}
           </p>
         </div>
         <div class="flex items-center gap-2">
@@ -216,7 +236,7 @@ const flagReporter = async () => {
             :disabled="actionLoading"
             @click="impersonateReporter"
           >
-            Impersoniraj prijavioca
+            {{ t('admin.moderation.impersonateReporter') }}
           </Button>
           <Button
             v-if="selected.reporter?.id"
@@ -225,14 +245,15 @@ const flagReporter = async () => {
             :disabled="actionLoading"
             @click="flagReporter"
           >
-            Označi sumnjivim
+            {{ t('admin.moderation.markSuspicious') }}
           </Button>
-          <Button size="sm" variant="ghost" @click="selected = null">Zatvori</Button>
+          <Button size="sm" variant="ghost" @click="selected = null">{{ t('common.close') }}</Button>
         </div>
       </div>
-      <p class="mt-2 text-sm text-slate-800">{{ selected.details || 'Nema dodatnih detalja.' }}</p>
+      <p class="mt-2 text-sm text-slate-800">{{ selected.details || t('admin.moderation.noDetails') }}</p>
       <p class="mt-2 text-xs text-slate-600">
-        Rezolucija: {{ selected.resolution || 'U toku' }} · Ažurirano: {{ formatDate(selected.reviewedAt) }}
+        {{ t('admin.moderation.resolution') }}: {{ selected.resolution || t('admin.moderation.inProgress') }} ·
+        {{ t('admin.moderation.updatedAt') }}: {{ formatDate(selected.reviewedAt) }}
       </p>
     </div>
   </div>

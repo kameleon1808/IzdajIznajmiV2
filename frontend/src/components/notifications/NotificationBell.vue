@@ -4,10 +4,13 @@ import { useRouter } from 'vue-router'
 import { Bell } from 'lucide-vue-next'
 import { useNotificationStore } from '../../stores/notifications'
 import { useAuthStore } from '../../stores/auth'
+import { useLanguageStore } from '../../stores/language'
 
 const router = useRouter()
 const notificationStore = useNotificationStore()
 const authStore = useAuthStore()
+const languageStore = useLanguageStore()
+const t = (key: Parameters<typeof languageStore.t>[0]) => languageStore.t(key)
 const showDropdown = ref(false)
 
 const unreadCount = computed(() => notificationStore.unreadCount)
@@ -56,10 +59,10 @@ const formatTime = (dateString: string) => {
   const diffHours = Math.floor(diffMs / 3600000)
   const diffDays = Math.floor(diffMs / 86400000)
 
-  if (diffMins < 1) return 'Just now'
-  if (diffMins < 60) return `${diffMins}m ago`
-  if (diffHours < 24) return `${diffHours}h ago`
-  if (diffDays < 7) return `${diffDays}d ago`
+  if (diffMins < 1) return t('time.justNow')
+  if (diffMins < 60) return `${diffMins}${t('time.minutesAgoShort')}`
+  if (diffHours < 24) return `${diffHours}${t('time.hoursAgoShort')}`
+  if (diffDays < 7) return `${diffDays}${t('time.daysAgoShort')}`
   return date.toLocaleDateString()
 }
 </script>
@@ -68,7 +71,7 @@ const formatTime = (dateString: string) => {
   <div class="relative">
     <button
       class="relative rounded-full bg-white p-2 shadow-soft"
-      aria-label="notifications"
+      :aria-label="t('notifications.aria')"
       @click="toggleDropdown"
     >
       <Bell class="h-5 w-5 text-slate-800" />
@@ -88,18 +91,18 @@ const formatTime = (dateString: string) => {
       <div class="max-h-96 overflow-y-auto">
         <div class="p-3 border-b border-line">
           <div class="flex items-center justify-between">
-            <h3 class="text-sm font-semibold text-slate-900">Notifications</h3>
+            <h3 class="text-sm font-semibold text-slate-900">{{ t('notifications.title') }}</h3>
             <button
               v-if="hasUnread"
               @click="notificationStore.markAllRead()"
               class="text-xs text-primary hover:text-primary/80"
             >
-              Mark all read
+              {{ t('notifications.markAllRead') }}
             </button>
           </div>
         </div>
         <div v-if="latestNotifications.length === 0" class="p-4 text-center text-sm text-muted">
-          No notifications
+          {{ t('notifications.empty') }}
         </div>
         <div v-else class="divide-y divide-line">
           <button
@@ -127,7 +130,7 @@ const formatTime = (dateString: string) => {
             @click="goToNotifications"
             class="w-full rounded-xl bg-primary/10 px-3 py-2 text-sm font-semibold text-primary hover:bg-primary/20 transition-colors"
           >
-            View all notifications
+            {{ t('notifications.viewAll') }}
           </button>
         </div>
       </div>

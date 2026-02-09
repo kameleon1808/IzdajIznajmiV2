@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { Heart, Search as SearchIcon, SlidersHorizontal } from 'lucide-vue-next'
 import Chip from '../components/ui/Chip.vue'
 import EmptyState from '../components/ui/EmptyState.vue'
@@ -8,9 +8,16 @@ import ErrorBanner from '../components/ui/ErrorBanner.vue'
 import ListSkeleton from '../components/ui/ListSkeleton.vue'
 import Input from '../components/ui/Input.vue'
 import { useListingsStore } from '../stores/listings'
+import { useLanguageStore } from '../stores/language'
 
 const listingsStore = useListingsStore()
 const router = useRouter()
+const route = useRoute()
+const languageStore = useLanguageStore()
+const t = (key: Parameters<typeof languageStore.t>[0]) => languageStore.t(key)
+const useTranslations = computed(() => route.path === '/favorites')
+const tx = (key: Parameters<typeof languageStore.t>[0], fallback: string) =>
+  useTranslations.value ? t(key) : fallback
 const category = ref<'all' | 'villa' | 'hotel' | 'apartment'>('all')
 const query = ref('')
 
@@ -29,6 +36,13 @@ const favorites = computed(() => {
 })
 const loading = computed(() => listingsStore.favoritesLoading)
 const error = computed(() => listingsStore.error)
+
+const categories = computed(() => [
+  { key: 'all', label: tx('home.categoryAll', 'All') },
+  { key: 'villa', label: tx('home.categoryVilla', 'Villas') },
+  { key: 'hotel', label: tx('home.categoryHotel', 'Hotels') },
+  { key: 'apartment', label: tx('home.categoryApartment', 'Apartments') },
+])
 </script>
 
 <template>
@@ -36,15 +50,20 @@ const error = computed(() => listingsStore.error)
     <ErrorBanner v-if="error" :message="error" />
     <Input
       v-model="query"
-      placeholder="Search favorites"
+      :placeholder="tx('favorites.searchPlaceholder', 'Search favorites')"
       :left-icon="SearchIcon"
       :right-icon="SlidersHorizontal"
       @rightIconClick="category = 'all'"
     />
 
     <div class="flex gap-2 overflow-x-auto pb-1">
-      <Chip v-for="cat in ['all', 'villa', 'hotel', 'apartment']" :key="cat" :active="category === cat" @click="category = cat as any">
-        {{ cat === 'all' ? 'All' : cat.charAt(0).toUpperCase() + cat.slice(1) + 's' }}
+      <Chip
+        v-for="cat in categories"
+        :key="cat.key"
+        :active="category === cat.key"
+        @click="category = cat.key as any"
+      >
+        {{ cat.label }}
       </Chip>
     </div>
 
@@ -70,15 +89,15 @@ const error = computed(() => listingsStore.error)
         </div>
         <div class="space-y-1 p-3">
           <p class="text-sm font-semibold text-slate-900">{{ item.title }}</p>
-          <p class="text-xs text-muted">${{ item.pricePerNight }}/night</p>
+          <p class="text-xs text-muted">${{ item.pricePerNight }}/{{ tx('listing.night', 'night') }}</p>
         </div>
       </div>
     </div>
 
     <EmptyState
       v-if="!favorites.length && !loading && !error"
-      title="No favorites yet"
-      subtitle="Tap the heart on a stay to save it"
+      :title="tx('favorites.emptyTitle', 'No favorites yet')"
+      :subtitle="tx('favorites.emptySubtitle', 'Tap the heart on a stay to save it')"
       :icon="Heart"
     />
   </div>

@@ -6,9 +6,12 @@ import Button from '../components/ui/Button.vue'
 import ErrorBanner from '../components/ui/ErrorBanner.vue'
 import ListSkeleton from '../components/ui/ListSkeleton.vue'
 import { useTransactionsStore } from '../stores/transactions'
+import { useLanguageStore } from '../stores/language'
 
 const router = useRouter()
 const transactionsStore = useTransactionsStore()
+const languageStore = useLanguageStore()
+const t = (key: Parameters<typeof languageStore.t>[0]) => languageStore.t(key)
 
 const statusVariant: Record<string, any> = {
   initiated: 'pending',
@@ -20,6 +23,19 @@ const statusVariant: Record<string, any> = {
   completed: 'accepted',
   cancelled: 'cancelled',
   disputed: 'rejected',
+}
+
+const statusLabel = (value: string) => {
+  if (value === 'initiated') return t('transactions.status.initiated')
+  if (value === 'contract_generated') return t('transactions.status.contractGenerated')
+  if (value === 'seeker_signed') return t('transactions.status.seekerSigned')
+  if (value === 'landlord_signed') return t('transactions.status.landlordSigned')
+  if (value === 'deposit_paid') return t('transactions.status.depositPaid')
+  if (value === 'move_in_confirmed') return t('transactions.status.moveInConfirmed')
+  if (value === 'completed') return t('transactions.status.completed')
+  if (value === 'cancelled') return t('transactions.status.cancelled')
+  if (value === 'disputed') return t('transactions.status.disputed')
+  return value
 }
 
 const load = async () => {
@@ -46,22 +62,22 @@ onMounted(load)
       >
         <div class="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p class="text-xs font-semibold text-muted">Transaction #{{ tx.id }}</p>
-            <h2 class="text-lg font-semibold text-slate-900">{{ tx.listing?.title ?? 'Listing' }}</h2>
+            <p class="text-xs font-semibold text-muted">{{ t('transactions.transactionLabel') }} #{{ tx.id }}</p>
+            <h2 class="text-lg font-semibold text-slate-900">{{ tx.listing?.title ?? t('transactions.listingFallback') }}</h2>
             <p class="text-sm text-muted">{{ tx.listing?.address ?? tx.listing?.city }}</p>
           </div>
-          <Badge :variant="statusVariant[tx.status]">{{ tx.status }}</Badge>
+          <Badge :variant="statusVariant[tx.status]">{{ statusLabel(tx.status) }}</Badge>
         </div>
         <div class="mt-3 grid gap-2 text-sm text-slate-700">
-          <div>Deposit: {{ tx.depositAmount ?? '—' }} {{ tx.currency }}</div>
-          <div>Rent: {{ tx.rentAmount ?? '—' }} {{ tx.currency }}</div>
+          <div>{{ t('transactions.deposit') }}: {{ tx.depositAmount ?? '—' }} {{ tx.currency }}</div>
+          <div>{{ t('transactions.rent') }}: {{ tx.rentAmount ?? '—' }} {{ tx.currency }}</div>
         </div>
         <div class="mt-4 flex justify-end">
-          <Button size="sm" variant="secondary" @click="router.push(`/transactions/${tx.id}`)">Open</Button>
+          <Button size="sm" variant="secondary" @click="router.push(`/transactions/${tx.id}`)">{{ t('common.open') }}</Button>
         </div>
       </div>
 
-      <p v-if="!transactionsStore.list.length" class="text-sm text-muted">No transactions yet.</p>
+      <p v-if="!transactionsStore.list.length" class="text-sm text-muted">{{ t('transactions.empty') }}</p>
     </div>
   </div>
 </template>

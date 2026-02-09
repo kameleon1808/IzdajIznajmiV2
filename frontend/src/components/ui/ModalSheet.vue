@@ -1,6 +1,10 @@
 <script setup lang="ts">
+import { useLanguageStore } from '../../stores/language'
+
 const props = defineProps<{ modelValue: boolean; title?: string }>()
 const emit = defineEmits(['update:modelValue'])
+const languageStore = useLanguageStore()
+const t = (key: Parameters<typeof languageStore.t>[0]) => languageStore.t(key)
 
 const close = () => emit('update:modelValue', false)
 </script>
@@ -23,7 +27,7 @@ const close = () => emit('update:modelValue', false)
           <div class="space-y-4 max-h-[88vh] overflow-y-auto">
             <div v-if="title" class="flex items-center justify-between px-2">
               <h3 class="text-lg font-semibold text-slate-900">{{ title }}</h3>
-              <button class="text-muted" @click="close">Close</button>
+              <button class="text-muted" @click="close">{{ t('common.close') }}</button>
             </div>
             <slot />
           </div>

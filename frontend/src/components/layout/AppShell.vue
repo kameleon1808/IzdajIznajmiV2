@@ -5,6 +5,7 @@ import BottomTabs from './BottomTabs.vue'
 import TopBar from './TopBar.vue'
 import Button from '../ui/Button.vue'
 import { useAuthStore } from '../../stores/auth'
+import { useLanguageStore } from '../../stores/language'
 
 const props = defineProps<{
   topBarConfig?: Record<string, any> | null
@@ -15,6 +16,8 @@ const props = defineProps<{
 }>()
 
 const auth = useAuthStore()
+const languageStore = useLanguageStore()
+const t = (key: Parameters<typeof languageStore.t>[0]) => languageStore.t(key)
 const { impersonating, impersonator, user } = storeToRefs(auth)
 
 const hasTopBar = computed(() => props.topBarConfig !== null && props.topBarConfig !== undefined)
@@ -44,12 +47,13 @@ const stopImpersonation = async () => {
       <div v-if="impersonating" class="mx-4 mt-3 rounded-xl border border-amber-300 bg-amber-100 px-4 py-3 text-amber-900">
         <div class="flex items-start justify-between gap-3">
           <div>
-            <p class="font-semibold leading-tight">Impersonating {{ user.fullName || user.name }}</p>
+            <p class="font-semibold leading-tight">{{ t('appShell.impersonating') }} {{ user.fullName || user.name }}</p>
             <p class="text-xs text-amber-800">
-              Admin: {{ impersonator?.fullName || impersonator?.name || 'Unknown admin' }}
+              {{ t('appShell.adminLabel') }}:
+              {{ impersonator?.fullName || impersonator?.name || t('appShell.unknownAdmin') }}
             </p>
           </div>
-          <Button size="sm" variant="secondary" @click="stopImpersonation">Stop</Button>
+          <Button size="sm" variant="secondary" @click="stopImpersonation">{{ t('common.stop') }}</Button>
         </div>
       </div>
 

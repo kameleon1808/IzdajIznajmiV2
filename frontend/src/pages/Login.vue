@@ -6,9 +6,12 @@ import Input from '../components/ui/Input.vue'
 import ErrorBanner from '../components/ui/ErrorBanner.vue'
 import { useAuthStore } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
+import { useLanguageStore } from '../stores/language'
 
 const auth = useAuthStore()
 const toast = useToastStore()
+const languageStore = useLanguageStore()
+const t = (key: Parameters<typeof languageStore.t>[0]) => languageStore.t(key)
 const router = useRouter()
 const route = useRoute()
 
@@ -39,18 +42,18 @@ const onSubmit = async () => {
     if (result?.mfaRequired) {
       return
     }
-    toast.push({ title: 'Welcome back', type: 'success' })
+    toast.push({ title: t('auth.welcomeBack'), type: 'success' })
     const redirect = (route.query.returnUrl as string) || '/'
     router.replace(redirect)
   } catch (err: any) {
-    error.value = err.message ?? 'Login failed.'
+    error.value = err.message ?? t('auth.loginFailed')
   }
 }
 
 const onVerifyMfa = async () => {
   mfaError.value = ''
   if (!auth.mfaChallengeId) {
-    mfaError.value = 'Missing MFA challenge. Please log in again.'
+    mfaError.value = t('auth.mfaMissingChallenge')
     return
   }
   try {
@@ -60,11 +63,11 @@ const onVerifyMfa = async () => {
       recoveryCode: useRecovery.value ? recoveryCode.value : undefined,
       rememberDevice: rememberDevice.value,
     })
-    toast.push({ title: 'MFA verified', type: 'success' })
+    toast.push({ title: t('auth.mfaVerified'), type: 'success' })
     const redirect = (route.query.returnUrl as string) || '/'
     router.replace(redirect)
   } catch (err: any) {
-    mfaError.value = err.message ?? 'Verification failed.'
+    mfaError.value = err.message ?? t('auth.mfaFailed')
   }
 }
 
@@ -79,52 +82,52 @@ const resetMfa = () => {
 
 <template>
   <div class="space-y-4">
-    <h1 class="text-xl font-semibold text-slate-900">Login</h1>
-    <p class="text-sm text-muted">Use demo naloge ili vaše kredencijale.</p>
+    <h1 class="text-xl font-semibold text-slate-900">{{ t('auth.login') }}</h1>
+    <p class="text-sm text-muted">{{ t('auth.loginHint') }}</p>
 
     <ErrorBanner v-if="error" :message="error" />
 
     <div v-if="!auth.mfaRequired" class="space-y-3 rounded-2xl bg-white p-4 shadow-soft border border-white/60">
       <div class="space-y-1">
-        <p class="text-sm font-semibold text-slate-900">Email</p>
-        <Input v-model="email" placeholder="you@example.com" type="email" />
+        <p class="text-sm font-semibold text-slate-900">{{ t('auth.email') }}</p>
+        <Input v-model="email" :placeholder="t('auth.emailPlaceholder')" type="email" />
       </div>
       <div class="space-y-1">
-        <p class="text-sm font-semibold text-slate-900">Password</p>
-        <Input v-model="password" placeholder="••••••" type="password" />
+        <p class="text-sm font-semibold text-slate-900">{{ t('auth.password') }}</p>
+        <Input v-model="password" :placeholder="t('auth.passwordPlaceholder')" type="password" />
       </div>
-      <Button block size="lg" :loading="auth.loading" @click="onSubmit">Login</Button>
+      <Button block size="lg" :loading="auth.loading" @click="onSubmit">{{ t('auth.login') }}</Button>
       <p class="text-center text-sm text-muted">
-        Nemate nalog?
-        <button class="text-primary font-semibold" @click="router.push('/register')">Register</button>
+        {{ t('auth.noAccount') }}
+        <button class="text-primary font-semibold" @click="router.push('/register')">{{ t('auth.register') }}</button>
       </p>
     </div>
 
     <div v-else class="space-y-3 rounded-2xl bg-white p-4 shadow-soft border border-white/60">
       <div class="flex items-center justify-between">
-        <p class="text-sm font-semibold text-slate-900">MFA verification</p>
-        <button class="text-xs text-muted hover:text-slate-700" @click="resetMfa">Back</button>
+        <p class="text-sm font-semibold text-slate-900">{{ t('auth.mfaTitle') }}</p>
+        <button class="text-xs text-muted hover:text-slate-700" @click="resetMfa">{{ t('common.back') }}</button>
       </div>
-      <p class="text-xs text-muted">Unesite kod iz autentikatora ili iskoristite recovery kod.</p>
+      <p class="text-xs text-muted">{{ t('auth.mfaHint') }}</p>
       <ErrorBanner v-if="mfaError" :message="mfaError" />
       <div class="space-y-1">
-        <p class="text-sm font-semibold text-slate-900">{{ useRecovery ? 'Recovery code' : 'Authenticator code' }}</p>
+        <p class="text-sm font-semibold text-slate-900">{{ useRecovery ? t('auth.recoveryCode') : t('auth.authenticatorCode') }}</p>
         <Input v-if="useRecovery" v-model="recoveryCode" placeholder="XXXX-XXXX" />
         <Input v-else v-model="mfaCode" placeholder="123 456" />
       </div>
       <label class="flex items-center gap-2 text-xs text-muted">
         <input v-model="useRecovery" type="checkbox" />
-        Use recovery code
+        {{ t('auth.useRecovery') }}
       </label>
       <label class="flex items-center gap-2 text-xs text-muted">
         <input v-model="rememberDevice" type="checkbox" />
-        Remember this device
+        {{ t('auth.rememberDevice') }}
       </label>
-      <Button block size="lg" :loading="auth.loading" @click="onVerifyMfa">Verify</Button>
+      <Button block size="lg" :loading="auth.loading" @click="onVerifyMfa">{{ t('auth.verify') }}</Button>
     </div>
 
     <div v-if="auth.isMockMode" class="rounded-2xl bg-surface p-3 text-sm text-muted border border-dashed border-line">
-      Dev napomena: u mock modu login samo prebacuje u Tenant ulogu.
+      {{ t('auth.mockLoginNote') }}
     </div>
   </div>
 </template>

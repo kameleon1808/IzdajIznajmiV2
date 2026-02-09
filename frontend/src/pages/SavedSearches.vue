@@ -10,11 +10,14 @@ import ListSkeleton from '../components/ui/ListSkeleton.vue'
 import ModalSheet from '../components/ui/ModalSheet.vue'
 import { useSavedSearchesStore } from '../stores/savedSearches'
 import { useToastStore } from '../stores/toast'
+import { useLanguageStore } from '../stores/language'
 import type { SavedSearch } from '../types'
 
 const router = useRouter()
 const store = useSavedSearchesStore()
 const toast = useToastStore()
+const languageStore = useLanguageStore()
+const t = (key: Parameters<typeof languageStore.t>[0]) => languageStore.t(key)
 
 const editOpen = ref(false)
 const editing = ref<SavedSearch | null>(null)
@@ -44,6 +47,25 @@ const editForm = ref({
 })
 
 const amenityOptions = ['Pool', 'Spa', 'Wi-Fi', 'Breakfast', 'Parking', 'Kitchen', 'Workspace']
+
+const amenityLabel = (value: string) => {
+  if (value === 'Pool') return t('amenities.pool')
+  if (value === 'Spa') return t('amenities.spa')
+  if (value === 'Wi-Fi') return t('amenities.wifi')
+  if (value === 'Breakfast') return t('amenities.breakfast')
+  if (value === 'Parking') return t('amenities.parking')
+  if (value === 'Kitchen') return t('amenities.kitchen')
+  if (value === 'Workspace') return t('amenities.workspace')
+  return value
+}
+
+const categoryLabel = (value: string) => {
+  if (value === 'villa') return t('listing.categoryVilla')
+  if (value === 'hotel') return t('listing.categoryHotel')
+  if (value === 'apartment') return t('listing.categoryApartment')
+  if (value === 'all') return t('filters.any')
+  return value
+}
 
 const savedSearches = computed(() => store.savedSearches)
 const loading = computed(() => store.loading)
@@ -128,10 +150,10 @@ const saveEdit = async () => {
       frequency: editForm.value.frequency,
       filters: buildFiltersPayload(),
     })
-    toast.push({ title: 'Saved search updated', type: 'success' })
+    toast.push({ title: t('savedSearches.updated'), type: 'success' })
     editOpen.value = false
   } catch (err) {
-    toast.push({ title: 'Update failed', message: (err as Error).message, type: 'error' })
+    toast.push({ title: t('savedSearches.updateFailed'), message: (err as Error).message, type: 'error' })
   }
 }
 
@@ -139,7 +161,7 @@ const toggleAlerts = async (search: SavedSearch) => {
   try {
     await store.updateSavedSearch(search.id, { alertsEnabled: !search.alertsEnabled })
   } catch (err) {
-    toast.push({ title: 'Update failed', message: (err as Error).message, type: 'error' })
+    toast.push({ title: t('savedSearches.updateFailed'), message: (err as Error).message, type: 'error' })
   }
 }
 
@@ -147,17 +169,17 @@ const changeFrequency = async (search: SavedSearch, frequency: SavedSearch['freq
   try {
     await store.updateSavedSearch(search.id, { frequency })
   } catch (err) {
-    toast.push({ title: 'Update failed', message: (err as Error).message, type: 'error' })
+    toast.push({ title: t('savedSearches.updateFailed'), message: (err as Error).message, type: 'error' })
   }
 }
 
 const removeSearch = async (search: SavedSearch) => {
-  if (!confirm('Delete this saved search?')) return
+  if (!confirm(t('savedSearches.deleteConfirm'))) return
   try {
     await store.deleteSavedSearch(search.id)
-    toast.push({ title: 'Saved search deleted', type: 'success' })
+    toast.push({ title: t('savedSearches.deleted'), type: 'success' })
   } catch (err) {
-    toast.push({ title: 'Delete failed', message: (err as Error).message, type: 'error' })
+    toast.push({ title: t('savedSearches.deleteFailed'), message: (err as Error).message, type: 'error' })
   }
 }
 
@@ -167,47 +189,47 @@ const runSearch = (search: SavedSearch) => {
 
 const describeFilters = (filters: Record<string, any>) => {
   const items: string[] = []
-  if (filters.location) items.push(`Location: ${filters.location}`)
-  if (filters.city) items.push(`City: ${filters.city}`)
-  if (filters.category) items.push(`Category: ${filters.category}`)
-  if (filters.guests) items.push(`Guests: ${filters.guests}+`)
+  if (filters.location) items.push(`${t('filters.location')}: ${filters.location}`)
+  if (filters.city) items.push(`${t('filters.city')}: ${filters.city}`)
+  if (filters.category) items.push(`${t('filters.category')}: ${categoryLabel(filters.category)}`)
+  if (filters.guests) items.push(`${t('filters.guests')}: ${filters.guests}+`)
   if (filters.priceMin != null || filters.priceMax != null) {
     const min = filters.priceMin ?? 0
-    const max = filters.priceMax ?? 'Any'
-    items.push(`Price: $${min} - ${max}`)
+    const max = filters.priceMax ?? t('filters.any')
+    items.push(`${t('filters.price')}: $${min} - ${max}`)
   }
-  if (filters.rooms) items.push(`Rooms: ${filters.rooms}+`)
+  if (filters.rooms) items.push(`${t('filters.rooms')}: ${filters.rooms}+`)
   if (filters.areaMin != null || filters.areaMax != null) {
     const min = filters.areaMin ?? 0
-    const max = filters.areaMax ?? 'Any'
-    items.push(`Area: ${min} - ${max} sqm`)
+    const max = filters.areaMax ?? t('filters.any')
+    items.push(`${t('filters.area')}: ${min} - ${max} ${t('filters.sqm')}`)
   }
-  if (filters.instantBook) items.push('Instant book')
-  if (filters.rating) items.push(`Rating: ${filters.rating}+`)
-  if (filters.amenities?.length) items.push(`Amenities: ${filters.amenities.join(', ')}`)
+  if (filters.instantBook) items.push(t('filters.instantBook'))
+  if (filters.rating) items.push(`${t('filters.rating')}: ${filters.rating}+`)
+  if (filters.amenities?.length) items.push(`${t('filters.amenities')}: ${filters.amenities.map(amenityLabel).join(', ')}`)
   if (filters.mapMode && (filters.radiusKm || (filters.centerLat && filters.centerLng))) {
-    items.push(`Map radius: ${filters.radiusKm ?? 10} km`)
+    items.push(`${t('filters.mapRadius')}: ${filters.radiusKm ?? 10} km`)
   }
-  if (!items.length) items.push('All listings')
+  if (!items.length) items.push(t('filters.allListings'))
   return items
 }
 
 const formatLastAlert = (value?: string | null) => {
-  if (!value) return 'Never alerted'
+  if (!value) return t('savedSearches.neverAlerted')
   const date = new Date(value)
-  return `Last alert: ${date.toLocaleDateString()} ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+  return `${t('savedSearches.lastAlert')}: ${date.toLocaleDateString()} ${date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
 }
 </script>
 
 <template>
   <div class="space-y-4">
-    <ErrorState v-if="error" :message="error" retry-label="Retry" @retry="load" />
+    <ErrorState v-if="error" :message="error" :retry-label="t('savedSearches.retry')" @retry="load" />
     <ListSkeleton v-else-if="loading" :count="3" />
 
     <EmptyState
       v-else-if="!savedSearches.length"
-      title="No saved searches yet"
-      subtitle="Save a search from the search page to get alerts."
+      :title="t('savedSearches.emptyTitle')"
+      :subtitle="t('savedSearches.emptySubtitle')"
     />
 
     <div v-else class="space-y-3">
@@ -218,7 +240,7 @@ const formatLastAlert = (value?: string | null) => {
       >
         <div class="flex items-start justify-between gap-3">
           <div class="space-y-1">
-            <p class="text-sm font-semibold text-slate-900">{{ search.name || 'Saved search' }}</p>
+            <p class="text-sm font-semibold text-slate-900">{{ search.name || t('savedSearches.savedSearch') }}</p>
             <p class="text-xs text-muted">{{ formatLastAlert(search.lastAlertedAt) }}</p>
           </div>
           <Button size="sm" variant="secondary" @click="runSearch(search)">
@@ -240,7 +262,7 @@ const formatLastAlert = (value?: string | null) => {
         <div class="mt-4 flex flex-wrap items-center justify-between gap-3">
           <div class="flex items-center gap-2 text-sm font-semibold text-slate-700">
             <Bell class="h-4 w-4 text-primary" />
-            Alerts
+            {{ t('savedSearches.alerts') }}
             <button
               class="relative h-6 w-11 rounded-full transition-colors"
               :class="search.alertsEnabled ? 'bg-primary' : 'bg-slate-300'"
@@ -254,15 +276,15 @@ const formatLastAlert = (value?: string | null) => {
           </div>
 
           <div class="flex items-center gap-2 text-sm">
-            <label class="text-xs uppercase tracking-[0.08em] text-muted">Frequency</label>
+            <label class="text-xs uppercase tracking-[0.08em] text-muted">{{ t('savedSearches.frequency') }}</label>
             <select
               :value="search.frequency"
               class="rounded-xl border border-line bg-white px-3 py-2 text-xs font-semibold text-slate-700"
               @change="changeFrequency(search, ($event.target as HTMLSelectElement).value as SavedSearch['frequency'])"
             >
-              <option value="instant">Instant</option>
-              <option value="daily">Daily</option>
-              <option value="weekly">Weekly</option>
+              <option value="instant">{{ t('common.instant') }}</option>
+              <option value="daily">{{ t('common.daily') }}</option>
+              <option value="weekly">{{ t('common.weekly') }}</option>
             </select>
           </div>
         </div>
@@ -270,63 +292,63 @@ const formatLastAlert = (value?: string | null) => {
         <div class="mt-3 flex items-center justify-end gap-2">
           <Button size="sm" variant="ghost" @click="openEdit(search)">
             <Pencil class="mr-1 h-4 w-4" />
-            Edit
+            {{ t('common.edit') }}
           </Button>
           <Button size="sm" variant="ghost" class="text-red-500" @click="removeSearch(search)">
             <Trash2 class="mr-1 h-4 w-4" />
-            Delete
+            {{ t('common.delete') }}
           </Button>
         </div>
       </div>
     </div>
   </div>
 
-  <ModalSheet v-model="editOpen" title="Edit saved search">
+  <ModalSheet v-model="editOpen" :title="t('savedSearches.editTitle')">
     <div class="space-y-4">
-      <Input v-model="editForm.name" placeholder="Search name (optional)" />
+      <Input v-model="editForm.name" :placeholder="t('savedSearches.searchNamePlaceholder')" />
 
       <div class="space-y-3 rounded-2xl bg-white p-4 shadow-soft border border-white/60">
-        <h3 class="text-sm font-semibold text-slate-900">Filters</h3>
+        <h3 class="text-sm font-semibold text-slate-900">{{ t('savedSearches.filtersTitle') }}</h3>
 
         <div class="space-y-2">
-          <p class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Location</p>
-          <Input v-model="editForm.filters.location" placeholder="Search text (location, title, etc.)" />
-          <Input v-model="editForm.filters.city" placeholder="City contains (e.g. Zagreb)" />
+          <p class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">{{ t('filters.location') }}</p>
+          <Input v-model="editForm.filters.location" :placeholder="t('savedSearches.searchTextPlaceholder')" />
+          <Input v-model="editForm.filters.city" :placeholder="t('savedSearches.cityPlaceholder')" />
         </div>
 
         <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
           <label class="space-y-1">
-            <span class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Category</span>
+            <span class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">{{ t('filters.category') }}</span>
             <select
               v-model="editForm.filters.category"
               class="w-full rounded-xl border border-line bg-white px-3 py-2 text-sm font-semibold text-slate-700"
             >
-              <option value="all">Any</option>
-              <option value="villa">Villa</option>
-              <option value="hotel">Hotel</option>
-              <option value="apartment">Apartment</option>
+              <option value="all">{{ t('filters.any') }}</option>
+              <option value="villa">{{ t('listing.categoryVilla') }}</option>
+              <option value="hotel">{{ t('listing.categoryHotel') }}</option>
+              <option value="apartment">{{ t('listing.categoryApartment') }}</option>
             </select>
           </label>
           <label class="space-y-1">
-            <span class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Status</span>
+            <span class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">{{ t('filters.status') }}</span>
             <select
               v-model="editForm.filters.status"
               class="w-full rounded-xl border border-line bg-white px-3 py-2 text-sm font-semibold text-slate-700"
             >
-              <option value="all">Any</option>
-              <option value="active">Active</option>
-              <option value="paused">Paused</option>
-              <option value="archived">Archived</option>
-              <option value="rented">Rented</option>
-              <option value="expired">Expired</option>
-              <option value="draft">Draft</option>
+              <option value="all">{{ t('filters.any') }}</option>
+              <option value="active">{{ t('status.active') }}</option>
+              <option value="paused">{{ t('status.paused') }}</option>
+              <option value="archived">{{ t('status.archived') }}</option>
+              <option value="rented">{{ t('status.rented') }}</option>
+              <option value="expired">{{ t('status.expired') }}</option>
+              <option value="draft">{{ t('status.draft') }}</option>
             </select>
           </label>
         </div>
 
         <div class="grid grid-cols-2 gap-3">
           <label class="space-y-1">
-            <span class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Price min</span>
+            <span class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">{{ t('filters.priceMin') }}</span>
             <input
               v-model.number="editForm.filters.priceMin"
               type="number"
@@ -336,7 +358,7 @@ const formatLastAlert = (value?: string | null) => {
             />
           </label>
           <label class="space-y-1">
-            <span class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Price max</span>
+            <span class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">{{ t('filters.priceMax') }}</span>
             <input
               v-model.number="editForm.filters.priceMax"
               type="number"
@@ -349,7 +371,7 @@ const formatLastAlert = (value?: string | null) => {
 
         <div class="grid grid-cols-2 gap-3">
           <label class="space-y-1">
-            <span class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Area min (sqm)</span>
+            <span class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">{{ t('filters.areaMin') }}</span>
             <input
               v-model.number="editForm.filters.areaMin"
               type="number"
@@ -359,7 +381,7 @@ const formatLastAlert = (value?: string | null) => {
             />
           </label>
           <label class="space-y-1">
-            <span class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Area max (sqm)</span>
+            <span class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">{{ t('filters.areaMax') }}</span>
             <input
               v-model.number="editForm.filters.areaMax"
               type="number"
@@ -372,7 +394,7 @@ const formatLastAlert = (value?: string | null) => {
 
         <div class="grid grid-cols-2 gap-3">
           <label class="space-y-1">
-            <span class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Rooms</span>
+            <span class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">{{ t('filters.rooms') }}</span>
             <input
               v-model.number="editForm.filters.rooms"
               type="number"
@@ -382,7 +404,7 @@ const formatLastAlert = (value?: string | null) => {
             />
           </label>
           <label class="space-y-1">
-            <span class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Guests</span>
+            <span class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">{{ t('filters.guests') }}</span>
             <input
               v-model.number="editForm.filters.guests"
               type="number"
@@ -394,12 +416,12 @@ const formatLastAlert = (value?: string | null) => {
         </div>
 
         <label class="space-y-1">
-          <span class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Rating</span>
+          <span class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">{{ t('filters.rating') }}</span>
           <select
             v-model.number="editForm.filters.rating"
             class="w-full rounded-xl border border-line bg-white px-3 py-2 text-sm font-semibold text-slate-700"
           >
-            <option :value="null">Any</option>
+            <option :value="null">{{ t('filters.any') }}</option>
             <option :value="5">5+</option>
             <option :value="4">4+</option>
             <option :value="3">3+</option>
@@ -410,8 +432,8 @@ const formatLastAlert = (value?: string | null) => {
 
         <div class="flex items-center justify-between rounded-2xl bg-surface px-4 py-3">
           <div>
-            <p class="font-semibold text-slate-900">Instant book</p>
-            <p class="text-sm text-muted">Only show instant book listings</p>
+            <p class="font-semibold text-slate-900">{{ t('filters.instantBook') }}</p>
+            <p class="text-sm text-muted">{{ t('savedSearches.instantBookHint') }}</p>
           </div>
           <label class="relative inline-flex cursor-pointer items-center">
             <input v-model="editForm.filters.instantBook" type="checkbox" class="peer sr-only" />
@@ -419,18 +441,18 @@ const formatLastAlert = (value?: string | null) => {
               class="peer h-6 w-11 rounded-full bg-slate-200 after:absolute after:left-[4px] after:top-[4px] after:h-4 after:w-4 after:rounded-full after:bg-white after:transition peer-checked:bg-primary peer-checked:after:translate-x-[18px]"
             ></div>
           </label>
-        </div>
+      </div>
 
-        <div class="space-y-2">
-          <p class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Amenities</p>
-          <div class="grid grid-cols-2 gap-2">
+      <div class="space-y-2">
+        <p class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">{{ t('filters.amenities') }}</p>
+        <div class="grid grid-cols-2 gap-2">
             <label
               v-for="facility in amenityOptions"
               :key="facility"
               class="flex items-center gap-2 rounded-xl border border-line px-3 py-2 text-xs font-semibold text-slate-700"
             >
               <input v-model="editForm.filters.amenities" :value="facility" type="checkbox" class="h-4 w-4 accent-primary" />
-              {{ facility }}
+              {{ amenityLabel(facility) }}
             </label>
           </div>
         </div>
@@ -438,8 +460,8 @@ const formatLastAlert = (value?: string | null) => {
         <div class="space-y-3 rounded-2xl bg-surface px-4 py-3">
           <div class="flex items-center justify-between">
             <div>
-              <p class="font-semibold text-slate-900">Map radius</p>
-              <p class="text-sm text-muted">Enable map-based radius filtering</p>
+              <p class="font-semibold text-slate-900">{{ t('filters.mapRadius') }}</p>
+              <p class="text-sm text-muted">{{ t('savedSearches.mapRadiusHint') }}</p>
             </div>
             <label class="relative inline-flex cursor-pointer items-center">
               <input v-model="editForm.filters.mapMode" type="checkbox" class="peer sr-only" />
@@ -450,7 +472,7 @@ const formatLastAlert = (value?: string | null) => {
           </div>
           <div v-if="editForm.filters.mapMode" class="grid grid-cols-1 gap-3 md:grid-cols-3">
             <label class="space-y-1">
-              <span class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Center lat</span>
+              <span class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">{{ t('savedSearches.centerLat') }}</span>
               <input
                 v-model.number="editForm.filters.centerLat"
                 type="number"
@@ -459,7 +481,7 @@ const formatLastAlert = (value?: string | null) => {
               />
             </label>
             <label class="space-y-1">
-              <span class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Center lng</span>
+              <span class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">{{ t('savedSearches.centerLng') }}</span>
               <input
                 v-model.number="editForm.filters.centerLng"
                 type="number"
@@ -468,7 +490,7 @@ const formatLastAlert = (value?: string | null) => {
               />
             </label>
             <label class="space-y-1">
-              <span class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Radius (km)</span>
+              <span class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">{{ t('savedSearches.radiusKm') }}</span>
               <input
                 v-model.number="editForm.filters.radiusKm"
                 type="number"
@@ -484,8 +506,8 @@ const formatLastAlert = (value?: string | null) => {
 
       <div class="flex items-center justify-between rounded-2xl bg-surface px-4 py-3">
         <div>
-          <p class="font-semibold text-slate-900">Alerts</p>
-          <p class="text-sm text-muted">Enable in-app notifications</p>
+          <p class="font-semibold text-slate-900">{{ t('savedSearches.alerts') }}</p>
+          <p class="text-sm text-muted">{{ t('savedSearches.alertsHint') }}</p>
         </div>
         <button
           class="relative h-6 w-11 rounded-full transition-colors"
@@ -500,18 +522,18 @@ const formatLastAlert = (value?: string | null) => {
       </div>
 
       <div class="space-y-2">
-        <p class="text-sm font-semibold text-slate-900">Frequency</p>
+        <p class="text-sm font-semibold text-slate-900">{{ t('savedSearches.frequency') }}</p>
         <select
           v-model="editForm.frequency"
           class="w-full rounded-xl border border-line bg-white px-3 py-2 text-sm font-semibold text-slate-700"
         >
-          <option value="instant">Instant</option>
-          <option value="daily">Daily</option>
-          <option value="weekly">Weekly</option>
+          <option value="instant">{{ t('common.instant') }}</option>
+          <option value="daily">{{ t('common.daily') }}</option>
+          <option value="weekly">{{ t('common.weekly') }}</option>
         </select>
       </div>
 
-      <Button block @click="saveEdit">Save changes</Button>
+      <Button block @click="saveEdit">{{ t('savedSearches.saveChanges') }}</Button>
     </div>
   </ModalSheet>
 </template>

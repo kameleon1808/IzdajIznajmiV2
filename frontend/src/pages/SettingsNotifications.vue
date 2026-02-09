@@ -5,6 +5,7 @@ import { ArrowLeft } from 'lucide-vue-next'
 import { useNotificationStore } from '../stores/notifications'
 import { useAuthStore } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
+import { useLanguageStore } from '../stores/language'
 import Button from '../components/ui/Button.vue'
 import ErrorState from '../components/ui/ErrorState.vue'
 
@@ -12,6 +13,8 @@ const router = useRouter()
 const notificationStore = useNotificationStore()
 const authStore = useAuthStore()
 const toastStore = useToastStore()
+const languageStore = useLanguageStore()
+const t = (key: Parameters<typeof languageStore.t>[0]) => languageStore.t(key)
 
 const loading = ref(false)
 const saving = ref(false)
@@ -21,22 +24,22 @@ const typeSettings = ref<Record<string, boolean>>({})
 const digestFrequency = ref<'none' | 'daily' | 'weekly'>('none')
 const digestEnabled = ref(false)
 
-const typeLabels: Record<string, string> = {
-  'application.created': 'New Applications',
-  'application.status_changed': 'Application Updates',
-  'message.received': 'New Messages',
-  'rating.received': 'New Ratings',
-  'report.update': 'Report Updates',
-  'admin.notice': 'Admin Notices',
-  'kyc.submission_received': 'KYC Submission Received',
-  'kyc.approved': 'KYC Approved',
-  'kyc.rejected': 'KYC Rejected',
-  'transaction.contract_ready': 'Contract Ready',
-  'transaction.signed_by_other_party': 'Contract Signed',
-  'transaction.fully_signed': 'Contract Fully Signed',
-  'transaction.deposit_paid': 'Deposit Paid',
-  'transaction.move_in_confirmed': 'Move-in Confirmed',
-}
+const typeLabels = computed<Record<string, string>>(() => ({
+  'application.created': t('settings.notifications.types.applicationCreated'),
+  'application.status_changed': t('settings.notifications.types.applicationStatus'),
+  'message.received': t('settings.notifications.types.messageReceived'),
+  'rating.received': t('settings.notifications.types.ratingReceived'),
+  'report.update': t('settings.notifications.types.reportUpdate'),
+  'admin.notice': t('settings.notifications.types.adminNotice'),
+  'kyc.submission_received': t('settings.notifications.types.kycSubmission'),
+  'kyc.approved': t('settings.notifications.types.kycApproved'),
+  'kyc.rejected': t('settings.notifications.types.kycRejected'),
+  'transaction.contract_ready': t('settings.notifications.types.contractReady'),
+  'transaction.signed_by_other_party': t('settings.notifications.types.contractSigned'),
+  'transaction.fully_signed': t('settings.notifications.types.contractFullySigned'),
+  'transaction.deposit_paid': t('settings.notifications.types.depositPaid'),
+  'transaction.move_in_confirmed': t('settings.notifications.types.moveInConfirmed'),
+}))
 
 const isDirty = computed(() => {
   if (!notificationStore.preferences) return false
@@ -60,7 +63,7 @@ onMounted(async () => {
         digestEnabled.value = prefs.digestEnabled
       }
     } catch (error) {
-      loadError.value = (error as Error).message || 'Failed to load preferences'
+      loadError.value = (error as Error).message || t('settings.notifications.loadFailed')
     } finally {
       loading.value = false
     }
@@ -79,9 +82,9 @@ const save = async () => {
       digestFrequency: digestFrequency.value,
       digestEnabled: digestEnabled.value,
     })
-    toastStore.push({ title: 'Success', message: 'Preferences saved', type: 'success' })
+    toastStore.push({ title: t('common.success'), message: t('settings.notifications.saved'), type: 'success' })
   } catch (error) {
-    toastStore.push({ title: 'Error', message: 'Failed to save preferences', type: 'error' })
+    toastStore.push({ title: t('common.error'), message: t('settings.notifications.saveFailed'), type: 'error' })
   } finally {
     saving.value = false
   }
@@ -98,7 +101,7 @@ const retryLoad = async () => {
       digestEnabled.value = prefs.digestEnabled
     }
   } catch (error) {
-    loadError.value = (error as Error).message || 'Failed to load preferences'
+    loadError.value = (error as Error).message || t('settings.notifications.loadFailed')
   } finally {
     loading.value = false
   }
@@ -108,19 +111,19 @@ const retryLoad = async () => {
 <template>
   <div class="min-h-screen bg-surface pb-24">
     <header class="sticky top-0 z-30 flex items-center gap-3 border-b border-white/40 bg-surface/90 px-4 py-3 backdrop-blur-lg">
-      <button class="rounded-full bg-white p-2 shadow-soft" @click="router.back()" aria-label="back">
+      <button class="rounded-full bg-white p-2 shadow-soft" @click="router.back()" :aria-label="t('common.back')">
         <ArrowLeft class="h-5 w-5 text-slate-800" />
       </button>
-      <h1 class="flex-1 text-lg font-semibold text-slate-900">Notification Preferences</h1>
+      <h1 class="flex-1 text-lg font-semibold text-slate-900">{{ t('settings.notifications.title') }}</h1>
     </header>
 
     <div v-if="loadError" class="p-4">
-      <ErrorState :message="loadError" retry-label="Retry" @retry="retryLoad" />
+      <ErrorState :message="loadError" :retry-label="t('common.retry')" @retry="retryLoad" />
     </div>
-    <div v-else-if="loading" class="p-4 text-center text-muted">Loading...</div>
+    <div v-else-if="loading" class="p-4 text-center text-muted">{{ t('common.loading') }}</div>
     <div v-else class="space-y-4 p-4">
       <div class="space-y-3 rounded-2xl bg-white p-4 shadow-soft border border-white/60">
-        <h2 class="text-base font-semibold text-slate-900">Notification Types</h2>
+        <h2 class="text-base font-semibold text-slate-900">{{ t('settings.notifications.typesTitle') }}</h2>
         <div class="space-y-2">
           <label
             v-for="(label, type) in typeLabels"
@@ -143,7 +146,7 @@ const retryLoad = async () => {
       </div>
 
       <div class="space-y-3 rounded-2xl bg-white p-4 shadow-soft border border-white/60">
-        <h2 class="text-base font-semibold text-slate-900">Digest Frequency</h2>
+        <h2 class="text-base font-semibold text-slate-900">{{ t('settings.notifications.digestTitle') }}</h2>
         <div class="space-y-2">
           <label class="flex items-center gap-3 py-2">
             <input
@@ -152,7 +155,7 @@ const retryLoad = async () => {
               value="none"
               class="h-4 w-4 text-primary focus:ring-primary"
             />
-            <span class="text-sm text-slate-900">No digest</span>
+            <span class="text-sm text-slate-900">{{ t('settings.notifications.digest.none') }}</span>
           </label>
           <label class="flex items-center gap-3 py-2">
             <input
@@ -161,7 +164,7 @@ const retryLoad = async () => {
               value="daily"
               class="h-4 w-4 text-primary focus:ring-primary"
             />
-            <span class="text-sm text-slate-900">Daily digest</span>
+            <span class="text-sm text-slate-900">{{ t('settings.notifications.digest.daily') }}</span>
           </label>
           <label class="flex items-center gap-3 py-2">
             <input
@@ -170,11 +173,11 @@ const retryLoad = async () => {
               value="weekly"
               class="h-4 w-4 text-primary focus:ring-primary"
             />
-            <span class="text-sm text-slate-900">Weekly digest</span>
+            <span class="text-sm text-slate-900">{{ t('settings.notifications.digest.weekly') }}</span>
           </label>
         </div>
         <label class="flex items-center justify-between py-2">
-          <span class="text-sm text-slate-900">Enable digest</span>
+          <span class="text-sm text-slate-900">{{ t('settings.notifications.digest.enable') }}</span>
           <button
             @click="digestEnabled = !digestEnabled"
             class="relative h-6 w-11 rounded-full transition-colors"
@@ -189,7 +192,7 @@ const retryLoad = async () => {
       </div>
 
       <Button block size="lg" :variant="isDirty ? 'primary' : 'secondary'" :disabled="!isDirty || saving" @click="save">
-        {{ saving ? 'Saving...' : 'Save changes' }}
+        {{ saving ? t('common.saving') : t('common.saveChanges') }}
       </Button>
     </div>
   </div>

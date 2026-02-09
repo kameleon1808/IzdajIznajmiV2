@@ -10,6 +10,7 @@ import ListSkeleton from '../components/ui/ListSkeleton.vue'
 import { useAuthStore } from '../stores/auth'
 import { useListingsStore } from '../stores/listings'
 import { getListingById, isMockApi } from '../services'
+import { useLanguageStore } from '../stores/language'
 import type { Listing } from '../types'
 
 type GalleryItem = {
@@ -31,6 +32,8 @@ const listingsStore = useListingsStore()
 const loading = ref(false)
 const submitting = ref(false)
 const error = ref('')
+const languageStore = useLanguageStore()
+const t = (key: Parameters<typeof languageStore.t>[0]) => languageStore.t(key)
 
 const isEdit = computed(() => route.name === 'landlord-listing-edit')
 
@@ -54,6 +57,24 @@ const form = reactive({
 
 const gallery = ref<GalleryItem[]>([])
 const amenityOptions = ['Pool', 'Spa', 'Wi-Fi', 'Breakfast', 'Parking', 'Kitchen', 'Workspace']
+const amenityLabel = (value: string) => {
+  const map: Record<string, Parameters<typeof languageStore.t>[0]> = {
+    Pool: 'amenities.pool',
+    Spa: 'amenities.spa',
+    'Wi-Fi': 'amenities.wifi',
+    Breakfast: 'amenities.breakfast',
+    Parking: 'amenities.parking',
+    Kitchen: 'amenities.kitchen',
+    Workspace: 'amenities.workspace',
+  }
+  return map[value] ? t(map[value]) : value
+}
+const categoryLabel = (value: Listing['category']) => {
+  if (value === 'villa') return t('listing.categoryVilla')
+  if (value === 'hotel') return t('listing.categoryHotel')
+  if (value === 'apartment') return t('listing.categoryApartment')
+  return value
+}
 
 const loadListing = async () => {
   if (!isEdit.value) return
@@ -93,7 +114,7 @@ const loadListing = async () => {
       form.lng = data.lng?.toString() || ''
     }
   } catch (err) {
-    error.value = (err as Error).message || 'Failed to load listing.'
+    error.value = (err as Error).message || t('listingForm.loadFailed')
   } finally {
     loading.value = false
   }
@@ -230,7 +251,7 @@ const save = async () => {
     }
     router.push('/landlord/listings')
   } catch (err) {
-    error.value = (err as Error).message || 'Save failed.'
+    error.value = (err as Error).message || t('listingForm.saveFailed')
   } finally {
     submitting.value = false
   }
@@ -238,7 +259,7 @@ const save = async () => {
 
 const publishNow = async () => {
   if (!canPublish.value) {
-    error.value = 'Need at least one processed image and valid fields to publish.'
+    error.value = t('listingForm.publishRequirements')
     return
   }
   submitting.value = true
@@ -273,7 +294,7 @@ const publishNow = async () => {
       router.push('/landlord/listings')
     }
   } catch (err: any) {
-    error.value = err.message ?? 'Publish failed.'
+    error.value = err.message ?? t('listingForm.publishFailed')
   } finally {
     submitting.value = false
   }
@@ -283,8 +304,8 @@ const publishNow = async () => {
 <template>
   <div class="space-y-4">
     <div class="flex items-center justify-between">
-      <h2 class="section-title">{{ isEdit ? 'Edit Listing' : 'New Listing' }}</h2>
-      <Badge variant="pending">{{ isEdit ? 'Editing' : 'Draft' }}</Badge>
+      <h2 class="section-title">{{ isEdit ? t('listingForm.editTitle') : t('listingForm.newTitle') }}</h2>
+      <Badge variant="pending">{{ isEdit ? t('listingForm.editing') : t('status.draft') }}</Badge>
     </div>
 
     <ErrorBanner v-if="error" :message="error" />
@@ -293,104 +314,104 @@ const publishNow = async () => {
     <div v-else class="space-y-4 rounded-2xl bg-white p-4 shadow-soft border border-white/60">
       <div class="grid grid-cols-2 gap-3">
         <label class="text-sm font-semibold text-slate-900">
-          Title
+          {{ t('listingForm.title') }}
           <input
             v-model="form.title"
             type="text"
             class="mt-1 w-full rounded-xl border border-line px-3 py-3 text-sm focus:border-primary focus:outline-none"
-            placeholder="Stay name"
+            :placeholder="t('listingForm.titlePlaceholder')"
           />
         </label>
         <label class="text-sm font-semibold text-slate-900">
-          Price per night
+          {{ t('listingForm.pricePerNight') }}
           <input
             v-model.number="form.pricePerNight"
             type="number"
             min="1"
             step="1"
             class="mt-1 w-full rounded-xl border border-line px-3 py-3 text-sm focus:border-primary focus:outline-none"
-            placeholder="180"
+            :placeholder="t('listingForm.pricePlaceholder')"
           />
         </label>
         <label class="text-sm font-semibold text-slate-900">
-          Category
+          {{ t('listingForm.category') }}
           <select
             v-model="form.category"
             class="mt-1 w-full rounded-xl border border-line px-3 py-3 text-sm capitalize focus:border-primary focus:outline-none"
           >
-            <option value="villa">Villa</option>
-            <option value="hotel">Hotel</option>
-            <option value="apartment">Apartment</option>
+            <option value="villa">{{ categoryLabel('villa') }}</option>
+            <option value="hotel">{{ categoryLabel('hotel') }}</option>
+            <option value="apartment">{{ categoryLabel('apartment') }}</option>
           </select>
         </label>
         <label class="text-sm font-semibold text-slate-900">
-          Address
+          {{ t('listingForm.address') }}
           <input
             v-model="form.address"
             type="text"
             class="mt-1 w-full rounded-xl border border-line px-3 py-3 text-sm focus:border-primary focus:outline-none"
-            placeholder="Street and number"
+            :placeholder="t('listingForm.addressPlaceholder')"
           />
         </label>
       </div>
 
       <div class="grid grid-cols-2 gap-3">
         <label class="text-sm font-semibold text-slate-900">
-          City
+          {{ t('listingForm.city') }}
           <input
             v-model="form.city"
             type="text"
             class="mt-1 w-full rounded-xl border border-line px-3 py-3 text-sm focus:border-primary focus:outline-none"
-            placeholder="City"
+            :placeholder="t('listingForm.cityPlaceholder')"
           />
         </label>
         <label class="text-sm font-semibold text-slate-900">
-          Country
+          {{ t('listingForm.country') }}
           <input
             v-model="form.country"
             type="text"
             class="mt-1 w-full rounded-xl border border-line px-3 py-3 text-sm focus:border-primary focus:outline-none"
-            placeholder="Country"
+            :placeholder="t('listingForm.countryPlaceholder')"
           />
         </label>
       </div>
 
       <label class="text-sm font-semibold text-slate-900">
-        Description
+        {{ t('listingForm.description') }}
         <textarea
           v-model="form.description"
           rows="3"
           class="mt-1 w-full rounded-xl border border-line px-3 py-3 text-sm text-slate-900 placeholder:text-muted focus:border-primary focus:outline-none"
-          placeholder="Describe the experience"
+          :placeholder="t('listingForm.descriptionPlaceholder')"
         ></textarea>
         <span class="text-xs text-muted">{{ form.description.length }}/30</span>
       </label>
 
       <div class="grid grid-cols-2 gap-3">
         <label class="text-sm font-semibold text-slate-900">
-          Guests
+          {{ t('listingForm.guests') }}
           <input
             v-model.number="form.beds"
             type="number"
             min="1"
             step="1"
             class="mt-1 w-full rounded-xl border border-line px-3 py-3 text-sm focus:border-primary focus:outline-none"
-            placeholder="2"
+            :placeholder="t('listingForm.guestsPlaceholder')"
           />
         </label>
         <label class="text-sm font-semibold text-slate-900">
-          Rooms
+          {{ t('listingForm.rooms') }}
           <input
             v-model.number="form.rooms"
             type="number"
             min="1"
             step="1"
             class="mt-1 w-full rounded-xl border border-line px-3 py-3 text-sm focus:border-primary focus:outline-none"
-            placeholder="2"
+            :placeholder="t('listingForm.roomsPlaceholder')"
           />
         </label>
         <label class="text-sm font-semibold text-slate-900">
-          Baths
+          {{ t('listingForm.baths') }}
           <input
             v-model.number="form.baths"
             type="number"
@@ -400,7 +421,7 @@ const publishNow = async () => {
           />
         </label>
         <label class="text-sm font-semibold text-slate-900">
-          Area (sqm)
+          {{ t('listingForm.area') }}
           <input
             v-model="form.area"
             type="number"
@@ -408,13 +429,13 @@ const publishNow = async () => {
             step="1"
             required
             class="mt-1 w-full rounded-xl border border-line px-3 py-3 text-sm focus:border-primary focus:outline-none"
-            placeholder="e.g. 55"
+            :placeholder="t('listingForm.areaPlaceholder')"
           />
         </label>
       </div>
 
       <div class="space-y-2">
-        <p class="text-sm font-semibold text-slate-900">Amenities</p>
+        <p class="text-sm font-semibold text-slate-900">{{ t('listingForm.amenities') }}</p>
         <div class="grid grid-cols-2 gap-2">
           <label
             v-for="facility in amenityOptions"
@@ -422,15 +443,15 @@ const publishNow = async () => {
             class="flex items-center gap-2 rounded-xl border border-line px-3 py-2 text-sm font-semibold text-slate-800"
           >
             <input v-model="form.facilities" :value="facility" type="checkbox" class="h-4 w-4 accent-primary" />
-            {{ facility }}
+            {{ amenityLabel(facility) }}
           </label>
         </div>
       </div>
 
       <div class="flex items-center justify-between rounded-2xl bg-surface px-4 py-3">
         <div>
-          <p class="font-semibold text-slate-900">Instant book</p>
-          <p class="text-sm text-muted">Book without waiting</p>
+          <p class="font-semibold text-slate-900">{{ t('listingForm.instantBook') }}</p>
+          <p class="text-sm text-muted">{{ t('listingForm.instantBookHint') }}</p>
         </div>
         <label class="relative inline-flex cursor-pointer items-center">
           <input v-model="form.instantBook" type="checkbox" class="peer sr-only" />
@@ -442,33 +463,33 @@ const publishNow = async () => {
 
       <div class="grid grid-cols-2 gap-3">
         <label class="text-sm font-semibold text-slate-900">
-          Latitude
+          {{ t('listingForm.latitude') }}
           <input
             v-model="form.lat"
             type="text"
             class="mt-1 w-full rounded-xl border border-line px-3 py-3 text-sm focus:border-primary focus:outline-none"
-            placeholder="Optional"
+            :placeholder="t('listingForm.optional')"
           />
         </label>
         <label class="text-sm font-semibold text-slate-900">
-          Longitude
+          {{ t('listingForm.longitude') }}
           <input
             v-model="form.lng"
             type="text"
             class="mt-1 w-full rounded-xl border border-line px-3 py-3 text-sm focus:border-primary focus:outline-none"
-            placeholder="Optional"
+            :placeholder="t('listingForm.optional')"
           />
         </label>
       </div>
 
       <div class="space-y-2">
-        <p class="text-sm font-semibold text-slate-900">Images</p>
+        <p class="text-sm font-semibold text-slate-900">{{ t('listingForm.images') }}</p>
         <div class="flex flex-wrap gap-3">
           <label
             class="flex h-28 w-28 cursor-pointer flex-col items-center justify-center rounded-2xl border border-dashed border-line bg-surface text-center text-xs text-muted"
           >
             <ImagePlus class="h-6 w-6 text-primary" />
-            Upload
+            {{ t('listingForm.upload') }}
             <input type="file" multiple class="hidden" accept="image/*" @change="onFilesChange" />
           </label>
           <div
@@ -482,14 +503,14 @@ const publishNow = async () => {
                 class="rounded-full px-2 py-1"
                 :class="item.isCover ? 'bg-primary text-white' : 'bg-black/50 text-white'"
               >
-                {{ item.isCover ? 'Cover' : 'Image' }}
+                {{ item.isCover ? t('listingForm.cover') : t('listingForm.image') }}
               </span>
               <span class="ml-auto rounded-full bg-white/80 px-2 py-1 text-slate-800 shadow-soft">#{{ idx + 1 }}</span>
               <span
                 v-if="item.processingStatus && item.processingStatus !== 'done'"
                 class="rounded-full bg-amber-500/90 px-2 py-1 text-white"
               >
-                Processing
+                {{ t('listingForm.processing') }}
               </span>
             </div>
             <div class="absolute bottom-1 left-1 right-1 flex items-center gap-1">
@@ -512,14 +533,14 @@ const publishNow = async () => {
                 type="button"
                 @click="setCover(item.key)"
               >
-                <Star class="mr-1 inline h-4 w-4" /> Cover
+                <Star class="mr-1 inline h-4 w-4" /> {{ t('listingForm.cover') }}
               </button>
               <button
                 class="rounded-full bg-white/90 px-2 py-1 text-xs font-semibold text-red-500 shadow-soft"
                 @click="removeItem(item.key)"
                 type="button"
               >
-                Remove
+                {{ t('common.remove') }}
               </button>
             </div>
           </div>
@@ -527,20 +548,20 @@ const publishNow = async () => {
       </div>
 
       <div class="flex justify-end gap-2">
-        <Button variant="secondary" @click="router.push('/landlord/listings')">Cancel</Button>
+        <Button variant="secondary" @click="router.push('/landlord/listings')">{{ t('common.cancel') }}</Button>
         <Button v-if="isEdit" variant="primary" :disabled="!canPublish || submitting" @click="publishNow">
-          Publish
+          {{ t('listingForm.publish') }}
         </Button>
         <Button :disabled="!isValid || submitting" @click="save">
-          {{ submitting ? 'Saving...' : isEdit ? 'Save changes' : 'Save draft' }}
+          {{ submitting ? t('common.saving') : isEdit ? t('common.saveChanges') : t('listingForm.saveDraft') }}
         </Button>
       </div>
     </div>
 
     <EmptyState
       v-if="!loading && !isEdit && !totalImages"
-      title="Tip: add photos"
-      subtitle="Listings with photos get more requests"
+      :title="t('listingForm.photoTipTitle')"
+      :subtitle="t('listingForm.photoTipSubtitle')"
       :icon="MapPin"
     />
   </div>

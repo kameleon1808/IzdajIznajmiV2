@@ -1,14 +1,34 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { Award, Heart, MapPin, ShieldCheck } from 'lucide-vue-next'
 import type { Listing } from '../../types'
+import { useLanguageStore } from '../../stores/language'
 
-defineProps<{ listing: Listing }>()
+const props = withDefaults(defineProps<{ listing: Listing; useTranslations?: boolean }>(), {
+  useTranslations: false,
+})
 const emit = defineEmits(['toggle', 'click'])
 
 const toggle = (e: Event, id: string) => {
   e.stopPropagation()
   emit('toggle', id)
 }
+
+const languageStore = useLanguageStore()
+const t = (key: Parameters<typeof languageStore.t>[0]) => languageStore.t(key)
+
+const bedBathText = computed(() => {
+  if (!props.useTranslations) {
+    return `${props.listing.beds} beds · ${props.listing.baths} baths`
+  }
+  const bedLabel = props.listing.beds === 1 ? t('listing.bed') : t('listing.beds')
+  const bathLabel = props.listing.baths === 1 ? t('listing.bath') : t('listing.baths')
+  return `${props.listing.beds} ${bedLabel} · ${props.listing.baths} ${bathLabel}`
+})
+
+const nightLabel = computed(() => (props.useTranslations ? t('listing.night') : 'night'))
+const verifiedLabel = computed(() => (props.useTranslations ? t('listing.verified') : 'Verified'))
+const topLandlordLabel = computed(() => (props.useTranslations ? t('listing.topLandlord') : 'Top landlord'))
 </script>
 
 <template>
@@ -32,14 +52,14 @@ const toggle = (e: Event, id: string) => {
           class="flex items-center gap-1 rounded-full bg-emerald-500/90 px-3 py-1 text-xs font-semibold text-white shadow-soft"
         >
           <ShieldCheck class="h-3.5 w-3.5" />
-          Verified
+          {{ verifiedLabel }}
         </div>
         <div
           v-if="listing.landlord?.badges?.includes('top_landlord')"
           class="flex items-center gap-1 rounded-full bg-amber-500/90 px-3 py-1 text-xs font-semibold text-white shadow-soft"
         >
           <Award class="h-3.5 w-3.5" />
-          Top landlord
+          {{ topLandlordLabel }}
         </div>
       </div>
       <div class="absolute bottom-3 left-3 right-3 flex items-end justify-between text-white">
@@ -57,12 +77,12 @@ const toggle = (e: Event, id: string) => {
     </div>
     <div class="space-y-1 px-4 py-3">
       <div class="flex items-center justify-between text-sm text-muted">
-        <span>{{ listing.beds }} beds · {{ listing.baths }} baths</span>
+        <span>{{ bedBathText }}</span>
         <div class="flex items-center gap-2">
           <span v-if="listing.distanceKm !== undefined" class="rounded-full bg-surface px-3 py-1 text-xs font-semibold text-slate-700">
             {{ listing.distanceKm.toFixed(1) }} km
           </span>
-          <span class="font-semibold text-primary">${{ listing.pricePerNight }}/night</span>
+          <span class="font-semibold text-primary">${{ listing.pricePerNight }}/{{ nightLabel }}</span>
         </div>
       </div>
     </div>

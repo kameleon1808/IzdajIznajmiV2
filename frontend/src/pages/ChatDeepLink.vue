@@ -10,6 +10,7 @@ import Badge from '../components/ui/Badge.vue'
 import { useAuthStore } from '../stores/auth'
 import { useChatStore } from '../stores/chat'
 import { useRequestsStore } from '../stores/requests'
+import { useLanguageStore } from '../stores/language'
 import type { Application } from '../types'
 import { resolveChatTarget, type ChatDeepLinkTarget } from '../utils/deepLink'
 
@@ -18,6 +19,8 @@ const router = useRouter()
 const auth = useAuthStore()
 const chatStore = useChatStore()
 const requestsStore = useRequestsStore()
+const languageStore = useLanguageStore()
+const t = (key: Parameters<typeof languageStore.t>[0]) => languageStore.t(key)
 
 const error = ref('')
 const selectionListingId = ref<string | null>(null)
@@ -34,10 +37,10 @@ const selectionOptions = computed<Application[]>(() => {
 const selectionListingTitle = computed(() => selectionOptions.value[0]?.listing.title || selectionListingId.value)
 
 const header = computed(() => {
-  if (target.value.kind === 'conversation') return 'Opening chat thread'
-  if (target.value.kind === 'application') return 'Opening application chat'
-  if (target.value.kind === 'listing') return 'Opening listing chat'
-  return 'Chat'
+  if (target.value.kind === 'conversation') return t('chatDeep.openingConversation')
+  if (target.value.kind === 'application') return t('chatDeep.openingApplication')
+  if (target.value.kind === 'listing') return t('chatDeep.openingListing')
+  return t('titles.chat')
 })
 
 const resolveAndRoute = async () => {
@@ -67,15 +70,15 @@ const resolveAndRoute = async () => {
           throw new Error(requestsStore.error)
         }
         if (!selectionOptions.value.length) {
-          throw new Error('Choose an application to start the conversation for this listing.')
+          throw new Error(t('chatDeep.chooseApplication'))
         }
         return
       }
     }
 
-    throw new Error('No deep-link target found. Open a conversation from Messages.')
+    throw new Error(t('chatDeep.noTarget'))
   } catch (err) {
-    error.value = (err as Error).message || 'Unable to open chat.'
+    error.value = (err as Error).message || t('chatDeep.unableToOpen')
   }
 }
 
@@ -85,7 +88,7 @@ const openFromSelection = async (appId: string) => {
     const conversation = await chatStore.openByApplicationId(appId)
     await router.replace({ path: `/chat/${conversation.id}` })
   } catch (err) {
-    error.value = (err as Error).message || 'Unable to open chat.'
+    error.value = (err as Error).message || t('chatDeep.unableToOpen')
   }
 }
 
@@ -100,7 +103,7 @@ onMounted(() => {
   <div class="min-h-screen bg-surface px-4 pb-16 pt-6">
     <div class="mb-4 flex items-center justify-between rounded-2xl bg-white px-4 py-3 shadow-soft border border-white/60">
       <div>
-        <p class="text-xs uppercase text-muted">Notifications</p>
+        <p class="text-xs uppercase text-muted">{{ t('chatDeep.notifications') }}</p>
         <h1 class="text-lg font-semibold text-slate-900">{{ header }}</h1>
       </div>
       <div class="rounded-full bg-primary/10 p-2">
@@ -114,15 +117,15 @@ onMounted(() => {
     <div v-if="selectionListingId" class="space-y-3">
       <ErrorBanner v-if="error" :message="error" />
       <p class="text-sm text-muted">
-        Select which application for listing
+        {{ t('chatDeep.selectApplication') }}
         <strong>{{ selectionListingTitle }}</strong>
-        you want to open in chat.
+        {{ t('chatDeep.selectApplicationSuffix') }}
       </p>
       <ListSkeleton v-if="requestsStore.loading" :count="2" />
       <EmptyState
         v-else-if="!selectionOptions.length"
-        title="No applications yet"
-        subtitle="Ask applicants to apply before starting a chat."
+        :title="t('chatDeep.noApplicationsTitle')"
+        :subtitle="t('chatDeep.noApplicationsSubtitle')"
       />
       <div v-else class="space-y-3">
         <div
@@ -132,23 +135,23 @@ onMounted(() => {
         >
           <div class="flex items-start justify-between gap-3">
             <div>
-              <p class="text-sm font-semibold text-slate-900">{{ app.listing.title || 'Listing' }}</p>
+              <p class="text-sm font-semibold text-slate-900">{{ app.listing.title || t('bookings.listingLabel') }}</p>
               <p class="text-xs text-muted">
-                Seeker: {{ app.participants.seekerId }} · {{ app.listing.city || 'N/A' }}
+                {{ t('bookings.seeker') }}: {{ app.participants.seekerId }} · {{ app.listing.city || t('chatDeep.na') }}
               </p>
             </div>
             <Badge :variant="app.status === 'submitted' ? 'pending' : app.status === 'accepted' ? 'accepted' : 'info'">
               {{ app.status }}
             </Badge>
           </div>
-          <p class="mt-2 text-sm text-muted line-clamp-2">{{ app.message || 'No message' }}</p>
+          <p class="mt-2 text-sm text-muted line-clamp-2">{{ app.message || t('bookings.noMessage') }}</p>
           <div class="mt-3 flex justify-end">
-            <Button size="sm" variant="primary" @click="openFromSelection(app.id)">Open chat</Button>
+            <Button size="sm" variant="primary" @click="openFromSelection(app.id)">{{ t('chatDeep.openChat') }}</Button>
           </div>
         </div>
       </div>
       <div class="flex justify-end" v-if="!requestsStore.loading && !selectionOptions.length">
-        <Button variant="secondary" size="sm" @click="router.push('/messages')">Back to messages</Button>
+        <Button variant="secondary" size="sm" @click="router.push('/messages')">{{ t('chat.backToMessages') }}</Button>
       </div>
     </div>
 
@@ -156,8 +159,8 @@ onMounted(() => {
       <ListSkeleton v-if="chatStore.resolving" :count="3" />
       <EmptyState
         v-else
-        title="Preparing chat..."
-        subtitle="Opening conversation from your notification."
+        :title="t('chatDeep.preparingTitle')"
+        :subtitle="t('chatDeep.preparingSubtitle')"
       />
     </div>
   </div>

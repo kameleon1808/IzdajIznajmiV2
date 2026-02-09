@@ -7,50 +7,60 @@ import Button from '../components/ui/Button.vue'
 import ModalSheet from '../components/ui/ModalSheet.vue'
 import { useAuthStore, type Role } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
+import { useLanguageStore } from '../stores/language'
 
 const router = useRouter()
 const showLogout = ref(false)
 const auth = useAuthStore()
 const toast = useToastStore()
+const languageStore = useLanguageStore()
+const t = (key: Parameters<typeof languageStore.t>[0]) => languageStore.t(key)
 const selectedRole = ref<Role>(auth.primaryRole)
 const showRoleSwitch = computed(() => auth.isMockMode)
+const roleLabel = (role: Role | string) => {
+  if (role === 'seeker') return t('auth.roles.seeker')
+  if (role === 'landlord') return t('auth.roles.landlord')
+  if (role === 'admin') return t('auth.roles.admin')
+  if (role === 'guest') return t('auth.roles.guest')
+  return role
+}
 
-const baseItems = [
-  { label: 'Your Card', icon: CreditCard, action: () => {} },
-  { label: 'Security', icon: Shield, action: () => router.push('/settings/security') },
-  { label: 'Notification', icon: Bell, action: () => router.push('/settings/notifications') },
-  { label: 'Languages', icon: Languages, action: () => router.push('/settings/language') },
-  { label: 'Help & Support', icon: HelpCircle, action: () => router.push('/settings/legal') },
-]
+const baseItems = computed(() => [
+  { label: t('profile.menu.card'), icon: CreditCard, action: () => {} },
+  { label: t('profile.menu.security'), icon: Shield, action: () => router.push('/settings/security') },
+  { label: t('profile.menu.notifications'), icon: Bell, action: () => router.push('/settings/notifications') },
+  { label: t('profile.menu.languages'), icon: Languages, action: () => router.push('/settings/language') },
+  { label: t('profile.menu.support'), icon: HelpCircle, action: () => router.push('/settings/legal') },
+])
 
 const menuItems = computed(() => {
   const extras = []
   if (auth.hasRole('landlord')) {
-    extras.push({ label: 'Verification', icon: Shield, action: () => router.push('/profile/verification') })
-    extras.push({ label: 'My Listings', icon: Store, action: () => router.push('/landlord/listings') })
-    extras.push({ label: 'Transactions', icon: FileText, action: () => router.push('/transactions') })
+    extras.push({ label: t('profile.menu.verification'), icon: Shield, action: () => router.push('/profile/verification') })
+    extras.push({ label: t('profile.menu.myListings'), icon: Store, action: () => router.push('/landlord/listings') })
+    extras.push({ label: t('profile.menu.transactions'), icon: FileText, action: () => router.push('/transactions') })
   }
   if (auth.hasRole('admin')) {
-    extras.push({ label: 'KYC Review', icon: Shield, action: () => router.push('/admin/kyc') })
-    extras.push({ label: 'Transactions', icon: FileText, action: () => router.push('/admin/transactions') })
-    extras.push({ label: 'Users', icon: FileText, action: () => router.push('/admin/users') })
+    extras.push({ label: t('profile.menu.kycReview'), icon: Shield, action: () => router.push('/admin/kyc') })
+    extras.push({ label: t('profile.menu.transactions'), icon: FileText, action: () => router.push('/admin/transactions') })
+    extras.push({ label: t('profile.menu.users'), icon: FileText, action: () => router.push('/admin/users') })
   }
   if (auth.hasRole('seeker')) {
-    extras.push({ label: 'Saved Searches', icon: Bookmark, action: () => router.push('/saved-searches') })
-    extras.push({ label: 'Transactions', icon: FileText, action: () => router.push('/transactions') })
+    extras.push({ label: t('profile.menu.savedSearches'), icon: Bookmark, action: () => router.push('/saved-searches') })
+    extras.push({ label: t('profile.menu.transactions'), icon: FileText, action: () => router.push('/transactions') })
   }
-  return [...extras, ...baseItems]
+  return [...extras, ...baseItems.value]
 })
 
 const switchRole = (role: Role) => {
   selectedRole.value = role
   auth.loginAs(role)
-  toast.push({ title: `Role: ${role}`, type: 'info' })
+  toast.push({ title: `${t('profile.roleLabel')}: ${role}`, type: 'info' })
 }
 
 const handleLogout = async () => {
   await auth.logout()
-  toast.push({ title: 'Logged out', type: 'info' })
+  toast.push({ title: t('profile.loggedOut'), type: 'info' })
   showLogout.value = false
   router.push('/')
 }
@@ -62,31 +72,31 @@ const handleLogout = async () => {
       v-if="!auth.isAuthenticated && !auth.isMockMode"
       class="space-y-3 rounded-2xl bg-white p-4 shadow-soft border border-white/60"
     >
-      <p class="text-sm text-muted">Niste prijavljeni. Ulogujte se da vidite rezervacije i poruke.</p>
+      <p class="text-sm text-muted">{{ t('profile.notSignedIn') }}</p>
       <div class="flex gap-2">
-        <Button class="flex-1" @click="router.push('/login')">Login</Button>
-        <Button class="flex-1" variant="secondary" @click="router.push('/register')">Register</Button>
+        <Button class="flex-1" @click="router.push('/login')">{{ t('auth.login') }}</Button>
+        <Button class="flex-1" variant="secondary" @click="router.push('/register')">{{ t('auth.register') }}</Button>
       </div>
     </div>
 
     <div class="flex items-center gap-3 rounded-2xl bg-white p-4 shadow-soft border border-white/60">
       <img
         src="https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&w=300&q=80"
-        alt="avatar"
+        :alt="t('common.avatarAlt')"
         class="h-16 w-16 rounded-3xl object-cover"
       />
       <div>
         <p class="text-lg font-semibold text-slate-900">{{ auth.user.name }}</p>
         <p class="text-sm text-muted">@{{ auth.user.id }}</p>
-        <Badge variant="pending" class="mt-1 inline-block capitalize">{{ auth.primaryRole }}</Badge>
+        <Badge variant="pending" class="mt-1 inline-block capitalize">{{ roleLabel(auth.primaryRole) }}</Badge>
       </div>
       <div class="ml-auto">
-        <Button variant="secondary" size="sm" @click="router.push(`/users/${auth.user.id}`)">View profile</Button>
+        <Button variant="secondary" size="sm" @click="router.push(`/users/${auth.user.id}`)">{{ t('profile.viewProfile') }}</Button>
       </div>
     </div>
 
     <div v-if="showRoleSwitch" class="rounded-2xl bg-surface p-2 shadow-soft border border-white/60">
-      <p class="px-2 text-xs font-semibold text-muted">Switch role (dev only)</p>
+      <p class="px-2 text-xs font-semibold text-muted">{{ t('profile.switchRoleDev') }}</p>
       <div class="mt-2 grid grid-cols-4 gap-2">
         <button
           v-for="role in ['guest', 'seeker', 'landlord', 'admin']"
@@ -95,7 +105,7 @@ const handleLogout = async () => {
           :class="selectedRole === role ? 'bg-primary text-white' : 'bg-white text-slate-800'"
           @click="switchRole(role as Role)"
         >
-          {{ role }}
+          {{ roleLabel(role as Role) }}
         </button>
       </div>
     </div>
@@ -119,16 +129,16 @@ const handleLogout = async () => {
       @click="showLogout = true"
     >
       <LogOut class="h-5 w-5" />
-      <span class="flex-1 text-sm font-semibold">Logout</span>
+      <span class="flex-1 text-sm font-semibold">{{ t('auth.logout') }}</span>
       <ChevronRight class="h-4 w-4" />
     </button>
   </div>
 
-  <ModalSheet v-model="showLogout" title="Are you sure?">
-    <p class="text-sm text-muted">You will be logged out of this device. Continue?</p>
+  <ModalSheet v-model="showLogout" :title="t('profile.logoutConfirmTitle')">
+    <p class="text-sm text-muted">{{ t('profile.logoutConfirmMessage') }}</p>
     <div class="mt-4 flex gap-2">
-      <Button variant="secondary" class="flex-1" @click="showLogout = false">Cancel</Button>
-      <Button variant="danger" class="flex-1" @click="handleLogout">Logout</Button>
+      <Button variant="secondary" class="flex-1" @click="showLogout = false">{{ t('common.cancel') }}</Button>
+      <Button variant="danger" class="flex-1" @click="handleLogout">{{ t('auth.logout') }}</Button>
     </div>
   </ModalSheet>
 </template>

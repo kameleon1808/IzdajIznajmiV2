@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { ArrowLeft, Check } from 'lucide-vue-next'
 import { useNotificationStore } from '../stores/notifications'
 import { useAuthStore } from '../stores/auth'
+import { useLanguageStore } from '../stores/language'
 import EmptyState from '../components/ui/EmptyState.vue'
 import ListSkeleton from '../components/ui/ListSkeleton.vue'
 import ErrorState from '../components/ui/ErrorState.vue'
@@ -11,6 +12,8 @@ import ErrorState from '../components/ui/ErrorState.vue'
 const router = useRouter()
 const notificationStore = useNotificationStore()
 const authStore = useAuthStore()
+const languageStore = useLanguageStore()
+const t = (key: Parameters<typeof languageStore.t>[0]) => languageStore.t(key)
 
 const activeTab = ref<'unread' | 'all'>('unread')
 const currentPage = ref(1)
@@ -74,10 +77,10 @@ const formatTime = (dateString: string) => {
   const diffHours = Math.floor(diffMs / 3600000)
   const diffDays = Math.floor(diffMs / 86400000)
 
-  if (diffMins < 1) return 'Just now'
-  if (diffMins < 60) return `${diffMins}m ago`
-  if (diffHours < 24) return `${diffHours}h ago`
-  if (diffDays < 7) return `${diffDays}d ago`
+  if (diffMins < 1) return t('time.justNow')
+  if (diffMins < 60) return `${diffMins}${t('time.minutesAgoShort')}`
+  if (diffHours < 24) return `${diffHours}${t('time.hoursAgoShort')}`
+  if (diffDays < 7) return `${diffDays}${t('time.daysAgoShort')}`
   return date.toLocaleDateString()
 }
 
@@ -102,16 +105,16 @@ const getNotificationIcon = (type: string) => {
 <template>
   <div class="min-h-screen bg-surface pb-24">
     <header class="sticky top-0 z-30 flex items-center gap-3 border-b border-white/40 bg-surface/90 px-4 py-3 backdrop-blur-lg">
-      <button class="rounded-full bg-white p-2 shadow-soft" @click="router.back()" aria-label="back">
+      <button class="rounded-full bg-white p-2 shadow-soft" @click="router.back()" :aria-label="t('common.back')">
         <ArrowLeft class="h-5 w-5 text-slate-800" />
       </button>
-      <h1 class="flex-1 text-lg font-semibold text-slate-900">Notifications</h1>
+      <h1 class="flex-1 text-lg font-semibold text-slate-900">{{ t('notifications.title') }}</h1>
       <button
         v-if="activeTab === 'unread' && filteredNotifications.length > 0"
         @click="markAllRead"
         class="text-sm text-primary font-semibold"
       >
-        Mark all read
+        {{ t('notifications.markAllRead') }}
       </button>
     </header>
 
@@ -126,7 +129,7 @@ const getNotificationIcon = (type: string) => {
               : 'text-slate-600 hover:text-slate-900'
           "
         >
-          Unread
+          {{ t('notifications.tabs.unread') }}
           <span
             v-if="notificationStore.unreadCount > 0"
             class="ml-1.5 rounded-full bg-primary/20 px-1.5 py-0.5 text-xs"
@@ -144,18 +147,18 @@ const getNotificationIcon = (type: string) => {
               : 'text-slate-600 hover:text-slate-900'
           "
         >
-          All
+          {{ t('notifications.tabs.all') }}
         </button>
       </div>
     </div>
 
     <div class="px-4 pt-4">
-      <ErrorState v-if="error" :message="error" retry-label="Retry" @retry="loadNotifications" class="mb-3" />
+      <ErrorState v-if="error" :message="error" :retry-label="t('common.retry')" @retry="loadNotifications" class="mb-3" />
       <ListSkeleton v-if="notificationStore.loading && notifications.length === 0" />
       <EmptyState
         v-else-if="filteredNotifications.length === 0"
-        :title="activeTab === 'unread' ? 'No unread notifications' : 'No notifications'"
-        subtitle="You're all caught up!"
+        :title="activeTab === 'unread' ? t('notifications.emptyUnreadTitle') : t('notifications.emptyTitle')"
+        :subtitle="t('notifications.emptySubtitle')"
       />
       <div v-else class="space-y-2">
         <button

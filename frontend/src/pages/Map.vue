@@ -8,9 +8,12 @@ import ErrorBanner from '../components/ui/ErrorBanner.vue'
 import Input from '../components/ui/Input.vue'
 import Button from '../components/ui/Button.vue'
 import { useListingsStore } from '../stores/listings'
+import { useLanguageStore } from '../stores/language'
 
 const router = useRouter()
 const listingsStore = useListingsStore()
+const languageStore = useLanguageStore()
+const t = (key: Parameters<typeof languageStore.t>[0]) => languageStore.t(key)
 const query = ref('')
 
 onMounted(() => {
@@ -28,7 +31,7 @@ const error = computed(() => listingsStore.error)
     <div class="absolute left-0 right-0 top-4 z-30 px-4">
       <Input
         v-model="query"
-        placeholder="Search nearby hotel"
+        :placeholder="t('map.searchPlaceholder')"
         :left-icon="SearchIcon"
         class="shadow-card"
         @focus="router.push('/search')"
@@ -44,7 +47,7 @@ const error = computed(() => listingsStore.error)
         <div class="h-10 w-10 overflow-hidden rounded-full border border-white/80">
           <img
             src="https://images.unsplash.com/photo-1505691938895-1758d7feb511?auto=format&fit=crop&w=200&q=80"
-            alt="marker"
+            :alt="t('map.markerAlt')"
             class="h-full w-full object-cover"
           />
         </div>
@@ -56,7 +59,7 @@ const error = computed(() => listingsStore.error)
 
       <div class="absolute right-10 top-20 flex items-center gap-2 rounded-pill bg-white px-3 py-2 shadow-soft">
         <Navigation class="h-4 w-4 text-primary" />
-        <span class="text-xs font-semibold text-slate-800">Live</span>
+        <span class="text-xs font-semibold text-slate-800">{{ t('map.live') }}</span>
       </div>
     </div>
 
@@ -75,23 +78,30 @@ const error = computed(() => listingsStore.error)
             </div>
             <h3 class="text-base font-semibold text-slate-900">{{ highlighted?.title }}</h3>
             <div class="flex items-center justify-between">
-              <span class="text-sm font-semibold text-primary">${{ highlighted?.pricePerNight }}/night</span>
+              <span class="text-sm font-semibold text-primary">${{ highlighted?.pricePerNight }}/{{ t('listing.night') }}</span>
               <div class="flex items-center gap-1 text-xs text-muted">
                 <MapPin class="h-4 w-4 text-primary" />
-                <span>{{ highlighted?.rating?.toFixed(1) }} rating</span>
+                <span>{{ highlighted?.rating?.toFixed(1) }} {{ t('map.ratingLabel') }}</span>
               </div>
             </div>
           </div>
-          <button class="rounded-2xl bg-primary/10 p-3 text-primary" aria-label="message">
+          <button class="rounded-2xl bg-primary/10 p-3 text-primary" :aria-label="t('map.message')">
             <MessageSquare class="h-5 w-5" />
           </button>
         </div>
 
         <div class="mt-3 flex gap-2">
-          <Button block size="lg" @click="router.push(`/listing/${highlighted?.id ?? '1'}`)">Send Inquiry</Button>
+          <Button block size="lg" @click="router.push(`/listing/${highlighted?.id ?? '1'}`)">
+            {{ t('map.sendInquiry') }}
+          </Button>
         </div>
       </template>
-      <EmptyState v-else title="No nearby stays" subtitle="Try refreshing or adjusting filters" :icon="Navigation" />
+      <EmptyState
+        v-else
+        :title="t('map.emptyTitle')"
+        :subtitle="t('map.emptySubtitle')"
+        :icon="Navigation"
+      />
     </div>
   </div>
 </template>

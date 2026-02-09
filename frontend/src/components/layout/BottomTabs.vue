@@ -1,17 +1,21 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { CalendarCheck, Heart, Home, MessageSquare, UserRound } from 'lucide-vue-next'
+import { useLanguageStore } from '../../stores/language'
 
 const router = useRouter()
 const route = useRoute()
+const languageStore = useLanguageStore()
+const t = (key: Parameters<typeof languageStore.t>[0]) => languageStore.t(key)
 
-const tabs = [
-  { label: 'Home', to: '/', icon: Home },
-  { label: 'My Booking', to: '/bookings', icon: CalendarCheck },
-  { label: 'Favorites', to: '/favorites', icon: Heart },
-  { label: 'Message', to: '/messages', icon: MessageSquare },
-  { label: 'Profile', to: '/profile', icon: UserRound },
-]
+const tabs = computed(() => [
+  { label: t('nav.home'), to: '/', icon: Home },
+  { label: t('nav.bookings'), to: '/bookings', icon: CalendarCheck },
+  { label: t('nav.favorites'), to: '/favorites', icon: Heart },
+  { label: t('nav.messages'), to: '/messages', icon: MessageSquare },
+  { label: t('nav.profile'), to: '/profile', icon: UserRound },
+])
 
 const isActive = (path: string) => {
   if (path === '/') return route.path === '/'

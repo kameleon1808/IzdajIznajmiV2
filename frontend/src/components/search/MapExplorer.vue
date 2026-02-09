@@ -7,6 +7,7 @@ import type { Listing } from '../../types'
 import markerIconUrl from 'leaflet/dist/images/marker-icon.png'
 import markerIconRetinaUrl from 'leaflet/dist/images/marker-icon-2x.png'
 import markerShadowUrl from 'leaflet/dist/images/marker-shadow.png'
+import { useLanguageStore } from '../../stores/language'
 
 const props = defineProps<{
   listings: Listing[]
@@ -34,6 +35,8 @@ const mapCenter = ref<{ lat: number; lng: number } | null>(props.center)
 const ready = ref(false)
 const pinIcon = ref<any>(null)
 const searchDisabled = computed(() => props.loading)
+const languageStore = useLanguageStore()
+const t = (key: Parameters<typeof languageStore.t>[0]) => languageStore.t(key)
 
 const defaultCenter = { lat: 44.8125, lng: 20.4612 } // Belgrade
 const effectiveCenter = computed(() => mapCenter.value ?? props.center ?? defaultCenter)
@@ -185,7 +188,7 @@ onBeforeUnmount(() => {
 "
         @click="emit('search-area', mapCenter ?? effectiveCenter)"
       >
-        <span>{{ searchDisabled ? 'Loading…' : 'Search this area' }}</span>
+        <span>{{ searchDisabled ? t('search.loading') : t('search.searchThisArea') }}</span>
       </button>
     </div>
 

@@ -3,8 +3,11 @@ import { computed, ref } from 'vue'
 import { Download, FileText } from 'lucide-vue-next'
 import ImageLightbox from '../ui/ImageLightbox.vue'
 import type { ChatAttachment } from '../../types'
+import { useLanguageStore } from '../../stores/language'
 
 const props = defineProps<{ attachments: ChatAttachment[] }>()
+const languageStore = useLanguageStore()
+const t = (key: Parameters<typeof languageStore.t>[0]) => languageStore.t(key)
 
 const images = computed(() => props.attachments.filter((att) => att.kind === 'image'))
 const documents = computed(() => props.attachments.filter((att) => att.kind === 'document'))
@@ -39,7 +42,7 @@ const openLightbox = (index: number) => {
           v-if="!img.thumbUrl"
           class="absolute inset-0 flex items-center justify-center bg-slate-900/60 text-xs font-semibold text-white"
         >
-          Processing...
+          {{ t('chat.processing') }}
         </div>
       </button>
     </div>
@@ -66,7 +69,7 @@ const openLightbox = (index: number) => {
       :images="imageUrls"
       :open="lightboxOpen"
       :index="lightboxIndex"
-      alt="Chat attachment"
+      :alt="t('chat.attachmentAlt')"
       @update:open="lightboxOpen = $event"
       @update:index="lightboxIndex = $event"
     />

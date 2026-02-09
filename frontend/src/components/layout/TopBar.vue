@@ -12,16 +12,24 @@ import {
 import NotificationBell from '../notifications/NotificationBell.vue'
 import { useAuthStore } from '../../stores/auth'
 import { useChatStore } from '../../stores/chat'
+import { useLanguageStore } from '../../stores/language'
 
-const props = defineProps<{ config?: { type?: string; title?: string; location?: string; userName?: string } }>()
+const props = defineProps<{ config?: { type?: string; title?: string; titleKey?: string; location?: string; userName?: string } }>()
 const route = useRoute()
 const router = useRouter()
 const auth = useAuthStore()
 const chatStore = useChatStore()
+const languageStore = useLanguageStore()
+const t = (key: Parameters<typeof languageStore.t>[0]) => languageStore.t(key)
 
 const variant = computed(() => props.config?.type ?? 'title')
-const location = computed(() => props.config?.location ?? 'Bali, Indonesia')
-const userName = computed(() => props.config?.userName ?? 'Hi, Marina')
+const location = computed(() => props.config?.location ?? t('topbar.defaultLocation'))
+const userName = computed(() => props.config?.userName ?? t('topbar.defaultGreeting'))
+const titleText = computed(() => {
+  const key = props.config?.titleKey
+  if (key) return t(key as Parameters<typeof languageStore.t>[0])
+  return props.config?.title ?? t('topbar.discover')
+})
 const chatConversation = computed(() => {
   const activeId = (route.params.id as string | undefined) || chatStore.activeConversationId || undefined
   if (!activeId) return undefined
@@ -37,7 +45,7 @@ const chatProfileId = computed(() => {
   if (authId && String(participants.tenantId) === authId) return String(participants.landlordId)
   return String(participants.landlordId ?? participants.tenantId ?? '')
 })
-const chatUserName = computed(() => chatConversation.value?.userName || props.config?.title || 'Chat')
+const chatUserName = computed(() => chatConversation.value?.userName || props.config?.title || t('titles.chat'))
 const chatAvatar = computed(() => chatConversation.value?.avatarUrl || 'https://i.pravatar.cc/100?img=12')
 const chatOnline = computed(() => chatConversation.value?.online ?? false)
 
@@ -58,7 +66,7 @@ const goProfile = () => {
       <div class="flex items-center gap-3">
         <img
           src="https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&w=200&q=80"
-          alt="avatar"
+          :alt="t('topbar.avatarAlt')"
           class="h-12 w-12 rounded-2xl object-cover shadow-soft"
         />
         <div class="flex flex-col">
@@ -70,7 +78,7 @@ const goProfile = () => {
         </div>
       </div>
       <div class="flex items-center gap-2">
-        <button class="rounded-full bg-white p-2 shadow-soft" aria-label="search" @click="goSearch">
+        <button class="rounded-full bg-white p-2 shadow-soft" :aria-label="t('topbar.search')" @click="goSearch">
           <Search class="h-5 w-5 text-slate-800" />
         </button>
         <NotificationBell />
@@ -78,13 +86,13 @@ const goProfile = () => {
     </div>
 
     <div v-else-if="variant === 'search' || variant === 'back'" class="flex items-center gap-3">
-      <button class="rounded-full bg-white p-2 shadow-soft" @click="goBack" aria-label="back">
+      <button class="rounded-full bg-white p-2 shadow-soft" @click="goBack" :aria-label="t('topbar.back')">
         <ArrowLeft class="h-5 w-5 text-slate-800" />
       </button>
       <div class="flex flex-1 items-center justify-between rounded-2xl bg-white px-4 py-3 shadow-soft">
         <div class="flex flex-col">
-          <span class="text-sm font-semibold text-slate-900">{{ props.config?.title ?? 'Discover' }}</span>
-          <span v-if="variant === 'search'" class="text-xs text-muted">Find the best place</span>
+          <span class="text-sm font-semibold text-slate-900">{{ titleText }}</span>
+          <span v-if="variant === 'search'" class="text-xs text-muted">{{ t('topbar.findBestPlace') }}</span>
         </div>
         <NotificationBell v-if="variant === 'search'" />
       </div>
@@ -92,7 +100,7 @@ const goProfile = () => {
 
     <div v-else-if="variant === 'title'" class="flex items-center">
       <div class="flex w-full items-center justify-between rounded-2xl bg-white px-4 py-3 shadow-soft">
-        <span class="text-base font-semibold text-slate-900">{{ props.config?.title ?? 'Discover' }}</span>
+        <span class="text-base font-semibold text-slate-900">{{ titleText }}</span>
         <NotificationBell />
       </div>
     </div>
@@ -111,21 +119,21 @@ const goProfile = () => {
         </button>
         <img
           :src="chatAvatar"
-          alt="guest"
+          :alt="t('topbar.guestAlt')"
           class="h-10 w-10 rounded-2xl object-cover"
         />
         <div class="flex flex-col leading-tight">
           <span class="font-semibold text-slate-900">{{ chatUserName }}</span>
           <span class="text-xs" :class="chatOnline ? 'text-primary' : 'text-muted'">
-            {{ chatOnline ? 'Online' : 'Offline' }}
+            {{ chatOnline ? t('topbar.online') : t('topbar.offline') }}
           </span>
         </div>
       </div>
       <div class="flex items-center gap-2">
-        <button class="rounded-full bg-primary/10 p-2" aria-label="call">
+        <button class="rounded-full bg-primary/10 p-2" :aria-label="t('topbar.call')">
           <Phone class="h-4 w-4 text-primary" />
         </button>
-        <button class="rounded-full bg-primary p-2 text-white shadow-card" aria-label="video">
+        <button class="rounded-full bg-primary p-2 text-white shadow-card" :aria-label="t('topbar.video')">
           <Video class="h-4 w-4" />
         </button>
       </div>
@@ -133,10 +141,10 @@ const goProfile = () => {
   </header>
 
   <div v-else class="absolute left-0 right-0 top-0 z-30 flex items-center justify-between px-4 pt-6">
-    <button class="rounded-full bg-white/80 p-2 shadow-soft backdrop-blur" @click="goBack" aria-label="back">
+    <button class="rounded-full bg-white/80 p-2 shadow-soft backdrop-blur" @click="goBack" :aria-label="t('topbar.back')">
       <ArrowLeft class="h-5 w-5 text-slate-900" />
     </button>
-    <button class="rounded-full bg-white/80 p-2 shadow-soft backdrop-blur" aria-label="more">
+    <button class="rounded-full bg-white/80 p-2 shadow-soft backdrop-blur" :aria-label="t('topbar.more')">
       <EllipsisVertical class="h-5 w-5 text-slate-900" />
     </button>
   </div>

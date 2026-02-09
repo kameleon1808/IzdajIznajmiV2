@@ -6,10 +6,17 @@ import ErrorState from '../components/ui/ErrorState.vue'
 import Input from '../components/ui/Input.vue'
 import ListSkeleton from '../components/ui/ListSkeleton.vue'
 import { useChatStore } from '../stores/chat'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
+import { useLanguageStore } from '../stores/language'
 
 const chatStore = useChatStore()
 const router = useRouter()
+const route = useRoute()
+const languageStore = useLanguageStore()
+const t = (key: Parameters<typeof languageStore.t>[0]) => languageStore.t(key)
+const useTranslations = computed(() => route.path === '/messages')
+const tx = (key: Parameters<typeof languageStore.t>[0], fallback: string) =>
+  useTranslations.value ? t(key) : fallback
 const query = ref('')
 
 onMounted(() => {
@@ -32,8 +39,13 @@ const retryMessages = () => {
 
 <template>
   <div class="space-y-4">
-    <ErrorState v-if="error" :message="error" retry-label="Retry" @retry="retryMessages" />
-    <Input v-model="query" placeholder="Search messages" :left-icon="SearchIcon" />
+    <ErrorState
+      v-if="error"
+      :message="error"
+      :retry-label="tx('messages.retry', 'Retry')"
+      @retry="retryMessages"
+    />
+    <Input v-model="query" :placeholder="tx('messages.searchPlaceholder', 'Search messages')" :left-icon="SearchIcon" />
 
     <ListSkeleton v-if="loading" :count="3" />
     <div v-else class="space-y-3">
@@ -66,15 +78,15 @@ const retryMessages = () => {
       </div>
       <EmptyState
         v-if="!items.length && !error"
-        title="No conversations"
-        subtitle="Start a chat with a host or seeker"
+        :title="tx('messages.emptyTitle', 'No conversations')"
+        :subtitle="tx('messages.emptySubtitle', 'Start a chat with a host or seeker')"
         :icon="SearchIcon"
       />
     </div>
 
     <button
       class="fixed bottom-24 right-6 rounded-full bg-primary p-4 text-white shadow-card"
-      aria-label="new message"
+      :aria-label="tx('messages.newMessage', 'New message')"
     >
       <Plus class="h-5 w-5" />
     </button>
