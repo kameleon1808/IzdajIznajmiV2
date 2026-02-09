@@ -9,7 +9,7 @@ import { useChatStore } from '../stores/chat'
 import { useAuthStore } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
 import Button from '../components/ui/Button.vue'
-import { getTypingStatus, getUserPresence, leaveRating, pingPresence, setTypingStatus } from '../services'
+import { getTypingStatus, getUserPresence, pingPresence, setTypingStatus } from '../services'
 import ErrorState from '../components/ui/ErrorState.vue'
 import { getEcho } from '../services/echo'
 import type { Message as ChatMessage } from '../types'
@@ -25,10 +25,6 @@ const uploading = ref(false)
 const uploadProgress = ref<number | null>(null)
 const auth = useAuthStore()
 const toast = useToastStore()
-const ratingScore = ref(0)
-const ratingComment = ref('')
-const ratingSubmitting = ref(false)
-const ratingSubmitted = ref(false)
 const typingUsers = ref<Array<{ id: string; name: string; expiresIn: number }>>([])
 const otherOnline = ref(false)
 
@@ -69,9 +65,6 @@ const otherUserId = computed(() => rateeId.value)
 watch(
   () => conversation.value?.id,
   () => {
-    ratingScore.value = 0
-    ratingComment.value = ''
-    ratingSubmitted.value = false
     attachments.value = []
     typingUsers.value = []
     otherOnline.value = false
@@ -120,26 +113,6 @@ const send = async () => {
   } finally {
     uploading.value = false
     uploadProgress.value = null
-  }
-}
-
-const submitRating = async () => {
-  if (!conversation.value?.listingId || !rateeId.value || ratingScore.value < 1) {
-    toast.push({ title: 'Rating incomplete', message: 'Select stars first.', type: 'error' })
-    return
-  }
-  ratingSubmitting.value = true
-  try {
-    await leaveRating(conversation.value.listingId, rateeId.value, {
-      rating: ratingScore.value,
-      comment: ratingComment.value || undefined,
-    })
-    ratingSubmitted.value = true
-    toast.push({ title: 'Thank you!', message: 'Rating submitted.', type: 'success' })
-  } catch (err) {
-    toast.push({ title: 'Could not rate', message: (err as any).message ?? 'Try again later.', type: 'error' })
-  } finally {
-    ratingSubmitting.value = false
   }
 }
 
@@ -378,39 +351,6 @@ onBeforeUnmount(() => {
             <Button variant="primary" @click="router.push('/messages')">Back to messages</Button>
           </template>
         </EmptyState>
-        <div v-if="conversation" class="mt-4 space-y-3 rounded-2xl border border-line bg-white p-4 shadow-soft">
-          <div class="flex items-center justify-between">
-            <p class="font-semibold text-slate-900">Leave a rating</p>
-            <span class="text-xs text-muted">Listing #{{ conversation?.listingId }}</span>
-          </div>
-          <div class="flex items-center gap-2">
-            <button
-              v-for="n in 5"
-              :key="n"
-              class="h-10 w-10 rounded-full border border-line text-lg font-semibold"
-              :class="n <= ratingScore ? 'bg-primary text-white' : 'bg-surface text-slate-700'"
-              @click="ratingScore = n"
-              type="button"
-            >
-              {{ n }}★
-            </button>
-          </div>
-          <textarea
-            v-model="ratingComment"
-            rows="3"
-            class="w-full rounded-2xl border border-line bg-surface px-3 py-2 text-sm text-slate-900 focus:border-primary focus:outline-none"
-            placeholder="Share your experience (optional)"
-          ></textarea>
-          <Button
-            block
-            size="md"
-            variant="primary"
-            :disabled="ratingSubmitting || ratingSubmitted || ratingScore < 1"
-            @click="submitRating"
-          >
-            {{ ratingSubmitted ? 'Rating submitted' : ratingSubmitting ? 'Submitting...' : 'Submit rating' }}
-          </Button>
-        </div>
       </template>
     </div>
     <ChatInput

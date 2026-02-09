@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import {
   ArrowLeft,
   EllipsisVertical,
@@ -10,16 +10,43 @@ import {
   Video,
 } from 'lucide-vue-next'
 import NotificationBell from '../notifications/NotificationBell.vue'
+import { useAuthStore } from '../../stores/auth'
+import { useChatStore } from '../../stores/chat'
 
 const props = defineProps<{ config?: { type?: string; title?: string; location?: string; userName?: string } }>()
+const route = useRoute()
 const router = useRouter()
+const auth = useAuthStore()
+const chatStore = useChatStore()
 
 const variant = computed(() => props.config?.type ?? 'title')
 const location = computed(() => props.config?.location ?? 'Bali, Indonesia')
 const userName = computed(() => props.config?.userName ?? 'Hi, Marina')
+const chatConversation = computed(() => {
+  const activeId = (route.params.id as string | undefined) || chatStore.activeConversationId || undefined
+  if (!activeId) return undefined
+  return chatStore.conversations.find((c) => c.id === activeId)
+})
+const chatProfileId = computed(() => {
+  const participants = chatConversation.value?.participants
+  if (!participants) return null
+  if (auth.hasRole('seeker')) return String(participants.landlordId)
+  if (auth.hasRole('landlord')) return String(participants.tenantId)
+  const authId = auth.user?.id ? String(auth.user.id) : null
+  if (authId && String(participants.landlordId) === authId) return String(participants.tenantId)
+  if (authId && String(participants.tenantId) === authId) return String(participants.landlordId)
+  return String(participants.landlordId ?? participants.tenantId ?? '')
+})
+const chatUserName = computed(() => chatConversation.value?.userName || props.config?.title || 'Chat')
+const chatAvatar = computed(() => chatConversation.value?.avatarUrl || 'https://i.pravatar.cc/100?img=12')
+const chatOnline = computed(() => chatConversation.value?.online ?? false)
 
 const goBack = () => router.back()
 const goSearch = () => router.push('/search')
+const goProfile = () => {
+  if (!chatProfileId.value) return
+  router.push(`/users/${chatProfileId.value}`)
+}
 </script>
 
 <template>
@@ -71,18 +98,27 @@ const goSearch = () => router.push('/search')
     </div>
 
     <div v-else-if="variant === 'chat'" class="flex items-center justify-between gap-3 rounded-2xl bg-white px-3 py-2 shadow-soft">
-      <div class="flex items-center gap-3">
-        <button class="rounded-full bg-primary/10 p-2" @click="goBack" aria-label="back">
+      <div
+        class="flex items-center gap-3 rounded-2xl px-2 py-1 transition hover:bg-surface/70 cursor-pointer"
+        role="button"
+        tabindex="0"
+        @click="goProfile"
+        @keydown.enter="goProfile"
+        @keydown.space.prevent="goProfile"
+      >
+        <button class="rounded-full bg-primary/10 p-2" @click.stop="goBack" aria-label="back">
           <ArrowLeft class="h-5 w-5 text-primary" />
         </button>
         <img
-          src="https://i.pravatar.cc/100?img=12"
+          :src="chatAvatar"
           alt="guest"
           class="h-10 w-10 rounded-2xl object-cover"
         />
         <div class="flex flex-col leading-tight">
-          <span class="font-semibold text-slate-900">{{ props.config?.title ?? 'Evelyn Hunt' }}</span>
-          <span class="text-xs text-primary">Online</span>
+          <span class="font-semibold text-slate-900">{{ chatUserName }}</span>
+          <span class="text-xs" :class="chatOnline ? 'text-primary' : 'text-muted'">
+            {{ chatOnline ? 'Online' : 'Offline' }}
+          </span>
         </div>
       </div>
       <div class="flex items-center gap-2">

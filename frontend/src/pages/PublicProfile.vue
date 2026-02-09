@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ShieldCheck, ShieldX, Star } from 'lucide-vue-next'
 import ErrorBanner from '../components/ui/ErrorBanner.vue'
@@ -8,12 +8,14 @@ import EmptyState from '../components/ui/EmptyState.vue'
 import Badge from '../components/ui/Badge.vue'
 import ModalSheet from '../components/ui/ModalSheet.vue'
 import Button from '../components/ui/Button.vue'
-import { getPublicProfile, getUserRatings, reportRating, getSharedTransactions, reportTransaction } from '../services'
+import { getPublicProfile, getUserRatings, reportRating, getSharedTransactions, reportTransaction, leaveRating } from '../services'
 import { useAuthStore } from '../stores/auth'
+import { useToastStore } from '../stores/toast'
 import type { PublicProfile, Rating, RentalTransaction } from '../types'
 
 const route = useRoute()
 const auth = useAuthStore()
+const toast = useToastStore()
 const profile = ref<PublicProfile | null>(null)
 const loading = ref(true)
 const error = ref('')
@@ -29,6 +31,31 @@ const reportTransactionId = ref('')
 const transactionReason = ref('issue')
 const transactionDetails = ref('')
 const transactionSubmitting = ref(false)
+const ratingListingId = ref('')
+const ratingScore = ref(0)
+const ratingComment = ref('')
+const ratingSubmitting = ref(false)
+const ratingSubmitted = ref(false)
+
+const ratingListings = computed(() =>
+  sharedTransactions.value
+    .filter((tx) => Boolean(tx.listing?.id))
+    .map((tx) => tx.listing!)
+)
+const hasRatingListings = computed(() => ratingListings.value.length > 0)
+const isSelf = computed(() =>
+  Boolean(profile.value) &&
+  Boolean(auth.user?.id) &&
+  String(profile.value?.id ?? '') === String(auth.user?.id ?? '')
+)
+const isGuest = computed(() => !auth.isAuthenticated)
+const ratingLockedReason = computed(() => {
+  if (isGuest.value) return 'Log in to rate this user.'
+  if (isSelf.value) return 'You cannot rate your own profile.'
+  if (!hasRatingListings.value) return 'No shared listings yet. Complete a stay before leaving a rating.'
+  return ''
+})
+const canSubmitRating = computed(() => !isGuest.value && !isSelf.value && hasRatingListings.value)
 
 const load = async () => {
   loading.value = true
@@ -43,6 +70,8 @@ const load = async () => {
         if (firstTransaction) {
           reportTransactionId.value = firstTransaction.id
         }
+        const firstListingId = sharedTransactions.value.find((tx) => tx.listing?.id)?.listing?.id
+        ratingListingId.value = firstListingId ? String(firstListingId) : ''
       } catch (err) {
         sharedTransactions.value = []
       }
@@ -104,6 +133,46 @@ const submitTransactionReport = async () => {
     transactionSubmitting.value = false
   }
 }
+
+watch(
+  () => ratingListingId.value,
+  () => {
+    ratingScore.value = 0
+    ratingComment.value = ''
+    ratingSubmitted.value = false
+  },
+)
+
+const submitRating = async () => {
+  if (!profile.value?.id) return
+  if (!ratingListingId.value || ratingScore.value < 1) {
+    toast.push({ title: 'Rating incomplete', message: 'Select a listing and stars first.', type: 'error' })
+    return
+  }
+  ratingSubmitting.value = true
+  try {
+    const rating = await leaveRating(ratingListingId.value, profile.value.id, {
+      rating: ratingScore.value,
+      comment: ratingComment.value || undefined,
+    })
+    ratings.value = [rating, ...ratings.value]
+    if (profile.value?.ratingStats) {
+      const total = profile.value.ratingStats.total ?? 0
+      const avg = profile.value.ratingStats.average ?? 0
+      profile.value.ratingStats.total = total + 1
+      profile.value.ratingStats.average = total === 0
+        ? ratingScore.value
+        : (avg * total + ratingScore.value) / (total + 1)
+    }
+    ratingSubmitted.value = true
+    ratingComment.value = ''
+    toast.push({ title: 'Thank you!', message: 'Rating submitted.', type: 'success' })
+  } catch (err) {
+    toast.push({ title: 'Could not rate', message: (err as Error).message ?? 'Try again later.', type: 'error' })
+  } finally {
+    ratingSubmitting.value = false
+  }
+}
 </script>
 
 <template>
@@ -156,6 +225,53 @@ const submitTransactionReport = async () => {
         <div v-if="sharedTransactions.length" class="pt-2">
           <Button variant="secondary" size="sm" @click="openTransactionReport">Prijavi transakciju</Button>
         </div>
+      </div>
+
+      <div class="rounded-2xl bg-white p-4 shadow-soft border border-white/60 space-y-3">
+        <div class="flex items-center justify-between">
+          <p class="font-semibold text-slate-900">Leave a rating</p>
+          <span v-if="ratingListingId" class="text-xs text-muted">Listing #{{ ratingListingId }}</span>
+        </div>
+        <div v-if="ratingLockedReason" class="rounded-xl border border-dashed border-line bg-surface px-3 py-2 text-sm text-muted">
+          {{ ratingLockedReason }}
+        </div>
+        <div class="space-y-3">
+          <label class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">Listing</label>
+          <select v-model="ratingListingId" class="w-full rounded-xl border border-line px-3 py-2 text-sm" :disabled="!hasRatingListings">
+            <option v-for="listing in ratingListings" :key="listing.id" :value="listing.id">
+              {{ listing.title ?? `Listing #${listing.id}` }}{{ listing.city ? ` · ${listing.city}` : '' }}
+            </option>
+          </select>
+        </div>
+        <div class="flex items-center gap-2">
+          <button
+            v-for="n in 5"
+            :key="n"
+            class="h-10 w-10 rounded-full border border-line text-lg font-semibold disabled:opacity-60"
+            :class="n <= ratingScore ? 'bg-primary text-white' : 'bg-surface text-slate-700'"
+            :disabled="!canSubmitRating"
+            @click="ratingScore = n"
+            type="button"
+          >
+            {{ n }}★
+          </button>
+        </div>
+        <textarea
+          v-model="ratingComment"
+          rows="3"
+          class="w-full rounded-2xl border border-line bg-surface px-3 py-2 text-sm text-slate-900 focus:border-primary focus:outline-none"
+          placeholder="Share your experience (optional)"
+          :disabled="!canSubmitRating"
+        ></textarea>
+        <Button
+          block
+          size="md"
+          variant="primary"
+          :disabled="!canSubmitRating || ratingSubmitting || ratingSubmitted || ratingScore < 1"
+          @click="submitRating"
+        >
+          {{ ratingSubmitted ? 'Rating submitted' : ratingSubmitting ? 'Submitting...' : 'Submit rating' }}
+        </Button>
       </div>
 
       <div class="rounded-2xl bg-white p-4 shadow-soft border border-white/60 space-y-3">

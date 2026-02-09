@@ -5,6 +5,7 @@ import ChatDeepLink from '../pages/ChatDeepLink.vue'
 import Facilities from '../pages/Facilities.vue'
 import Favorites from '../pages/Favorites.vue'
 import Home from '../pages/Home.vue'
+import HomeSidebarCard from '../components/home/HomeSidebarCard.vue'
 import LandlordListings from '../pages/LandlordListings.vue'
 import ListingDetail from '../pages/ListingDetail.vue'
 import ListingForm from '../pages/ListingForm.vue'
@@ -40,7 +41,12 @@ import Transactions from '../pages/Transactions.vue'
 const router = createRouter({
   history: createWebHistory(),
   routes: [
-    { path: '/', name: 'home', component: Home, meta: { topBar: { type: 'home' }, showTabs: true } },
+    {
+      path: '/',
+      name: 'home',
+      component: Home,
+      meta: { topBar: { type: 'home' }, showTabs: true, shellClass: 'lg:max-w-7xl lg:px-6', sidebar: HomeSidebarCard },
+    },
     { path: '/search', name: 'search', component: Search, meta: { topBar: { type: 'search' }, showTabs: true } },
     { path: '/map', name: 'map', component: MapPage, meta: { topBar: null, showTabs: true, contentClass: 'p-0 pb-24' } },
     {

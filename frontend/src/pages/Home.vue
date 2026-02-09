@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { AlertCircle, ArrowRight } from 'lucide-vue-next'
 import ListingCard from '../components/listing/ListingCard.vue'
 import ListingCardHorizontal from '../components/listing/ListingCardHorizontal.vue'
 import CardSkeleton from '../components/ui/CardSkeleton.vue'
@@ -28,7 +27,7 @@ onMounted(() => {
 })
 
 const recommended = computed(() => listingsStore.filteredRecommended)
-const popular = computed(() => listingsStore.popular)
+const popular = computed(() => listingsStore.popular.slice(0, 6))
 const loading = computed(() => listingsStore.loading)
 const error = computed(() => listingsStore.error)
 
@@ -45,30 +44,39 @@ const retryHome = async () => {
 </script>
 
 <template>
-  <section class="space-y-6">
+  <section class="space-y-6 lg:space-y-8">
     <ErrorState v-if="error" :message="error" retry-label="Retry" @retry="retryHome" />
 
-    <div class="card-base flex items-center gap-3 px-4 py-3">
-      <div class="rounded-2xl bg-primary/10 p-3 text-primary">
-        <AlertCircle class="h-6 w-6" />
+    <div class="card-base px-4 py-3">
+      <div class="flex items-center justify-between gap-3">
+        <div>
+          <p class="text-base font-semibold text-slate-900">Browse by type</p>
+          <p class="text-xs text-muted">Quick filters to narrow your stay.</p>
+        </div>
+        <button class="text-xs font-semibold text-primary" @click="router.push('/search')">Explore</button>
       </div>
-      <div class="flex-1">
-        <p class="text-base font-semibold text-slate-900">You can change your location anytime</p>
-        <p class="text-sm text-muted">Tap the pin icon to adjust your stay</p>
+      <div class="mt-3 flex gap-2 overflow-x-auto pb-1 lg:flex-wrap lg:overflow-visible">
+        <Chip
+          v-for="cat in categories"
+          :key="cat.key"
+          :active="listingsStore.filters.category === cat.key"
+          @click="listingsStore.setFilters({ category: cat.key as any })"
+        >
+          {{ cat.label }}
+        </Chip>
       </div>
-      <ArrowRight class="h-5 w-5 text-primary" />
     </div>
 
     <div class="flex items-center justify-between px-1">
       <h2 class="section-title">Most Popular</h2>
       <button class="text-sm font-semibold text-primary" @click="router.push('/search')">See all</button>
     </div>
-    <div class="flex gap-4 overflow-x-auto pb-2">
-      <CardSkeleton v-if="loading && !popular.length" class="w-72 shrink-0" />
+    <div class="flex gap-4 overflow-x-auto pb-2 lg:grid lg:grid-cols-3 lg:gap-6 lg:overflow-visible lg:pb-0">
+      <CardSkeleton v-if="loading && !popular.length" class="w-72 shrink-0 lg:w-full" />
       <ListingCard
         v-for="item in popular"
         :key="item.id"
-        class="w-72 shrink-0"
+        class="w-72 shrink-0 lg:w-full"
         :listing="item"
         @click="openListing(item.id)"
         @toggle="listingsStore.toggleFavorite"
@@ -80,19 +88,8 @@ const retryHome = async () => {
       <button class="text-sm font-semibold text-primary" @click="router.push('/search')">See all</button>
     </div>
 
-    <div class="flex gap-2 overflow-x-auto pb-1">
-      <Chip
-        v-for="cat in categories"
-        :key="cat.key"
-        :active="listingsStore.filters.category === cat.key"
-        @click="listingsStore.setFilters({ category: cat.key as any })"
-      >
-        {{ cat.label }}
-      </Chip>
-    </div>
-
-    <div class="space-y-3">
-      <ListSkeleton v-if="loading && !recommended.length" :count="3" />
+    <div class="space-y-3 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0">
+      <ListSkeleton v-if="loading && !recommended.length" :count="3" class="lg:col-span-2" />
       <div v-for="item in recommended" :key="item.id" class="space-y-1">
         <ListingCardHorizontal
           :listing="item"
@@ -101,7 +98,12 @@ const retryHome = async () => {
         />
         <p v-if="item.why?.length" class="px-2 text-xs text-muted">Why this? {{ item.why.join(' - ') }}</p>
       </div>
-      <EmptyState v-if="!loading && !recommended.length && !error" title="No stays yet" subtitle="Try adjusting filters" />
+      <EmptyState
+        v-if="!loading && !recommended.length && !error"
+        title="No stays yet"
+        subtitle="Try adjusting filters"
+        class="lg:col-span-2"
+      />
     </div>
   </section>
 </template>
