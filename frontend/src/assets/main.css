@@ -17,6 +17,7 @@
     --primary: #f97316;
     --primary-hover: #ea580c;
     --primary-soft: #ffedd5;
+    --primary-rgb: 249 115 22;
     --amber: #f59e0b;
     --amber-soft: #fff6e6;
     --info-soft: #ffedd5;
@@ -68,51 +69,51 @@
   }
 
   .bg-bg {
-    background-color: var(--bg);
+    background-color: var(--bg) !important;
   }
 
   .bg-surface {
-    background-color: var(--surface);
+    background-color: var(--surface) !important;
   }
 
   .bg-surface-2 {
-    background-color: var(--surface-2);
+    background-color: var(--surface-2) !important;
   }
 
   .bg-primary {
-    background-color: var(--primary);
+    background-color: var(--primary) !important;
   }
 
   .bg-primary-soft {
-    background-color: var(--primary-soft);
+    background-color: var(--primary-soft) !important;
   }
 
   .text-text {
-    color: var(--text);
+    color: var(--text) !important;
   }
 
   .text-text-2 {
-    color: var(--text-2);
+    color: var(--text-2) !important;
   }
 
   .text-muted {
-    color: var(--muted);
+    color: var(--muted) !important;
   }
 
   .text-primary {
-    color: var(--primary);
+    color: var(--primary) !important;
   }
 
   .text-primary-hover {
-    color: var(--primary-hover);
+    color: var(--primary-hover) !important;
   }
 
   .border-border {
-    border-color: var(--border);
+    border-color: var(--border) !important;
   }
 
   .border-primary {
-    border-color: var(--primary);
+    border-color: var(--primary) !important;
   }
 
   .divide-border > :not([hidden]) ~ :not([hidden]) {
@@ -121,19 +122,51 @@
   }
 
   .hover\:bg-primary-soft:hover {
-    background-color: var(--primary-soft);
+    background-color: var(--primary-soft) !important;
   }
 
   .hover\:bg-surface-2:hover {
-    background-color: var(--surface-2);
+    background-color: var(--surface-2) !important;
   }
 
   .hover\:text-primary-hover:hover {
-    color: var(--primary-hover);
+    color: var(--primary-hover) !important;
   }
 
   .hover\:border-primary:hover {
-    border-color: var(--primary);
+    border-color: var(--primary) !important;
+  }
+
+  .fill-primary {
+    fill: var(--primary) !important;
+  }
+
+  .stroke-primary {
+    stroke: var(--primary) !important;
+  }
+
+  .bg-primary\/5 {
+    background-color: rgb(var(--primary-rgb) / 0.05) !important;
+  }
+
+  .bg-primary\/10 {
+    background-color: rgb(var(--primary-rgb) / 0.1) !important;
+  }
+
+  .bg-primary\/20 {
+    background-color: rgb(var(--primary-rgb) / 0.2) !important;
+  }
+
+  .bg-primary\/90 {
+    background-color: rgb(var(--primary-rgb) / 0.9) !important;
+  }
+
+  .border-primary\/20 {
+    border-color: rgb(var(--primary-rgb) / 0.2) !important;
+  }
+
+  .border-primary\/40 {
+    border-color: rgb(var(--primary-rgb) / 0.4) !important;
   }
 
   .shimmer {

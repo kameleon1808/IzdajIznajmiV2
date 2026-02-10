@@ -4,7 +4,7 @@ import { useRouter } from 'vue-router'
 import ListingCard from '../components/listing/ListingCard.vue'
 import ListingCardHorizontal from '../components/listing/ListingCardHorizontal.vue'
 import CardSkeleton from '../components/ui/CardSkeleton.vue'
-import Chip from '../components/ui/Chip.vue'
+import HomeFiltersCard from '../components/home/HomeFiltersCard.vue'
 import EmptyState from '../components/ui/EmptyState.vue'
 import ErrorState from '../components/ui/ErrorState.vue'
 import ListSkeleton from '../components/ui/ListSkeleton.vue'
@@ -34,13 +34,6 @@ const formatWhy = (reason: string) => {
 
 const formatWhyList = (reasons: string[]) => reasons.map((reason) => formatWhy(reason)).join(' - ')
 
-const categories = computed(() => [
-  { key: 'all', label: t('home.categoryAll') },
-  { key: 'villa', label: t('home.categoryVilla') },
-  { key: 'hotel', label: t('home.categoryHotel') },
-  { key: 'apartment', label: t('home.categoryApartment') },
-])
-
 onMounted(() => {
   listingsStore.fetchFavorites()
   listingsStore.fetchPopular()
@@ -68,27 +61,7 @@ const retryHome = async () => {
   <section class="space-y-6 lg:space-y-8">
     <ErrorState v-if="error" :message="error" :retry-label="t('home.retry')" @retry="retryHome" />
 
-    <div class="card-base px-4 py-3 bg-primary-soft border-primary">
-      <div class="flex items-center justify-between gap-3">
-        <div>
-          <p class="text-base font-semibold text-text">{{ t('home.browseByType') }}</p>
-          <p class="text-xs text-muted">{{ t('home.quickFilters') }}</p>
-        </div>
-        <button class="text-xs font-semibold text-primary hover:text-primary-hover hover:underline" @click="router.push('/search')">
-          {{ t('home.explore') }}
-        </button>
-      </div>
-      <div class="mt-3 flex gap-2 overflow-x-auto pb-1 lg:flex-wrap lg:overflow-visible">
-        <Chip
-          v-for="cat in categories"
-          :key="cat.key"
-          :active="listingsStore.filters.category === cat.key"
-          @click="listingsStore.setFilters({ category: cat.key as any })"
-        >
-          {{ cat.label }}
-        </Chip>
-      </div>
-    </div>
+    <HomeFiltersCard class="lg:hidden" :accent="true" />
 
     <div class="flex items-center justify-between px-1">
       <h2 class="section-title">{{ t('home.mostPopular') }}</h2>

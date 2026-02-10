@@ -697,302 +697,308 @@ const deleteViewingSlot = async (slotId: string) => {
         </div>
       </div>
 
-      <div class="space-y-3">
-        <div class="flex items-center justify-between">
-          <h3 class="section-title">{{ t('listing.commonFacilities') }}</h3>
-          <button class="text-sm font-semibold text-primary" @click="router.push(`/listing/${route.params.id}/facilities`)">
-            {{ t('common.seeAll') }}
-          </button>
-        </div>
-        <div class="flex gap-2 overflow-x-auto pb-1">
-          <FacilityPill v-for="item in facilities.flatMap((g) => g.items).slice(0, 6)" :key="item" :label="item" />
-        </div>
-        <p class="text-sm text-muted">
-          {{ t('listing.rooms') }}: {{ listing.rooms ?? listing.beds }}
-          · {{ t('listing.bedsLabel') }}: {{ listing.beds }}
-          · {{ t('listing.bathsLabel') }}: {{ listing.baths }}
-          <span v-if="listing.area">· {{ t('listing.area') }}: {{ listing.area }} {{ t('filters.sqm') }}</span>
-          <span v-if="listing.beds">· {{ t('listing.guests') }}: {{ Math.max(listing.beds, listing.rooms ?? listing.beds) }}</span>
-        </p>
-      </div>
-
-      <div class="space-y-2">
-        <h3 class="section-title">{{ t('listing.description') }}</h3>
-        <p class="text-sm leading-relaxed text-muted">
-          {{ expanded ? description : description.slice(0, 160) + (description.length > 160 ? '...' : '') }}
-        </p>
-        <button class="text-sm font-semibold text-primary" @click="expanded = !expanded">
-          {{ expanded ? t('common.readLess') : t('common.readMore') }}
-        </button>
-      </div>
-
-      <div class="space-y-3">
-        <div class="flex items-center justify-between gap-2">
-          <div class="flex items-center gap-2">
-            <h3 class="section-title">{{ t('listing.location') }}</h3>
-            <Badge v-if="locationSource === 'manual'" variant="info">{{ t('listing.manualPin') }}</Badge>
-          </div>
-          <Button variant="ghost" size="sm" class="text-sm font-semibold text-primary" :disabled="!hasCoords" @click="openExternalMap">
-            {{ t('listing.viewOnMap') }}
-          </Button>
-        </div>
-        <p class="text-xs text-muted">{{ t('listing.locationHint') }}</p>
-        <div class="space-y-3 rounded-2xl border border-line bg-white p-3 shadow-soft">
-          <component
-            :is="ListingMap"
-            v-if="mapVisible && hasCoords"
-            :lat="mapCoords?.lat!"
-            :lng="mapCoords?.lng!"
-            :draggable="adjustingLocation"
-            @update="onMarkerMove"
-          />
-          <div v-else class="flex h-64 items-center justify-center rounded-2xl bg-surface text-sm text-muted">
-            {{ t('listing.locationUnavailable') }}
-          </div>
-          <div v-if="showDevCoords && hasCoords" class="flex items-center justify-between text-[11px] font-mono text-muted">
-            <span>{{ t('listing.lat') }}: {{ mapCoords?.lat?.toFixed(6) }}</span>
-            <span>{{ t('listing.lng') }}: {{ mapCoords?.lng?.toFixed(6) }}</span>
-          </div>
-          <p v-if="fallbackError" class="text-xs font-semibold text-red-500">{{ fallbackError }}</p>
-          <div v-if="canAdjustLocation" class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <p class="text-xs text-muted">
-              {{ adjustingLocation ? t('listing.locationDragPin') : t('listing.locationOwnerHint') }}
-            </p>
-            <div class="flex flex-wrap gap-2">
-              <Button
-                v-if="adjustingLocation"
-                size="sm"
-                :loading="savingLocation"
-                @click="saveAdjustedLocation"
-              >
-                {{ t('listing.savePin') }}
-              </Button>
-              <Button v-if="adjustingLocation" variant="ghost" size="sm" @click="cancelAdjustLocation">{{ t('common.cancel') }}</Button>
-              <Button v-else variant="secondary" size="sm" @click="startAdjustLocation">{{ t('listing.adjustPin') }}</Button>
-              <Button variant="ghost" size="sm" :loading="resettingLocation" @click="resetLocationToGeocoded">
-                {{ t('listing.resetToAddress') }}
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="space-y-3">
-        <div class="flex items-center justify-between">
-          <h3 class="section-title">{{ t('titles.reviews') }}</h3>
-          <button class="text-sm font-semibold text-primary" @click="router.push(`/listing/${route.params.id}/reviews`)">
-            {{ t('common.viewAll') }}
-          </button>
-        </div>
-        <div class="space-y-2">
-          <div
-          v-for="review in reviews"
-          :key="review.id"
-          class="flex items-start gap-3 rounded-2xl bg-white p-3 shadow-soft"
-        >
-            <img :src="review.avatarUrl" :alt="t('topbar.avatarAlt')" class="h-10 w-10 rounded-2xl object-cover" />
-            <div class="flex-1 space-y-1">
-              <div class="flex items-center justify-between">
-                <div>
-                  <p class="font-semibold text-slate-900">{{ review.userName }}</p>
-                  <p class="text-xs text-muted">{{ review.date }}</p>
-                </div>
-                <span class="rounded-pill bg-primary/10 px-2 py-1 text-xs font-semibold text-primary">{{ review.rating }} ★</span>
-              </div>
-              <p class="text-sm text-slate-700">{{ review.text }}</p>
-            </div>
-          </div>
-          <p v-if="!reviews.length" class="text-sm text-muted">{{ t('reviews.emptyTitle') }}.</p>
-        </div>
-      </div>
-
-      <div class="space-y-3">
-        <div class="flex items-center justify-between">
-          <h3 class="section-title">{{ t('listing.viewings') }}</h3>
-          <Badge variant="info">{{ t('listing.viewingsHint') }}</Badge>
-        </div>
-        <ErrorBanner v-if="viewingError" :message="viewingError" />
+      <div class="space-y-6 lg:grid lg:grid-cols-2 lg:gap-6 lg:space-y-0">
         <div class="space-y-3">
-          <div v-if="isOwner" class="rounded-2xl border border-line bg-white p-4 shadow-soft">
-            <div class="grid grid-cols-1 gap-3 md:grid-cols-3">
-              <label class="space-y-1 text-xs font-semibold text-slate-900">
-                {{ t('listing.timeRangeFrom') }}
-                <input
-                  v-model="slotForm.timeFrom"
-                  type="time"
-                  class="w-full rounded-xl border border-line px-3 py-2 text-sm focus:border-primary focus:outline-none"
-                />
-              </label>
-              <label class="space-y-1 text-xs font-semibold text-slate-900">
-                {{ t('listing.timeRangeTo') }}
-                <input
-                  v-model="slotForm.timeTo"
-                  type="time"
-                  class="w-full rounded-xl border border-line px-3 py-2 text-sm focus:border-primary focus:outline-none"
-                />
-              </label>
-              <label class="space-y-1 text-xs font-semibold text-slate-900">
-                {{ t('listing.capacity') }}
-                <input
-                  v-model.number="slotForm.capacity"
-                  min="1"
-                  type="number"
-                  class="w-full rounded-xl border border-line px-3 py-2 text-sm focus:border-primary focus:outline-none"
-                />
-              </label>
+          <div class="flex items-center justify-between">
+            <h3 class="section-title">{{ t('listing.commonFacilities') }}</h3>
+            <button class="text-sm font-semibold text-primary" @click="router.push(`/listing/${route.params.id}/facilities`)">
+              {{ t('common.seeAll') }}
+            </button>
+          </div>
+          <div class="flex gap-2 overflow-x-auto pb-1">
+            <FacilityPill v-for="item in facilities.flatMap((g) => g.items).slice(0, 6)" :key="item" :label="item" />
+          </div>
+          <p class="text-sm text-muted">
+            {{ t('listing.rooms') }}: {{ listing.rooms ?? listing.beds }}
+            · {{ t('listing.bedsLabel') }}: {{ listing.beds }}
+            · {{ t('listing.bathsLabel') }}: {{ listing.baths }}
+            <span v-if="listing.area">· {{ t('listing.area') }}: {{ listing.area }} {{ t('filters.sqm') }}</span>
+            <span v-if="listing.beds">· {{ t('listing.guests') }}: {{ Math.max(listing.beds, listing.rooms ?? listing.beds) }}</span>
+          </p>
+        </div>
+
+        <div class="space-y-2">
+          <h3 class="section-title">{{ t('listing.description') }}</h3>
+          <p class="text-sm leading-relaxed text-muted">
+            {{ expanded ? description : description.slice(0, 160) + (description.length > 160 ? '...' : '') }}
+          </p>
+          <button class="text-sm font-semibold text-primary" @click="expanded = !expanded">
+            {{ expanded ? t('common.readLess') : t('common.readMore') }}
+          </button>
+        </div>
+      </div>
+
+      <div class="space-y-6 lg:grid lg:grid-cols-2 lg:gap-6 lg:space-y-0">
+        <div class="space-y-3">
+          <div class="flex items-start justify-between gap-2">
+            <div class="flex items-start gap-2">
+              <h3 class="section-title">{{ t('listing.location') }}</h3>
+              <Badge v-if="locationSource === 'manual'" variant="info">{{ t('listing.manualPin') }}</Badge>
             </div>
-            <div class="mt-2 grid grid-cols-1 gap-3 md:grid-cols-2">
-              <label class="space-y-1 text-xs font-semibold text-slate-900">
-                {{ t('listing.startsAtDate') }}
-                <input
-                  v-model="slotForm.startsAt"
-                  type="date"
-                  class="w-full rounded-xl border border-line px-3 py-2 text-sm focus:border-primary focus:outline-none"
-                />
-              </label>
-              <div class="space-y-1 text-xs font-semibold text-slate-900">
-                {{ t('listing.dayRange') }}
-                <div class="grid grid-cols-2 gap-2 text-[11px] font-semibold text-slate-800">
-                  <label class="flex items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2">
-                    <input type="radio" value="everyday" v-model="slotForm.pattern" /> {{ t('listing.everyday') }}
-                  </label>
-                  <label class="flex items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2">
-                    <input type="radio" value="weekdays" v-model="slotForm.pattern" /> {{ t('listing.weekdays') }}
-                  </label>
-                  <label class="flex items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2">
-                    <input type="radio" value="weekends" v-model="slotForm.pattern" /> {{ t('listing.weekends') }}
-                  </label>
-                  <label class="flex items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2">
-                    <input type="radio" value="custom" v-model="slotForm.pattern" /> {{ t('listing.customDays') }}
-                  </label>
-                </div>
-                <div v-if="slotForm.pattern === 'custom'" class="mt-2 flex flex-wrap gap-2">
-                  <label
-                    v-for="(day, idx) in dayLabels"
-                    :key="day"
-                    class="flex items-center gap-1 rounded-xl border border-line bg-surface px-2 py-1 text-[11px] font-semibold text-slate-800"
-                  >
-                    <input
-                      type="checkbox"
-                      :value="idx"
-                      v-model="slotForm.daysOfWeek"
-                    />
-                    {{ day }}
-                  </label>
-                </div>
+            <Button variant="ghost" size="sm" class="text-sm font-semibold text-primary" :disabled="!hasCoords" @click="openExternalMap">
+              {{ t('listing.viewOnMap') }}
+            </Button>
+          </div>
+          <p class="text-xs text-muted">{{ t('listing.locationHint') }}</p>
+          <div class="space-y-3 rounded-2xl border border-line bg-white p-3 shadow-soft">
+            <component
+              :is="ListingMap"
+              v-if="mapVisible && hasCoords"
+              :lat="mapCoords?.lat!"
+              :lng="mapCoords?.lng!"
+              :draggable="adjustingLocation"
+              @update="onMarkerMove"
+            />
+            <div v-else class="flex h-64 items-center justify-center rounded-2xl bg-surface text-sm text-muted">
+              {{ t('listing.locationUnavailable') }}
+            </div>
+            <div v-if="showDevCoords && hasCoords" class="flex items-center justify-between text-[11px] font-mono text-muted">
+              <span>{{ t('listing.lat') }}: {{ mapCoords?.lat?.toFixed(6) }}</span>
+              <span>{{ t('listing.lng') }}: {{ mapCoords?.lng?.toFixed(6) }}</span>
+            </div>
+            <p v-if="fallbackError" class="text-xs font-semibold text-red-500">{{ fallbackError }}</p>
+            <div v-if="canAdjustLocation" class="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <p class="text-xs text-muted">
+                {{ adjustingLocation ? t('listing.locationDragPin') : t('listing.locationOwnerHint') }}
+              </p>
+              <div class="flex flex-wrap gap-2">
+                <Button
+                  v-if="adjustingLocation"
+                  size="sm"
+                  :loading="savingLocation"
+                  @click="saveAdjustedLocation"
+                >
+                  {{ t('listing.savePin') }}
+                </Button>
+                <Button v-if="adjustingLocation" variant="ghost" size="sm" @click="cancelAdjustLocation">{{ t('common.cancel') }}</Button>
+                <Button v-else variant="secondary" size="sm" @click="startAdjustLocation">{{ t('listing.adjustPin') }}</Button>
+                <Button variant="ghost" size="sm" :loading="resettingLocation" @click="resetLocationToGeocoded">
+                  {{ t('listing.resetToAddress') }}
+                </Button>
               </div>
-            </div>
-            <div class="mt-3 flex justify-end">
-              <Button size="md" :loading="slotSubmitting" @click="createViewingSlot">{{ t('listing.addSlot') }}</Button>
             </div>
           </div>
+        </div>
 
-          <ListSkeleton v-if="viewingsStore.loadingSlots" :count="2" />
-
-          <EmptyState
-            v-else-if="!visibleViewingSlots.length"
-            :title="isOwner ? t('listing.noSlotsTitleOwner') : t('listing.noSlotsTitle')"
-            :subtitle="isOwner ? t('listing.noSlotsSubtitleOwner') : t('listing.noSlotsSubtitle')"
-            :icon="CalendarClock"
-          />
-
-          <div v-else class="space-y-2">
-            <div
-              v-for="slot in visibleViewingSlots"
-              :key="slot.id"
-              class="rounded-2xl border border-line bg-white p-4 shadow-soft"
-            >
-              <div class="flex items-start justify-between gap-2">
-                <div>
-                  <p class="font-semibold text-slate-900">{{ formatSlotWindow(slot) }}</p>
-                  <p class="text-xs text-muted">
-                    {{ t('listing.capacity') }} {{ slot.capacity }} · {{ slot.isActive ? t('listing.active') : t('listing.paused') }}
-                  </p>
-                </div>
-                <Badge :variant="slot.isActive ? 'accepted' : 'info'">{{ slot.isActive ? t('listing.open') : t('listing.paused') }}</Badge>
+        <div class="space-y-3">
+          <div class="flex items-start justify-between">
+            <h3 class="section-title">{{ t('listing.viewings') }}</h3>
+            <Badge variant="info">{{ t('listing.viewingsHint') }}</Badge>
+          </div>
+          <ErrorBanner v-if="viewingError" :message="viewingError" />
+          <div class="space-y-3">
+            <div v-if="isOwner" class="rounded-2xl border border-line bg-white p-4 shadow-soft">
+              <div class="grid grid-cols-1 gap-3 md:grid-cols-3">
+                <label class="space-y-1 text-xs font-semibold text-slate-900">
+                  {{ t('listing.timeRangeFrom') }}
+                  <input
+                    v-model="slotForm.timeFrom"
+                    type="time"
+                    class="w-full rounded-xl border border-line px-3 py-2 text-sm focus:border-primary focus:outline-none"
+                  />
+                </label>
+                <label class="space-y-1 text-xs font-semibold text-slate-900">
+                  {{ t('listing.timeRangeTo') }}
+                  <input
+                    v-model="slotForm.timeTo"
+                    type="time"
+                    class="w-full rounded-xl border border-line px-3 py-2 text-sm focus:border-primary focus:outline-none"
+                  />
+                </label>
+                <label class="space-y-1 text-xs font-semibold text-slate-900">
+                  {{ t('listing.capacity') }}
+                  <input
+                    v-model.number="slotForm.capacity"
+                    min="1"
+                    type="number"
+                    class="w-full rounded-xl border border-line px-3 py-2 text-sm focus:border-primary focus:outline-none"
+                  />
+                </label>
               </div>
+              <div class="mt-2 grid grid-cols-1 gap-3 md:grid-cols-2">
+                <label class="space-y-1 text-xs font-semibold text-slate-900">
+                  {{ t('listing.startsAtDate') }}
+                  <input
+                    v-model="slotForm.startsAt"
+                    type="date"
+                    class="w-full rounded-xl border border-line px-3 py-2 text-sm focus:border-primary focus:outline-none"
+                  />
+                </label>
+                <div class="space-y-1 text-xs font-semibold text-slate-900">
+                  {{ t('listing.dayRange') }}
+                  <div class="grid grid-cols-2 gap-2 text-[11px] font-semibold text-slate-800">
+                    <label class="flex items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2">
+                      <input type="radio" value="everyday" v-model="slotForm.pattern" /> {{ t('listing.everyday') }}
+                    </label>
+                    <label class="flex items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2">
+                      <input type="radio" value="weekdays" v-model="slotForm.pattern" /> {{ t('listing.weekdays') }}
+                    </label>
+                    <label class="flex items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2">
+                      <input type="radio" value="weekends" v-model="slotForm.pattern" /> {{ t('listing.weekends') }}
+                    </label>
+                    <label class="flex items-center gap-2 rounded-xl border border-line bg-surface px-3 py-2">
+                      <input type="radio" value="custom" v-model="slotForm.pattern" /> {{ t('listing.customDays') }}
+                    </label>
+                  </div>
+                  <div v-if="slotForm.pattern === 'custom'" class="mt-2 flex flex-wrap gap-2">
+                    <label
+                      v-for="(day, idx) in dayLabels"
+                      :key="day"
+                      class="flex items-center gap-1 rounded-xl border border-line bg-surface px-2 py-1 text-[11px] font-semibold text-slate-800"
+                    >
+                      <input
+                        type="checkbox"
+                        :value="idx"
+                        v-model="slotForm.daysOfWeek"
+                      />
+                      {{ day }}
+                    </label>
+                  </div>
+                </div>
+              </div>
+              <div class="mt-3 flex justify-end">
+                <Button size="md" :loading="slotSubmitting" @click="createViewingSlot">{{ t('listing.addSlot') }}</Button>
+              </div>
+            </div>
 
-              <div class="mt-3 flex flex-col gap-2">
-                <template v-if="isOwner">
-                  <div class="flex gap-2">
-                    <Button
-                      variant="secondary"
-                      size="md"
-                      :loading="slotSubmitting"
-                      class="flex-1"
-                      @click="toggleSlotActive(slot.id, !slot.isActive)"
-                    >
-                      {{ slot.isActive ? t('listing.pauseSlot') : t('listing.activateSlot') }}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="md"
-                      :loading="slotSubmitting"
-                      class="flex-1"
-                      @click="deleteViewingSlot(slot.id)"
-                    >
-                      {{ t('common.delete') }}
-                    </Button>
+            <ListSkeleton v-if="viewingsStore.loadingSlots" :count="2" />
+
+            <EmptyState
+              v-else-if="!visibleViewingSlots.length"
+              :title="isOwner ? t('listing.noSlotsTitleOwner') : t('listing.noSlotsTitle')"
+              :subtitle="isOwner ? t('listing.noSlotsSubtitleOwner') : t('listing.noSlotsSubtitle')"
+              :icon="CalendarClock"
+            />
+
+            <div v-else class="space-y-2">
+              <div
+                v-for="slot in visibleViewingSlots"
+                :key="slot.id"
+                class="rounded-2xl border border-line bg-white p-4 shadow-soft"
+              >
+                <div class="flex items-start justify-between gap-2">
+                  <div>
+                    <p class="font-semibold text-slate-900">{{ formatSlotWindow(slot) }}</p>
+                    <p class="text-xs text-muted">
+                      {{ t('listing.capacity') }} {{ slot.capacity }} · {{ slot.isActive ? t('listing.active') : t('listing.paused') }}
+                    </p>
                   </div>
-                </template>
-                <template v-else>
-                  <div class="grid grid-cols-1 gap-2 md:grid-cols-2">
-                    <label class="space-y-1 text-xs font-semibold text-slate-900">
-                      {{ t('listing.date') }}
-                      <input
-                        v-model="viewingDates[slot.id]"
-                        type="date"
-                        class="w-full rounded-xl border border-line px-3 py-2 text-sm focus:border-primary focus:outline-none"
-                      />
-                    </label>
-                    <label class="space-y-1 text-xs font-semibold text-slate-900">
-                      {{ t('listing.time') }}
-                      <input
-                        v-model="viewingTimes[slot.id]"
-                        type="time"
-                        :min="slot.timeFrom ?? undefined"
-                        :max="slot.timeTo ?? undefined"
-                        class="w-full rounded-xl border border-line px-3 py-2 text-sm focus:border-primary focus:outline-none"
-                      />
-                    </label>
-                  </div>
-                  <textarea
-                    v-model="viewingNotes[slot.id]"
-                    rows="2"
-                    class="w-full rounded-xl border border-line px-3 py-2 text-sm text-slate-900 placeholder:text-muted focus:border-primary focus:outline-none"
-                    :placeholder="t('listing.optionalNote')"
-                  ></textarea>
-                  <Button
-                    variant="primary"
-                    size="md"
-                    class="w-full"
-                    :loading="viewingSubmitting"
-                    @click="requestViewingSlot(slot.id)"
-                  >
-                    {{ t('listing.requestSlot') }}
-                  </Button>
-                </template>
+                  <Badge :variant="slot.isActive ? 'accepted' : 'info'">{{ slot.isActive ? t('listing.open') : t('listing.paused') }}</Badge>
+                </div>
+
+                <div class="mt-3 flex flex-col gap-2">
+                  <template v-if="isOwner">
+                    <div class="flex gap-2">
+                      <Button
+                        variant="secondary"
+                        size="md"
+                        :loading="slotSubmitting"
+                        class="flex-1"
+                        @click="toggleSlotActive(slot.id, !slot.isActive)"
+                      >
+                        {{ slot.isActive ? t('listing.pauseSlot') : t('listing.activateSlot') }}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="md"
+                        :loading="slotSubmitting"
+                        class="flex-1"
+                        @click="deleteViewingSlot(slot.id)"
+                      >
+                        {{ t('common.delete') }}
+                      </Button>
+                    </div>
+                  </template>
+                  <template v-else>
+                    <div class="grid grid-cols-1 gap-2 md:grid-cols-2">
+                      <label class="space-y-1 text-xs font-semibold text-slate-900">
+                        {{ t('listing.date') }}
+                        <input
+                          v-model="viewingDates[slot.id]"
+                          type="date"
+                          class="w-full rounded-xl border border-line px-3 py-2 text-sm focus:border-primary focus:outline-none"
+                        />
+                      </label>
+                      <label class="space-y-1 text-xs font-semibold text-slate-900">
+                        {{ t('listing.time') }}
+                        <input
+                          v-model="viewingTimes[slot.id]"
+                          type="time"
+                          :min="slot.timeFrom ?? undefined"
+                          :max="slot.timeTo ?? undefined"
+                          class="w-full rounded-xl border border-line px-3 py-2 text-sm focus:border-primary focus:outline-none"
+                        />
+                      </label>
+                    </div>
+                    <textarea
+                      v-model="viewingNotes[slot.id]"
+                      rows="2"
+                      class="w-full rounded-xl border border-line px-3 py-2 text-sm text-slate-900 placeholder:text-muted focus:border-primary focus:outline-none"
+                      :placeholder="t('listing.optionalNote')"
+                    ></textarea>
+                    <Button
+                      variant="primary"
+                      size="md"
+                      class="w-full"
+                      :loading="viewingSubmitting"
+                      @click="requestViewingSlot(slot.id)"
+                    >
+                      {{ t('listing.requestSlot') }}
+                    </Button>
+                  </template>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <div class="rounded-2xl border border-line bg-white p-4 shadow-soft">
-        <div class="flex items-center justify-between gap-3">
-          <div>
-            <p class="text-xs text-muted">{{ t('listing.publishedBy') }}</p>
-            <div class="flex flex-wrap items-center gap-2">
-              <p class="text-base font-semibold text-slate-900">{{ landlordName }}</p>
-              <Badge v-if="listing?.landlord?.verificationStatus === 'approved'" variant="accepted">
-                {{ t('listing.verifiedLandlord') }}
-              </Badge>
-              <Badge v-if="listing?.landlord?.badges?.includes('top_landlord')" variant="info">
-                {{ t('listing.topLandlord') }}
-              </Badge>
-            </div>
+      <div class="space-y-6 lg:grid lg:grid-cols-2 lg:gap-6 lg:space-y-0">
+        <div class="space-y-3">
+          <div class="flex items-center justify-between">
+            <h3 class="section-title">{{ t('titles.reviews') }}</h3>
+            <button class="text-sm font-semibold text-primary" @click="router.push(`/listing/${route.params.id}/reviews`)">
+              {{ t('common.viewAll') }}
+            </button>
           </div>
-          <Button variant="secondary" size="md" @click="viewProfile">{{ t('listing.viewProfile') }}</Button>
+          <div class="space-y-2">
+            <div
+            v-for="review in reviews"
+            :key="review.id"
+            class="flex items-start gap-3 rounded-2xl bg-white p-3 shadow-soft"
+          >
+              <img :src="review.avatarUrl" :alt="t('topbar.avatarAlt')" class="h-10 w-10 rounded-2xl object-cover" />
+              <div class="flex-1 space-y-1">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="font-semibold text-slate-900">{{ review.userName }}</p>
+                    <p class="text-xs text-muted">{{ review.date }}</p>
+                  </div>
+                  <span class="rounded-pill bg-primary/10 px-2 py-1 text-xs font-semibold text-primary">{{ review.rating }} ★</span>
+                </div>
+                <p class="text-sm text-slate-700">{{ review.text }}</p>
+              </div>
+            </div>
+            <p v-if="!reviews.length" class="text-sm text-muted">{{ t('reviews.emptyTitle') }}.</p>
+          </div>
+        </div>
+
+        <div class="rounded-2xl border border-line bg-white p-4 shadow-soft">
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <p class="text-xs text-muted">{{ t('listing.publishedBy') }}</p>
+              <div class="flex flex-wrap items-center gap-2">
+                <p class="text-base font-semibold text-slate-900">{{ landlordName }}</p>
+                <Badge v-if="listing?.landlord?.verificationStatus === 'approved'" variant="accepted">
+                  {{ t('listing.verifiedLandlord') }}
+                </Badge>
+                <Badge v-if="listing?.landlord?.badges?.includes('top_landlord')" variant="info">
+                  {{ t('listing.topLandlord') }}
+                </Badge>
+              </div>
+            </div>
+            <Button variant="secondary" size="md" @click="viewProfile">{{ t('listing.viewProfile') }}</Button>
+          </div>
         </div>
       </div>
 
