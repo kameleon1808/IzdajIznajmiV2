@@ -70,11 +70,11 @@ const formatTime = (dateString: string) => {
 <template>
   <div class="relative">
     <button
-      class="relative rounded-full bg-white p-2 shadow-soft"
+      class="relative rounded-full bg-surface-2 p-2 shadow-soft border border-border transition-colors duration-150 hover:bg-primary-soft"
       :aria-label="t('notifications.aria')"
       @click="toggleDropdown"
     >
-      <Bell class="h-5 w-5 text-slate-800" />
+      <Bell class="h-5 w-5 text-text-2" />
       <span
         v-if="hasUnread"
         class="absolute right-1 top-1 flex min-w-[18px] items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-white"
@@ -86,16 +86,16 @@ const formatTime = (dateString: string) => {
 
     <div
       v-if="showDropdown"
-      class="absolute right-0 top-12 z-50 w-80 rounded-2xl bg-white shadow-card border border-white/60 overflow-hidden"
+      class="absolute right-0 top-12 z-50 w-80 rounded-2xl bg-surface-2 shadow-card border border-border overflow-hidden"
     >
       <div class="max-h-96 overflow-y-auto">
-        <div class="p-3 border-b border-line">
+        <div class="p-3 border-b border-border">
           <div class="flex items-center justify-between">
-            <h3 class="text-sm font-semibold text-slate-900">{{ t('notifications.title') }}</h3>
+            <h3 class="text-sm font-semibold text-text">{{ t('notifications.title') }}</h3>
             <button
               v-if="hasUnread"
               @click="notificationStore.markAllRead()"
-              class="text-xs text-primary hover:text-primary/80"
+              class="text-xs text-primary hover:text-primary-hover"
             >
               {{ t('notifications.markAllRead') }}
             </button>
@@ -104,13 +104,13 @@ const formatTime = (dateString: string) => {
         <div v-if="latestNotifications.length === 0" class="p-4 text-center text-sm text-muted">
           {{ t('notifications.empty') }}
         </div>
-        <div v-else class="divide-y divide-line">
+        <div v-else class="divide-y divide-border">
           <button
             v-for="notification in latestNotifications"
             :key="notification.id"
             @click="handleNotificationClick(notification)"
-            class="w-full p-3 text-left hover:bg-slate-50 transition-colors"
-            :class="{ 'bg-primary/5': !notification.isRead }"
+            class="w-full p-3 text-left hover:bg-surface-2 transition-colors"
+            :class="{ 'bg-primary-soft': !notification.isRead }"
           >
             <div class="flex items-start gap-2">
               <div
@@ -118,17 +118,17 @@ const formatTime = (dateString: string) => {
                 class="mt-1.5 h-2 w-2 rounded-full bg-primary flex-shrink-0"
               ></div>
               <div class="flex-1 min-w-0">
-                <p class="text-sm font-semibold text-slate-900 line-clamp-1">{{ notification.title }}</p>
+                <p class="text-sm font-semibold text-text line-clamp-1">{{ notification.title }}</p>
                 <p class="text-xs text-muted line-clamp-2 mt-0.5">{{ notification.body }}</p>
                 <p class="text-xs text-muted mt-1">{{ formatTime(notification.createdAt) }}</p>
               </div>
             </div>
           </button>
         </div>
-        <div class="p-2 border-t border-line">
+        <div class="p-2 border-t border-border">
           <button
             @click="goToNotifications"
-            class="w-full rounded-xl bg-primary/10 px-3 py-2 text-sm font-semibold text-primary hover:bg-primary/20 transition-colors"
+            class="w-full rounded-xl bg-primary-soft px-3 py-2 text-sm font-semibold text-primary hover:bg-primary-soft transition-colors"
           >
             {{ t('notifications.viewAll') }}
           </button>

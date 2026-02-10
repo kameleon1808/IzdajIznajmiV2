@@ -6,8 +6,10 @@ const props = defineProps({
 
 <template>
   <button
-    class="rounded-pill px-4 py-2 text-sm font-semibold transition"
-    :class="active ? 'bg-primary text-white shadow-soft' : 'bg-white text-slate-700 border border-line shadow-soft'
+    class="rounded-pill px-4 py-2 text-sm font-semibold transition-colors duration-150"
+    :class="active
+      ? 'bg-primary text-white shadow-soft'
+      : 'bg-primary-soft text-text-2 border border-border shadow-soft hover:bg-primary-soft'
     "
   >
     <slot />

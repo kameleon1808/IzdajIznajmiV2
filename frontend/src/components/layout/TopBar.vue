@@ -59,7 +59,7 @@ const goProfile = () => {
 
 <template>
   <header
-    class="sticky top-0 z-30 flex flex-col gap-3 border-b border-white/40 bg-surface/90 px-4 pb-3 pt-4 backdrop-blur-lg"
+    class="sticky top-0 z-30 flex flex-col gap-3 border-b border-border bg-surface-2 px-4 pb-3 pt-4 backdrop-blur-lg"
     v-if="variant !== 'detail'"
   >
     <div v-if="variant === 'home'" class="flex items-center justify-between">
@@ -71,27 +71,35 @@ const goProfile = () => {
         />
         <div class="flex flex-col">
           <span class="text-xs text-muted">{{ userName }}</span>
-          <div class="flex items-center gap-1 text-sm font-semibold text-slate-900">
+          <div class="flex items-center gap-1 text-sm font-semibold text-text">
             <MapPin class="h-4 w-4 text-primary" />
             <span>{{ location }}</span>
           </div>
         </div>
       </div>
       <div class="flex items-center gap-2">
-        <button class="rounded-full bg-white p-2 shadow-soft" :aria-label="t('topbar.search')" @click="goSearch">
-          <Search class="h-5 w-5 text-slate-800" />
+        <button
+          class="rounded-full bg-surface-2 p-2 shadow-soft border border-border transition-colors duration-150 hover:bg-primary-soft"
+          :aria-label="t('topbar.search')"
+          @click="goSearch"
+        >
+          <Search class="h-5 w-5 text-text-2" />
         </button>
         <NotificationBell />
       </div>
     </div>
 
     <div v-else-if="variant === 'search' || variant === 'back'" class="flex items-center gap-3">
-      <button class="rounded-full bg-white p-2 shadow-soft" @click="goBack" :aria-label="t('topbar.back')">
-        <ArrowLeft class="h-5 w-5 text-slate-800" />
+      <button
+        class="rounded-full bg-surface-2 p-2 shadow-soft border border-border transition-colors duration-150 hover:bg-primary-soft"
+        @click="goBack"
+        :aria-label="t('topbar.back')"
+      >
+        <ArrowLeft class="h-5 w-5 text-text-2" />
       </button>
-      <div class="flex flex-1 items-center justify-between rounded-2xl bg-white px-4 py-3 shadow-soft">
+      <div class="flex flex-1 items-center justify-between rounded-2xl bg-surface-2 px-4 py-3 shadow-soft border border-border">
         <div class="flex flex-col">
-          <span class="text-sm font-semibold text-slate-900">{{ titleText }}</span>
+          <span class="text-sm font-semibold text-text">{{ titleText }}</span>
           <span v-if="variant === 'search'" class="text-xs text-muted">{{ t('topbar.findBestPlace') }}</span>
         </div>
         <NotificationBell v-if="variant === 'search'" />
@@ -99,15 +107,15 @@ const goProfile = () => {
     </div>
 
     <div v-else-if="variant === 'title'" class="flex items-center">
-      <div class="flex w-full items-center justify-between rounded-2xl bg-white px-4 py-3 shadow-soft">
-        <span class="text-base font-semibold text-slate-900">{{ titleText }}</span>
+      <div class="flex w-full items-center justify-between rounded-2xl bg-surface-2 px-4 py-3 shadow-soft border border-border">
+        <span class="text-base font-semibold text-text">{{ titleText }}</span>
         <NotificationBell />
       </div>
     </div>
 
-    <div v-else-if="variant === 'chat'" class="flex items-center justify-between gap-3 rounded-2xl bg-white px-3 py-2 shadow-soft">
+    <div v-else-if="variant === 'chat'" class="flex items-center justify-between gap-3 rounded-2xl bg-surface-2 px-3 py-2 shadow-soft border border-border">
       <div
-        class="flex items-center gap-3 rounded-2xl px-2 py-1 transition hover:bg-surface/70 cursor-pointer"
+        class="flex items-center gap-3 rounded-2xl px-2 py-1 transition-colors duration-150 hover:bg-surface-2 cursor-pointer"
         role="button"
         tabindex="0"
         @click="goProfile"
@@ -123,7 +131,7 @@ const goProfile = () => {
           class="h-10 w-10 rounded-2xl object-cover"
         />
         <div class="flex flex-col leading-tight">
-          <span class="font-semibold text-slate-900">{{ chatUserName }}</span>
+          <span class="font-semibold text-text">{{ chatUserName }}</span>
           <span class="text-xs" :class="chatOnline ? 'text-primary' : 'text-muted'">
             {{ chatOnline ? t('topbar.online') : t('topbar.offline') }}
           </span>
@@ -141,11 +149,18 @@ const goProfile = () => {
   </header>
 
   <div v-else class="absolute left-0 right-0 top-0 z-30 flex items-center justify-between px-4 pt-6">
-    <button class="rounded-full bg-white/80 p-2 shadow-soft backdrop-blur" @click="goBack" :aria-label="t('topbar.back')">
-      <ArrowLeft class="h-5 w-5 text-slate-900" />
+    <button
+      class="rounded-full bg-surface-2 p-2 shadow-soft border border-border backdrop-blur transition-colors duration-150 hover:bg-primary-soft"
+      @click="goBack"
+      :aria-label="t('topbar.back')"
+    >
+      <ArrowLeft class="h-5 w-5 text-text" />
     </button>
-    <button class="rounded-full bg-white/80 p-2 shadow-soft backdrop-blur" :aria-label="t('topbar.more')">
-      <EllipsisVertical class="h-5 w-5 text-slate-900" />
+    <button
+      class="rounded-full bg-surface-2 p-2 shadow-soft border border-border backdrop-blur transition-colors duration-150 hover:bg-primary-soft"
+      :aria-label="t('topbar.more')"
+    >
+      <EllipsisVertical class="h-5 w-5 text-text" />
     </button>
   </div>
 </template>

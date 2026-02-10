@@ -68,13 +68,13 @@ const retryHome = async () => {
   <section class="space-y-6 lg:space-y-8">
     <ErrorState v-if="error" :message="error" :retry-label="t('home.retry')" @retry="retryHome" />
 
-    <div class="card-base px-4 py-3">
+    <div class="card-base px-4 py-3 bg-primary-soft border-primary">
       <div class="flex items-center justify-between gap-3">
         <div>
-          <p class="text-base font-semibold text-slate-900">{{ t('home.browseByType') }}</p>
+          <p class="text-base font-semibold text-text">{{ t('home.browseByType') }}</p>
           <p class="text-xs text-muted">{{ t('home.quickFilters') }}</p>
         </div>
-        <button class="text-xs font-semibold text-primary" @click="router.push('/search')">
+        <button class="text-xs font-semibold text-primary hover:text-primary-hover hover:underline" @click="router.push('/search')">
           {{ t('home.explore') }}
         </button>
       </div>
@@ -92,7 +92,7 @@ const retryHome = async () => {
 
     <div class="flex items-center justify-between px-1">
       <h2 class="section-title">{{ t('home.mostPopular') }}</h2>
-      <button class="text-sm font-semibold text-primary" @click="router.push('/search')">
+      <button class="text-sm font-semibold text-primary hover:text-primary-hover hover:underline" @click="router.push('/search')">
         {{ t('home.seeAll') }}
       </button>
     </div>
@@ -111,7 +111,7 @@ const retryHome = async () => {
 
     <div class="flex items-center justify-between px-1">
       <h2 class="section-title">{{ t('home.recommended') }}</h2>
-      <button class="text-sm font-semibold text-primary" @click="router.push('/search')">
+      <button class="text-sm font-semibold text-primary hover:text-primary-hover hover:underline" @click="router.push('/search')">
         {{ t('home.seeAll') }}
       </button>
     </div>

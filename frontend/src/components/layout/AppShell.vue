@@ -40,7 +40,7 @@ const stopImpersonation = async () => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-surface text-slate-900">
+  <div class="min-h-screen">
     <div :class="shellClasses">
       <TopBar v-if="hasTopBar" :config="topBarConfig || undefined" />
 

@@ -4,25 +4,37 @@ export default {
   theme: {
     extend: {
       colors: {
+        bg: '#F5F7FB',
+        surface: '#FFFFFF',
+        'surface-2': '#FCFDFF',
+        border: '#E5EAF2',
+        text: '#0F172A',
+        'text-2': '#475569',
+        muted: '#94A3B8',
         primary: {
-          DEFAULT: '#2F80ED',
-          dark: '#1F63C9',
-          light: '#E8F1FF',
+          DEFAULT: '#F97316',
+          hover: '#EA580C',
+          soft: '#FFEDD5',
         },
-        surface: '#F7F9FC',
-        muted: '#6B7280',
-        line: '#E5E7EB',
+        amber: '#F59E0B',
+        'amber-soft': '#FFF6E6',
+        'info-soft': '#FFEDD5',
+        'info-text': '#C2410C',
+        line: '#E5EAF2',
       },
       fontFamily: {
         jakarta: ['"Plus Jakarta Sans"', 'Inter', 'ui-sans-serif', 'system-ui'],
       },
       boxShadow: {
-        card: '0 10px 30px rgba(47, 128, 237, 0.08)',
-        soft: '0 8px 24px rgba(0,0,0,0.06)',
+        card: '0 10px 30px rgba(15, 23, 42, 0.10)',
+        soft: '0 6px 16px rgba(15, 23, 42, 0.08)',
       },
       borderRadius: {
-        soft: '18px',
+        soft: '22px',
         pill: '9999px',
+      },
+      borderColor: {
+        DEFAULT: '#E5EAF2',
       },
     },
   },
