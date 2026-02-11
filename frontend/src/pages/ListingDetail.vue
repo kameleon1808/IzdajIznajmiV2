@@ -696,6 +696,12 @@ const deleteViewingSlot = async (slotId: string) => {
           </button>
         </div>
       </div>
+      <div class="grid gap-3">
+        <div class="flex-1">
+          <p class="text-xs text-muted">{{ t('listing.price') }}</p>
+          <p class="text-lg font-semibold text-slate-900">${{ listing.pricePerNight }}/{{ t('listing.night') }}</p>
+        </div>
+      </div>
 
       <div class="space-y-6 lg:grid lg:grid-cols-2 lg:gap-6 lg:space-y-0">
         <div class="space-y-3">
@@ -1034,18 +1040,15 @@ const deleteViewingSlot = async (slotId: string) => {
     />
 
     <div v-if="listing" class="fixed bottom-4 left-0 right-0 z-[1200] mx-auto max-w-md px-4">
-      <div class="flex items-center gap-3 rounded-3xl bg-white p-4 shadow-card">
-        <div class="flex-1">
-          <p class="text-xs text-muted">{{ t('listing.price') }}</p>
-          <p class="text-lg font-semibold text-slate-900">${{ listing.pricePerNight }}/{{ t('listing.night') }}</p>
+      <div class="rounded-3xl bg-white p-4 shadow-card">
+        <div class="grid grid-cols-2 gap-3">
+          <Button block variant="secondary" size="lg" :disabled="chatLoading" @click="openChat">
+            {{ chatLoading ? t('listing.openingChat') : t('listing.messageHost') }}
+          </Button>
+          <Button block size="lg" :disabled="hasApplied" @click="openInquiry">
+            {{ hasApplied ? t('listing.alreadyApplied') : t('listing.apply') }}
+          </Button>
         </div>
-        <Badge variant="info">{{ t('listing.rating') }} {{ listing.rating }}</Badge>
-        <Button variant="secondary" size="lg" :disabled="chatLoading" @click="openChat">
-          {{ chatLoading ? t('listing.openingChat') : t('listing.messageHost') }}
-        </Button>
-        <Button size="lg" :disabled="hasApplied" @click="openInquiry">
-          {{ hasApplied ? t('listing.alreadyApplied') : t('listing.apply') }}
-        </Button>
       </div>
     </div>
   </div>

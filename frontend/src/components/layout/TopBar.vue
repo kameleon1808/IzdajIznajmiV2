@@ -62,7 +62,7 @@ const goProfile = () => {
     class="sticky top-0 z-30 flex flex-col gap-3 border-b border-border bg-surface-2 px-4 pb-3 pt-4 backdrop-blur-lg"
     v-if="variant !== 'detail'"
   >
-    <div v-if="variant === 'home'" class="flex items-center justify-between">
+    <div v-if="variant === 'home'" class="flex items-center justify-between rounded-2xl bg-surface-2 px-4 py-3 shadow-soft border border-border">
       <div class="flex items-center gap-3">
         <img
           src="https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&w=200&q=80"

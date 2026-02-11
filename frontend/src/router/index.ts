@@ -46,7 +46,7 @@ const router = createRouter({
       path: '/',
       name: 'home',
       component: Home,
-      meta: { topBar: { type: 'home' }, showTabs: true, shellClass: 'lg:max-w-7xl lg:px-6', sidebar: HomeSidebarCard },
+      meta: { topBar: { type: 'home' }, showTabs: true, sidebar: HomeSidebarCard },
     },
     { path: '/search', name: 'search', component: Search, meta: { topBar: { type: 'search' }, showTabs: true } },
     { path: '/map', name: 'map', component: MapPage, meta: { topBar: null, showTabs: true, contentClass: 'p-0 pb-24' } },

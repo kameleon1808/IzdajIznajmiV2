@@ -1426,7 +1426,7 @@ const srMessages: Record<keyof typeof enMessages, string> = {
   'listing.openingChat': 'Otvaranje...',
   'listing.messageHost': 'Poruka izdavaocu',
   'listing.alreadyApplied': 'Vec poslato',
-  'listing.apply': 'Posalji',
+  'listing.apply': 'Rezervisi',
   'listing.requestTitle': 'Zahtev za rezervaciju',
   'listing.checkIn': 'Dolazak',
   'listing.checkOut': 'Odlazak',

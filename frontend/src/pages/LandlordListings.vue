@@ -80,7 +80,7 @@ const handleAction = async (
       </Button>
     </div>
 
-    <div class="flex gap-2">
+    <div class="flex flex-wrap gap-2">
       <button
         v-for="opt in ['all','draft','active','paused','rented','archived','expired']"
         :key="opt"
