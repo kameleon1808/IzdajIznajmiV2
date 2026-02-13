@@ -5,7 +5,7 @@ namespace App\Http\Resources;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
-class RatingResource extends JsonResource
+class ListingRatingResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
@@ -15,11 +15,12 @@ class RatingResource extends JsonResource
             'rating' => (int) $this->rating,
             'comment' => $this->comment,
             'createdAt' => optional($this->created_at)->toISOString(),
-            'rater' => [
-                'id' => $this->rater?->id,
-                'name' => $this->rater?->full_name ?? $this->rater?->name,
-            ],
-            'rateeId' => $this->ratee_id,
+            'seeker' => $this->whenLoaded('seeker', function () {
+                return [
+                    'id' => $this->seeker?->id,
+                    'name' => $this->seeker?->full_name ?? $this->seeker?->name,
+                ];
+            }),
             'listing' => $this->whenLoaded('listing', function () {
                 return [
                     'id' => $this->listing?->id,
@@ -27,7 +28,6 @@ class RatingResource extends JsonResource
                     'city' => $this->listing?->city,
                 ];
             }),
-            'replies' => RatingReplyResource::collection($this->whenLoaded('replies')),
             'reportCount' => $this->whenCounted('reports', fn () => $this->reports_count),
         ];
     }

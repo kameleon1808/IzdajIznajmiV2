@@ -6,6 +6,7 @@ use App\Events\ReportUpdated;
 use App\Http\Controllers\Controller;
 use App\Http\Resources\AdminReportResource;
 use App\Models\Listing;
+use App\Models\ListingRating;
 use App\Models\Message;
 use App\Models\Rating;
 use App\Models\Report;
@@ -35,7 +36,11 @@ class ModerationController extends Controller
             ->latest();
 
         if ($type) {
-            $query->where('target_type', $type);
+            if (is_array($type)) {
+                $query->whereIn('target_type', $type);
+            } else {
+                $query->where('target_type', $type);
+            }
         }
 
         if ($status && in_array($status, ['open', 'resolved', 'dismissed'], true)) {
@@ -143,6 +148,27 @@ class ModerationController extends Controller
             }
         }
 
+        if ($listingRatings = $grouped->get(ListingRating::class)) {
+            $targets = ListingRating::with(['seeker:id,name,full_name', 'listing:id,title'])
+                ->whereIn('id', $listingRatings->pluck('target_id'))
+                ->get()
+                ->keyBy('id');
+
+            foreach ($listingRatings as $report) {
+                $rating = $targets->get($report->target_id);
+                $report->setAttribute('target_summary', $rating ? [
+                    'id' => $rating->id,
+                    'rating' => (int) $rating->rating,
+                    'comment' => $rating->comment,
+                    'listingTitle' => $rating->listing?->title,
+                    'seeker' => [
+                        'id' => $rating->seeker?->id,
+                        'name' => $rating->seeker?->full_name ?? $rating->seeker?->name,
+                    ],
+                ] : null);
+            }
+        }
+
         if ($messages = $grouped->get(Message::class)) {
             $targets = Message::with([
                 'sender:id,name,full_name',
@@ -191,6 +217,11 @@ class ModerationController extends Controller
             $target?->delete();
         }
 
+        if ($report->target_type === ListingRating::class) {
+            $target = ListingRating::find($report->target_id);
+            $target?->delete();
+        }
+
         if ($report->target_type === Message::class) {
             $target = Message::find($report->target_id);
             $target?->delete();
@@ -206,10 +237,10 @@ class ModerationController extends Controller
         }
     }
 
-    private function resolveTargetClass(?string $type): ?string
+    private function resolveTargetClass(?string $type): array|string|null
     {
         return match ($type) {
-            'rating' => Rating::class,
+            'rating' => [Rating::class, ListingRating::class],
             'message' => Message::class,
             'listing' => Listing::class,
             default => null,

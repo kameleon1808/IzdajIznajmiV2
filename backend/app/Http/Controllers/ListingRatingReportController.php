@@ -2,16 +2,16 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Resources\RatingResource;
-use App\Models\Rating;
+use App\Http\Resources\ListingRatingResource;
+use App\Models\ListingRating;
 use App\Models\RatingReport;
 use App\Models\Report;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
-class RatingReportController extends Controller
+class ListingRatingReportController extends Controller
 {
-    public function store(Request $request, Rating $rating): JsonResponse
+    public function store(Request $request, ListingRating $listingRating): JsonResponse
     {
         $user = $request->user();
         abort_unless($user, 401, 'Unauthenticated');
@@ -20,22 +20,20 @@ class RatingReportController extends Controller
             abort(403, 'Only seekers or landlords can report');
         }
 
-        if ((int) $rating->ratee_id !== (int) $user->id) {
-            abort(403, 'Only the profile owner can report this rating');
-        }
-
         $data = $request->validate([
             'reason' => ['required', 'string', 'max:255'],
             'details' => ['nullable', 'string', 'max:1000'],
         ]);
 
-        $exists = RatingReport::where('rating_id', $rating->id)->where('reporter_id', $user->id)->exists();
+        $exists = RatingReport::where('listing_rating_id', $listingRating->id)
+            ->where('reporter_id', $user->id)
+            ->exists();
         if ($exists) {
             return response()->json(['message' => 'You already reported this rating'], 422);
         }
 
         RatingReport::create([
-            'rating_id' => $rating->id,
+            'listing_rating_id' => $listingRating->id,
             'reporter_id' => $user->id,
             'reason' => $data['reason'],
             'details' => $data['details'] ?? null,
@@ -44,8 +42,8 @@ class RatingReportController extends Controller
         Report::firstOrCreate(
             [
                 'reporter_id' => $user->id,
-                'target_type' => Rating::class,
-                'target_id' => $rating->id,
+                'target_type' => ListingRating::class,
+                'target_id' => $listingRating->id,
             ],
             [
                 'reason' => $data['reason'],
@@ -54,13 +52,13 @@ class RatingReportController extends Controller
             ]
         );
 
-        app(\App\Services\StructuredLogger::class)->info('rating_reported', [
-            'rating_id' => $rating->id,
-            'listing_id' => $rating->listing_id,
+        app(\App\Services\StructuredLogger::class)->info('listing_rating_reported', [
+            'listing_rating_id' => $listingRating->id,
+            'listing_id' => $listingRating->listing_id,
             'user_id' => $user->id,
         ]);
 
-        return response()->json(new RatingResource($rating->loadCount('reports')), 201);
+        return response()->json(new ListingRatingResource($listingRating->loadCount('reports')), 201);
     }
 
     private function isAllowedReporter($user): bool

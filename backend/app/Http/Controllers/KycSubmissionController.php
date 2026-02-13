@@ -7,6 +7,7 @@ use App\Http\Resources\KycSubmissionResource;
 use App\Models\KycDocument;
 use App\Models\KycSubmission;
 use App\Models\Notification;
+use App\Models\User;
 use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -22,7 +23,7 @@ class KycSubmissionController extends Controller
     {
         $user = $request->user();
         abort_unless($user, 401, 'Unauthenticated');
-        abort_unless($this->userHasRole($user, ['landlord']), 403, 'Only landlords can submit KYC.');
+        abort_unless($this->userHasRole($user, ['landlord', 'seeker']), 403, 'Only seekers or landlords can submit KYC.');
 
         $hasPending = KycSubmission::where('user_id', $user->id)
             ->where('status', KycSubmission::STATUS_PENDING)
@@ -39,9 +40,9 @@ class KycSubmissionController extends Controller
             ]);
 
             $user->update([
-                'landlord_verification_status' => 'pending',
-                'landlord_verified_at' => null,
-                'landlord_verification_notes' => null,
+                'verification_status' => 'pending',
+                'verified_at' => null,
+                'verification_notes' => null,
             ]);
 
             $this->storeDocuments($request, $submission);
@@ -56,6 +57,26 @@ class KycSubmissionController extends Controller
             'url' => '/profile/verification',
         ]);
 
+        $admins = User::query()
+            ->where('role', 'admin')
+            ->orWhereHas('roles', fn ($query) => $query->where('name', 'admin'))
+            ->get();
+
+        foreach ($admins as $admin) {
+            $this->notifications->createNotification($admin, Notification::TYPE_KYC_SUBMISSION_RECEIVED, [
+                'title' => 'New verification submission',
+                'body' => sprintf(
+                    'New verification submitted by %s.',
+                    $user->full_name ?? $user->name ?? 'User'
+                ),
+                'data' => [
+                    'submission_id' => $submission->id,
+                    'user_id' => $user->id,
+                ],
+                'url' => '/admin/kyc',
+            ]);
+        }
+
         $submission->load('documents');
 
         return response()->json(new KycSubmissionResource($submission), 201);
@@ -65,7 +86,7 @@ class KycSubmissionController extends Controller
     {
         $user = $request->user();
         abort_unless($user, 401, 'Unauthenticated');
-        abort_unless($this->userHasRole($user, ['landlord', 'admin']), 403, 'Forbidden');
+        abort_unless($this->userHasRole($user, ['landlord', 'seeker', 'admin']), 403, 'Forbidden');
 
         $submission = KycSubmission::with('documents')
             ->where('user_id', $user->id)
@@ -95,11 +116,11 @@ class KycSubmissionController extends Controller
                 'reviewer_note' => null,
             ]);
 
-            if ($user->landlord_verification_status === 'pending') {
+            if ($user->verification_status === 'pending') {
                 $user->update([
-                    'landlord_verification_status' => 'none',
-                    'landlord_verified_at' => null,
-                    'landlord_verification_notes' => null,
+                    'verification_status' => 'none',
+                    'verified_at' => null,
+                    'verification_notes' => null,
                 ]);
             }
         });

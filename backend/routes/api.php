@@ -28,6 +28,8 @@ use App\Http\Controllers\MessageReportController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\NotificationPreferenceController;
 use App\Http\Controllers\RatingController;
+use App\Http\Controllers\RatingReplyController;
+use App\Http\Controllers\ListingRatingReportController;
 use App\Http\Controllers\RatingReportController;
 use App\Http\Controllers\RentalTransactionController;
 use App\Http\Controllers\SavedSearchController;
@@ -38,8 +40,10 @@ use App\Http\Controllers\StripeWebhookController;
 use App\Http\Controllers\TransactionContractController;
 use App\Http\Controllers\TransactionPaymentController;
 use App\Http\Controllers\TransactionReportController;
+use App\Http\Controllers\UserAccountController;
 use App\Http\Controllers\UserProfileController;
 use App\Http\Controllers\UserTransactionController;
+use App\Http\Controllers\UserVerificationController;
 use App\Http\Controllers\ViewingRequestController;
 use App\Http\Controllers\ViewingSlotController;
 use Illuminate\Support\Facades\Route;
@@ -63,6 +67,7 @@ $apiRoutes = function () use ($authRoutes) {
 
     Route::get('/listings', [ListingController::class, 'index'])->middleware('throttle:listings_search');
     Route::get('/listings/{listing}', [ListingController::class, 'show']);
+    Route::get('/listings/{listing}/ratings', [RatingController::class, 'listingRatings']);
     Route::get('/listings/{listing}/similar', [\App\Http\Controllers\SimilarListingsController::class, 'index']);
     Route::prefix('search')->group(function () {
         Route::get('/listings', [SearchController::class, 'listings'])->middleware('throttle:listings_search');
@@ -124,7 +129,9 @@ $apiRoutes = function () use ($authRoutes) {
 
             Route::post('/listings/{listing}/ratings', [RatingController::class, 'store']);
             Route::get('/me/ratings', [RatingController::class, 'myRatings']);
-            Route::post('/ratings/{rating}/report', [RatingReportController::class, 'store']);
+            Route::post('/ratings/{rating}/replies', [RatingReplyController::class, 'store']);
+            Route::post('/ratings/{rating}/report', [RatingReportController::class, 'store'])->middleware('throttle:rating_reports');
+            Route::post('/listing-ratings/{listingRating}/report', [ListingRatingReportController::class, 'store'])->middleware('throttle:rating_reports');
             Route::post('/messages/{message}/report', [MessageReportController::class, 'store']);
             Route::post('/listings/{listing}/report', [ListingReportController::class, 'store']);
             Route::patch('/listings/{listing}/location', [ListingLocationController::class, 'update'])->middleware('throttle:landlord_write');
@@ -171,6 +178,17 @@ $apiRoutes = function () use ($authRoutes) {
             Route::post('/transactions/{transaction}/complete', [TransactionPaymentController::class, 'completeByLandlord']);
             Route::post('/transactions/{transaction}/report', [TransactionReportController::class, 'store']);
             Route::get('/users/{user}/transactions/shared', [UserTransactionController::class, 'shared']);
+
+            Route::patch('/me/profile', [UserAccountController::class, 'updateProfile']);
+            Route::patch('/me/password', [UserAccountController::class, 'updatePassword']);
+            Route::post('/me/verification/email/request', [UserVerificationController::class, 'requestEmail'])
+                ->middleware('throttle:verification_request');
+            Route::post('/me/verification/email/confirm', [UserVerificationController::class, 'confirmEmail'])
+                ->middleware('throttle:verification_confirm');
+            Route::post('/me/verification/phone/request', [UserVerificationController::class, 'requestPhone'])
+                ->middleware('throttle:verification_request');
+            Route::post('/me/verification/phone/confirm', [UserVerificationController::class, 'confirmPhone'])
+                ->middleware('throttle:verification_confirm');
 
             Route::post('/kyc/submissions', [KycSubmissionController::class, 'store']);
             Route::get('/kyc/submissions/me', [KycSubmissionController::class, 'me']);

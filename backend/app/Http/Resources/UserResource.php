@@ -30,9 +30,9 @@ class UserResource extends JsonResource
             'mfaEnabled' => (bool) $this->mfa_enabled,
             'mfaConfirmedAt' => optional($this->mfa_confirmed_at)->toISOString(),
             'mfaRequired' => (bool) (config('security.require_mfa_for_admins') && ($this->role === 'admin' || $this->hasRole('admin'))),
-            'landlordVerificationStatus' => $this->landlord_verification_status ?? 'none',
-            'landlordVerifiedAt' => optional($this->landlord_verified_at)->toISOString(),
-            'landlordVerificationNotes' => $this->landlord_verification_notes,
+            'verificationStatus' => $this->verification_status ?? 'none',
+            'verifiedAt' => optional($this->verified_at)->toISOString(),
+            'verificationNotes' => $this->verification_notes,
         ];
     }
 }

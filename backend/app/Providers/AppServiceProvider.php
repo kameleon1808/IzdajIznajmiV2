@@ -153,6 +153,24 @@ class AppServiceProvider extends ServiceProvider
             return Limit::perMinute(30)->by($key);
         });
 
+        RateLimiter::for('rating_reports', function (Request $request) {
+            $key = $request->user()?->id ?? $request->ip();
+
+            return Limit::perDay(10)->by($key);
+        });
+
+        RateLimiter::for('verification_request', function (Request $request) {
+            $key = $request->user()?->id ?? $request->ip();
+
+            return Limit::perHour(5)->by($key);
+        });
+
+        RateLimiter::for('verification_confirm', function (Request $request) {
+            $key = $request->user()?->id ?? $request->ip();
+
+            return Limit::perMinute(10)->by($key);
+        });
+
         RateLimiter::for('landlord_write', function (Request $request) {
             $key = $request->user()?->id ?? $request->ip();
 

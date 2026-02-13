@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Services\BadgeService;
+use App\Services\TransactionEligibilityService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -18,9 +19,28 @@ class PublicUserResource extends JsonResource
             ->latest()
             ->limit(5)
             ->get();
+        $viewer = $request->user();
+        $eligibleListingIds = [];
+        $canRateLandlord = false;
+        $canRateListing = false;
+        $canRateSeeker = false;
+
+        if ($viewer && $viewer->id !== $this->id) {
+            $isSeeker = (method_exists($viewer, 'hasRole') && $viewer->hasRole('seeker')) || $viewer->role === 'seeker';
+            $isLandlord = (method_exists($viewer, 'hasRole') && $viewer->hasRole('landlord')) || $viewer->role === 'landlord';
+            if ($isSeeker) {
+                $eligibleListingIds = app(TransactionEligibilityService::class)->eligibleListingIds($viewer->id, $this->id);
+                $canRateLandlord = ! empty($eligibleListingIds);
+                $canRateListing = $canRateLandlord;
+            } elseif ($isLandlord) {
+                $eligibleListingIds = app(TransactionEligibilityService::class)->eligibleListingIds($this->id, $viewer->id);
+                $canRateSeeker = ! empty($eligibleListingIds);
+            }
+        }
 
         return [
             'id' => $this->id,
+            'role' => $this->role,
             'fullName' => $this->full_name ?? $this->name,
             'joinedAt' => optional($this->created_at)->toISOString(),
             'badges' => app(BadgeService::class)->badgesFor($this->resource, $this->landlordMetric),
@@ -29,15 +49,19 @@ class PublicUserResource extends JsonResource
                 'phone' => (bool) $this->phone_verified,
                 'address' => (bool) $this->address_verified,
             ],
-            'landlordVerification' => [
-                'status' => $this->landlord_verification_status ?? 'none',
-                'verifiedAt' => optional($this->landlord_verified_at)->toISOString(),
+            'verification' => [
+                'status' => $this->verification_status ?? 'none',
+                'verifiedAt' => optional($this->verified_at)->toISOString(),
             ],
             'ratingStats' => [
                 'average' => $stats?->avg_rating ? round((float) $stats->avg_rating, 1) : 0,
                 'total' => (int) ($stats?->total ?? 0),
                 'breakdown' => [],
             ],
+            'canRateLandlord' => $canRateLandlord,
+            'canRateListing' => $canRateListing,
+            'canRateSeeker' => $canRateSeeker,
+            'eligibleListingIds' => $eligibleListingIds,
             'recentRatings' => $recent->map(function ($rating) {
                 return [
                     'raterName' => $rating->rater?->full_name ?? $rating->rater?->name,

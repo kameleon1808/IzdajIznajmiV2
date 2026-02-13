@@ -41,6 +41,8 @@ class ListingResource extends JsonResource
             'pricePerNight' => $this->price_per_night,
             'rating' => (float) $this->rating,
             'reviewsCount' => $this->reviews_count,
+            'listing_rating_avg' => $this->listing_rating_avg !== null ? round((float) $this->listing_rating_avg, 1) : 0.0,
+            'listing_rating_count' => (int) ($this->listing_rating_count ?? 0),
             'coverImage' => $this->cover_image,
             'images' => $this->imagesSimple(),
             'imagesDetailed' => $this->imagesDetailed(),
@@ -55,14 +57,14 @@ class ListingResource extends JsonResource
             'facilities' => $this->whenLoaded('facilities', fn () => $this->facilities->pluck('name')),
             'ownerId' => $this->owner_id,
             'landlord' => $this->whenLoaded('owner', function () {
-                $status = $this->owner?->landlord_verification_status ?? 'none';
+                $status = $this->owner?->verification_status ?? 'none';
                 $badges = $this->owner ? app(BadgeService::class)->badgesFor($this->owner, $this->owner->landlordMetric) : [];
 
                 return [
                     'id' => $this->owner?->id,
                     'fullName' => $this->owner?->full_name ?? $this->owner?->name,
                     'verificationStatus' => $status,
-                    'verifiedAt' => optional($this->owner?->landlord_verified_at)->toISOString(),
+                    'verifiedAt' => optional($this->owner?->verified_at)->toISOString(),
                     'badges' => $badges,
                 ];
             }),

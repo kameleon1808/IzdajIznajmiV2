@@ -33,6 +33,7 @@ class AdminReportResource extends JsonResource
     {
         return match ($class) {
             \App\Models\Rating::class => 'rating',
+            \App\Models\ListingRating::class => 'rating',
             \App\Models\Message::class => 'message',
             \App\Models\Listing::class => 'listing',
             default => 'other',

@@ -27,7 +27,7 @@ class KycSubmissionAdminController extends Controller
         ];
 
         $submissions = KycSubmission::with([
-            'user:id,full_name,name,email,landlord_verification_status,landlord_verified_at',
+            'user:id,full_name,name,email,verification_status,verified_at',
             'reviewer:id,full_name,name',
             'documents',
         ])
@@ -41,7 +41,7 @@ class KycSubmissionAdminController extends Controller
     public function show(KycSubmission $submission): JsonResponse
     {
         $submission->load([
-            'user:id,full_name,name,email,landlord_verification_status,landlord_verified_at',
+            'user:id,full_name,name,email,verification_status,verified_at',
             'reviewer:id,full_name,name',
             'documents',
         ]);
@@ -69,9 +69,10 @@ class KycSubmissionAdminController extends Controller
             ]);
 
             $submission->user?->update([
-                'landlord_verification_status' => 'approved',
-                'landlord_verified_at' => now(),
-                'landlord_verification_notes' => $note,
+                'verification_status' => 'approved',
+                'verified_at' => now(),
+                'verification_notes' => $note,
+                'address_verified' => true,
             ]);
         });
 
@@ -79,7 +80,7 @@ class KycSubmissionAdminController extends Controller
         if ($landlord) {
             $this->notifications->createNotification($landlord, Notification::TYPE_KYC_APPROVED, [
                 'title' => 'Verification approved',
-                'body' => 'Your landlord verification is approved.',
+                'body' => 'Your verification is approved.',
                 'data' => ['submission_id' => $submission->id],
                 'url' => '/profile/verification',
             ]);
@@ -108,9 +109,10 @@ class KycSubmissionAdminController extends Controller
             ]);
 
             $submission->user?->update([
-                'landlord_verification_status' => 'rejected',
-                'landlord_verified_at' => null,
-                'landlord_verification_notes' => $note,
+                'verification_status' => 'rejected',
+                'verified_at' => null,
+                'verification_notes' => $note,
+                'address_verified' => false,
             ]);
         });
 
@@ -145,9 +147,10 @@ class KycSubmissionAdminController extends Controller
             ]);
 
             $submission->user?->update([
-                'landlord_verification_status' => 'none',
-                'landlord_verified_at' => null,
-                'landlord_verification_notes' => $note,
+                'verification_status' => 'none',
+                'verified_at' => null,
+                'verification_notes' => $note,
+                'address_verified' => false,
             ]);
         });
 
