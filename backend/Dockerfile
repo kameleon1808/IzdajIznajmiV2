@@ -29,6 +29,7 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /app
 
+COPY docker/php-uploads.ini /usr/local/etc/php/conf.d/zz-uploads.ini
 COPY docker/entrypoint.sh /usr/local/bin/laravel-entrypoint
 RUN chmod +x /usr/local/bin/laravel-entrypoint
 

@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\KycDocument;
 use App\Models\KycSubmission;
+use App\Models\Notification;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -15,12 +16,13 @@ class KycApiTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_landlord_can_submit_kyc_and_seeker_cannot(): void
+    public function test_landlord_and_seeker_can_submit_kyc(): void
     {
         Storage::fake('private');
 
         $landlord = User::factory()->create(['role' => 'landlord']);
         $seeker = User::factory()->create(['role' => 'seeker']);
+        $admin = User::factory()->create(['role' => 'admin']);
 
         $this->bootstrapCsrf();
 
@@ -32,7 +34,8 @@ class KycApiTest extends TestCase
 
         $this->actingAs($seeker)
             ->postJson('/api/v1/kyc/submissions', $payload)
-            ->assertStatus(403);
+            ->assertStatus(201)
+            ->assertJsonPath('status', 'pending');
 
         $this->actingAs($landlord)
             ->postJson('/api/v1/kyc/submissions', $payload)
@@ -40,8 +43,13 @@ class KycApiTest extends TestCase
             ->assertJsonPath('status', 'pending');
 
         $this->assertDatabaseHas('users', [
+            'id' => $seeker->id,
+            'verification_status' => 'pending',
+        ]);
+
+        $this->assertDatabaseHas('users', [
             'id' => $landlord->id,
-            'landlord_verification_status' => 'pending',
+            'verification_status' => 'pending',
         ]);
 
         $submission = KycSubmission::where('user_id', $landlord->id)->first();
@@ -50,6 +58,13 @@ class KycApiTest extends TestCase
             'submission_id' => $submission->id,
             'doc_type' => KycDocument::TYPE_ID_FRONT,
         ]);
+
+        $this->assertSame(
+            2,
+            Notification::where('user_id', $admin->id)
+                ->where('type', 'kyc.submission_received')
+                ->count()
+        );
     }
 
     public function test_cannot_submit_second_pending_submission(): void
@@ -96,10 +111,11 @@ class KycApiTest extends TestCase
 
         $this->assertDatabaseHas('users', [
             'id' => $landlord->id,
-            'landlord_verification_status' => 'approved',
+            'verification_status' => 'approved',
+            'address_verified' => true,
         ]);
 
-        $this->assertNotNull($landlord->fresh()->landlord_verified_at);
+        $this->assertNotNull($landlord->fresh()->verified_at);
     }
 
     public function test_document_download_forbidden_to_non_owner_or_admin(): void

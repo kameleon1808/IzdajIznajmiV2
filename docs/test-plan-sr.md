@@ -70,7 +70,7 @@
 | KYC-01 | Landlord session | 1) POST /api/v1/kyc/submissions (id_front, selfie, proof_of_address) | 201, status pending | submit |
 | KYC-02 | KYC-01 pending | 1) POST /api/v1/kyc/submissions (ponovo) | 409 Conflict | block duplicate |
 | KYC-03 | Admin session | 1) GET /api/v1/admin/kyc/submissions?status=pending | 200, lista pending | admin queue |
-| KYC-04 | Admin session | 1) PATCH /api/v1/admin/kyc/submissions/{id}/approve | 200, user landlord_verification_status=approved | approve |
+| KYC-04 | Admin session | 1) PATCH /api/v1/admin/kyc/submissions/{id}/approve | 200, user verification_status=approved | approve |
 | KYC-05 | Admin session | 1) PATCH /api/v1/admin/kyc/submissions/{id}/reject sa note | 200, status rejected + note | reject |
 | KYC-06 | Non-owner session | 1) GET /api/v1/kyc/documents/{id} | 403 | access control |
 
@@ -84,6 +84,27 @@
 | TX-05 | TX-04 | 1) POST /api/v1/transactions/{id}/move-in/confirm (landlord) | status move_in_confirmed | move-in |
 | TX-06 | Admin session | 1) POST /api/v1/admin/transactions/{id}/payout | status completed | payout |
 | TX-07 | Non-participant session | 1) GET /api/v1/transactions/{id} | 403 | authz |
+
+### Ratings & profil
+| ID | Precondition | Koraci | Očekivano | Napomena |
+| --- | --- | --- | --- | --- |
+| RAT-01 | Završena transakcija (completed ili move_in_confirmed) između seeker+landlord za listing | 1) POST /api/v1/listings/{listing}/ratings (ratee_user_id=landlord, rating=5) | 201 Created | landlord rating |
+| RAT-02 | Nema završene transakcije | 1) POST /api/v1/listings/{listing}/ratings (ratee_user_id=landlord, rating=4) | 403 Forbidden | blok pre završetka |
+| RAT-03 | Završena transakcija | 1) POST /api/v1/listings/{listing}/ratings (rating=5) | 201 Created | listing rating |
+| RAT-04 | Landlord session | 1) POST /api/v1/listings/{listing}/ratings (ratee_user_id=landlord, rating=5) | 403 Forbidden | landlord ne ocenjuje |
+| RAT-05 | Landlord ili seeker session, postojeća ocena | 1) POST /api/v1/ratings/{rating}/report | 201 Created, kreiran report u moderation queue | report rating |
+| RAT-06 | Landlord ili seeker session, listing rating | 1) POST /api/v1/listing-ratings/{id}/report | 201 Created, kreiran report u moderation queue | report listing rating |
+| PROF-01 | Prijavljen korisnik | 1) PATCH /api/v1/me/profile (full_name, phone, address_book) | 200 OK, user ažuriran | edit profil |
+| PROF-02 | Prijavljen korisnik | 1) PATCH /api/v1/me/password (current_password, new_password, confirmation) | 200 OK, lozinka ažurirana | change password |
+| VER-01 | Prijavljen korisnik, email nije verifikovan | 1) POST /api/v1/me/verification/email/request 2) POST /api/v1/me/verification/email/confirm (code) | email_verified=true | email |
+| VER-02 | Prijavljen korisnik, telefon nije verifikovan | 1) POST /api/v1/me/verification/phone/request 2) POST /api/v1/me/verification/phone/confirm (code) | phone_verified=true | phone |
+
+### KYC verifikacija
+| ID | Precondition | Koraci | Očekivano | Napomena |
+| --- | --- | --- | --- | --- |
+| KYC-01 | Seeker session | 1) POST /api/v1/kyc/submissions (id_front, selfie, proof_of_address) | 201 Created, status pending | seeker KYC |
+| KYC-02 | Landlord session | 1) POST /api/v1/kyc/submissions (id_front, selfie, proof_of_address) | 201 Created, status pending | landlord KYC |
+| KYC-03 | Admin session, pending KYC | 1) PATCH /api/v1/admin/kyc/submissions/{id}/approve | 200 OK, status approved, address_verified=true | approve |
 
 ### Saved searches & alerts
 | ID | Precondition | Koraci | Očekivano | Napomena |

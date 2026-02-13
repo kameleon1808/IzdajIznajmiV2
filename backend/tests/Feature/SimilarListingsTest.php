@@ -31,7 +31,7 @@ class SimilarListingsTest extends TestCase
 
         $verifiedLandlord = User::factory()->create([
             'role' => 'landlord',
-            'landlord_verification_status' => 'approved',
+            'verification_status' => 'approved',
         ]);
         $candidateA = Listing::factory()->create([
             'owner_id' => $verifiedLandlord->id,
