@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ShieldCheck, ShieldX, Star } from 'lucide-vue-next'
 import ErrorBanner from '../components/ui/ErrorBanner.vue'
 import ListSkeleton from '../components/ui/ListSkeleton.vue'
@@ -8,13 +8,14 @@ import EmptyState from '../components/ui/EmptyState.vue'
 import Badge from '../components/ui/Badge.vue'
 import ModalSheet from '../components/ui/ModalSheet.vue'
 import Button from '../components/ui/Button.vue'
-import { getPublicProfile, getUserRatings, reportRating, getSharedTransactions, reportTransaction, leaveRating } from '../services'
+import { getPublicProfile, getUserRatings, reportRating, replyToRating, getSharedTransactions, reportTransaction, leaveRating } from '../services'
 import { useAuthStore } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
 import { useLanguageStore } from '../stores/language'
 import type { PublicProfile, Rating, RentalTransaction } from '../types'
 
 const route = useRoute()
+const router = useRouter()
 const auth = useAuthStore()
 const toast = useToastStore()
 const languageStore = useLanguageStore()
@@ -28,6 +29,8 @@ const showReport = ref(false)
 const reportReason = ref('spam')
 const reportDetails = ref('')
 const reportSubmitting = ref(false)
+const replyInputs = ref<Record<string, string>>({})
+const replySubmitting = ref<Record<string, boolean>>({})
 const sharedTransactions = ref<RentalTransaction[]>([])
 const showTransactionReport = ref(false)
 const reportTransactionId = ref('')
@@ -40,10 +43,13 @@ const ratingComment = ref('')
 const ratingSubmitting = ref(false)
 const ratingSubmitted = ref(false)
 
+const eligibleListingIds = computed(() => (profile.value?.eligibleListingIds ?? []).map((id) => String(id)))
+const eligibleListingIdSet = computed(() => new Set(eligibleListingIds.value))
 const ratingListings = computed(() =>
   sharedTransactions.value
     .filter((tx) => Boolean(tx.listing?.id))
     .map((tx) => tx.listing!)
+    .filter((listing) => eligibleListingIdSet.value.size === 0 || eligibleListingIdSet.value.has(String(listing.id))),
 )
 const hasRatingListings = computed(() => ratingListings.value.length > 0)
 const isSelf = computed(() =>
@@ -51,14 +57,29 @@ const isSelf = computed(() =>
   Boolean(auth.user?.id) &&
   String(profile.value?.id ?? '') === String(auth.user?.id ?? '')
 )
-const isGuest = computed(() => !auth.isAuthenticated)
-const ratingLockedReason = computed(() => {
-  if (isGuest.value) return t('publicProfile.rating.login')
-  if (isSelf.value) return t('publicProfile.rating.self')
-  if (!hasRatingListings.value) return t('publicProfile.rating.noShared')
-  return ''
+const isAdmin = computed(() => auth.hasRole('admin'))
+const showVerifiedBadge = computed(() => profile.value?.verification?.status === 'approved')
+const canRateLandlord = computed(() => Boolean(profile.value?.canRateLandlord))
+const canRateSeeker = computed(() => Boolean(profile.value?.canRateSeeker))
+const canSubmitRating = computed(() => {
+  if (isSelf.value || !hasRatingListings.value) return false
+  if (auth.hasRole('seeker')) return canRateLandlord.value
+  if (auth.hasRole('landlord')) return canRateSeeker.value
+  return false
 })
-const canSubmitRating = computed(() => !isGuest.value && !isSelf.value && hasRatingListings.value)
+const showRatingForm = computed(() => canSubmitRating.value)
+
+const canReportRating = (rating: Rating) => {
+  if (!isSelf.value) return false
+  return String(rating.rater?.id ?? '') !== String(auth.user?.id ?? '')
+}
+
+const canReplyToRating = (rating: Rating) => {
+  if (isAdmin.value) return true
+  if (!isSelf.value) return false
+  const replies = rating.replies ?? []
+  return !replies.some((reply) => String(reply.author?.id ?? '') === String(auth.user?.id ?? '') && !reply.isAdmin)
+}
 
 const load = async () => {
   loading.value = true
@@ -73,7 +94,10 @@ const load = async () => {
         if (firstTransaction) {
           reportTransactionId.value = firstTransaction.id
         }
-        const firstListingId = sharedTransactions.value.find((tx) => tx.listing?.id)?.listing?.id
+        const firstListingId = sharedTransactions.value.find((tx) => {
+          const listingId = tx.listing?.id
+          return listingId && eligibleListingIdSet.value.has(String(listingId))
+        })?.listing?.id
         ratingListingId.value = firstListingId ? String(firstListingId) : ''
       } catch (err) {
         sharedTransactions.value = []
@@ -110,6 +134,21 @@ const submitReport = async () => {
 const openReport = (rating: Rating) => {
   reportTarget.value = rating
   showReport.value = true
+}
+
+const submitReply = async (rating: Rating) => {
+  const input = replyInputs.value[rating.id] ?? ''
+  if (!input.trim()) return
+  replySubmitting.value = { ...replySubmitting.value, [rating.id]: true }
+  try {
+    const updated = await replyToRating(rating.id, input.trim())
+    ratings.value = ratings.value.map((r) => (r.id === rating.id ? updated : r))
+    replyInputs.value = { ...replyInputs.value, [rating.id]: '' }
+  } catch (err) {
+    error.value = (err as Error).message || t('publicProfile.replyFailed')
+  } finally {
+    replySubmitting.value = { ...replySubmitting.value, [rating.id]: false }
+  }
 }
 
 const openTransactionReport = () => {
@@ -176,6 +215,10 @@ const submitRating = async () => {
     ratingSubmitting.value = false
   }
 }
+
+const goToEditProfile = () => {
+  router.push('/settings/profile')
+}
 </script>
 
 <template>
@@ -185,7 +228,12 @@ const submitRating = async () => {
 
     <template v-else-if="profile">
       <div class="rounded-2xl bg-white p-4 shadow-soft border border-white/60 space-y-2">
-        <h1 class="text-xl font-semibold text-slate-900">{{ profile.fullName }}</h1>
+        <div class="flex items-start justify-between gap-3">
+          <h1 class="text-xl font-semibold text-slate-900">{{ profile.fullName }}</h1>
+          <Button v-if="isSelf" variant="secondary" size="sm" @click="goToEditProfile">
+            {{ t('publicProfile.editProfile') }}
+          </Button>
+        </div>
         <p class="text-sm text-muted">{{ t('publicProfile.joined') }} {{ formatDate(profile.joinedAt) }}</p>
         <div class="flex flex-wrap gap-2 pt-2">
           <Badge :variant="profile.verifications.email ? 'accepted' : 'cancelled'">
@@ -209,14 +257,11 @@ const submitRating = async () => {
               {{ t('publicProfile.address') }}
             </span>
           </Badge>
-          <Badge
-            v-if="profile.landlordVerification?.status === 'approved'"
-            variant="accepted"
-          >
+          <Badge v-if="showVerifiedBadge" variant="accepted">
             <span class="inline-flex items-center gap-1">
               <ShieldCheck class="h-4 w-4" />
-              {{ t('publicProfile.verifiedLandlord') }}
-              {{ profile.landlordVerification.verifiedAt ? `· ${formatDate(profile.landlordVerification.verifiedAt)}` : '' }}
+              {{ t('publicProfile.verifiedUser') }}
+              {{ profile.verification?.verifiedAt ? `· ${formatDate(profile.verification.verifiedAt)}` : '' }}
             </span>
           </Badge>
           <Badge v-if="profile.badges?.includes('top_landlord')" variant="info">
@@ -231,13 +276,10 @@ const submitRating = async () => {
         </div>
       </div>
 
-      <div class="rounded-2xl bg-white p-4 shadow-soft border border-white/60 space-y-3">
+      <div v-if="showRatingForm" class="rounded-2xl bg-white p-4 shadow-soft border border-white/60 space-y-3">
         <div class="flex items-center justify-between">
           <p class="font-semibold text-slate-900">{{ t('publicProfile.leaveRating') }}</p>
           <span v-if="ratingListingId" class="text-xs text-muted">{{ t('publicProfile.listingLabel') }} #{{ ratingListingId }}</span>
-        </div>
-        <div v-if="ratingLockedReason" class="rounded-xl border border-dashed border-line bg-surface px-3 py-2 text-sm text-muted">
-          {{ ratingLockedReason }}
         </div>
         <div class="space-y-3">
           <label class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">{{ t('publicProfile.listing') }}</label>
@@ -300,8 +342,40 @@ const submitRating = async () => {
             <p class="text-sm text-muted">
               {{ rating.comment || t('publicProfile.noComment') }}
             </p>
+            <p class="text-xs text-muted mt-1">
+              {{ t('publicProfile.listingLabel') }}:
+              {{ rating.listing?.title || `#${rating.listingId}` }}
+              {{ rating.listing?.city ? `· ${rating.listing.city}` : '' }}
+            </p>
             <p class="text-xs text-muted mt-1">{{ formatDate(rating.createdAt) }}</p>
-            <div class="flex justify-end">
+            <div v-if="rating.replies?.length" class="mt-3 space-y-2">
+              <div v-for="reply in rating.replies" :key="reply.id" class="rounded-xl border border-line bg-white p-3 text-sm">
+                <div class="flex items-center justify-between">
+                  <p class="font-semibold text-slate-900">{{ reply.author?.name || t('publicProfile.guest') }}</p>
+                  <Badge v-if="reply.isAdmin" variant="info">{{ t('publicProfile.adminBadge') }}</Badge>
+                </div>
+                <p class="text-sm text-slate-700 mt-1">{{ reply.body }}</p>
+                <p class="text-xs text-muted mt-1">{{ formatDate(reply.createdAt) }}</p>
+              </div>
+            </div>
+            <div v-if="canReplyToRating(rating)" class="mt-3 space-y-2">
+              <label class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">{{ t('publicProfile.reply') }}</label>
+              <textarea
+                v-model="replyInputs[rating.id]"
+                rows="2"
+                class="w-full rounded-2xl border border-line bg-white px-3 py-2 text-sm text-slate-900 focus:border-primary focus:outline-none"
+                :placeholder="t('publicProfile.replyPlaceholder')"
+              ></textarea>
+              <Button
+                variant="secondary"
+                size="sm"
+                :disabled="replySubmitting[rating.id]"
+                @click="submitReply(rating)"
+              >
+                {{ replySubmitting[rating.id] ? t('common.submitting') : t('publicProfile.replySubmit') }}
+              </Button>
+            </div>
+            <div class="flex justify-end mt-3" v-if="canReportRating(rating)">
               <Button variant="secondary" size="sm" @click="openReport(rating)">
                 {{ t('publicProfile.report') }}
               </Button>

@@ -27,6 +27,7 @@ import SavedSearches from '../pages/SavedSearches.vue'
 import SettingsLanguage from '../pages/SettingsLanguage.vue'
 import SettingsLegal from '../pages/SettingsLegal.vue'
 import SettingsPersonalInfo from '../pages/SettingsPersonalInfo.vue'
+import SettingsProfile from '../pages/SettingsProfile.vue'
 import SettingsNotifications from '../pages/SettingsNotifications.vue'
 import SettingsSecurity from '../pages/SettingsSecurity.vue'
 import Notifications from '../pages/Notifications.vue'
@@ -143,12 +144,18 @@ const router = createRouter({
       path: '/profile/verification',
       name: 'profile-verification',
       component: KycVerification,
-      meta: { topBar: { type: 'back', title: 'Verification', titleKey: 'titles.verification' }, showTabs: false, roles: ['landlord', 'admin'] },
+      meta: { topBar: { type: 'back', title: 'Verification', titleKey: 'titles.verification' }, showTabs: false, roles: ['landlord', 'seeker', 'admin'] },
     },
     {
       path: '/users/:id',
       name: 'public-profile',
       component: PublicProfile,
+      meta: { topBar: { type: 'back', title: 'Profile', titleKey: 'titles.profile' }, showTabs: false },
+    },
+    {
+      path: '/settings/profile',
+      name: 'settings-profile',
+      component: SettingsProfile,
       meta: { topBar: { type: 'back', title: 'Profile', titleKey: 'titles.profile' }, showTabs: false },
     },
     {

@@ -373,6 +373,7 @@ const applications: Application[] = [
     status: 'submitted',
     message: 'We would love a quiet family stay. Can we check in early?',
     createdAt: '2026-01-05T10:00:00Z',
+    hasCompletedTransaction: false,
     listing: toAppListing('1'),
     participants: { seekerId: 'tenant-1', landlordId: 'landlord-1' },
   },
@@ -381,6 +382,7 @@ const applications: Application[] = [
     status: 'accepted',
     message: 'Celebrating anniversary, need late checkout.',
     createdAt: '2026-01-08T12:30:00Z',
+    hasCompletedTransaction: true,
     listing: toAppListing('2'),
     participants: { seekerId: 'tenant-1', landlordId: 'landlord-2' },
   },
@@ -389,6 +391,7 @@ const applications: Application[] = [
     status: 'rejected',
     message: 'Workcation with stable Wi-Fi, flexible dates.',
     createdAt: '2026-01-10T09:20:00Z',
+    hasCompletedTransaction: false,
     listing: toAppListing('3'),
     participants: { seekerId: 'tenant-2', landlordId: 'landlord-1' },
   },
@@ -1344,16 +1347,113 @@ export async function getOrCreateConversationForApplication(applicationId: strin
 
 export async function getPublicProfile(userId: string): Promise<PublicProfile> {
   await delay()
+  const numericId = Number(userId)
+  const role = Number.isFinite(numericId) ? (numericId % 2 === 0 ? 'seeker' : 'landlord') : 'landlord'
   const profile: PublicProfile = {
     id: userId,
-    fullName: `Landlord ${userId}`,
+    role,
+    fullName: `${role === 'seeker' ? 'Seeker' : 'Landlord'} ${userId}`,
     joinedAt: new Date().toISOString(),
     verifications: { email: true, phone: false, address: false },
-    landlordVerification: { status: 'approved', verifiedAt: new Date().toISOString() },
+    verification: { status: 'approved', verifiedAt: new Date().toISOString() },
     ratingStats: { average: 0, total: 0, breakdown: {} },
+    canRateLandlord: true,
+    canRateSeeker: true,
+    canRateListing: true,
+    eligibleListingIds: ['1'],
     recentRatings: [],
   }
   return JSON.parse(JSON.stringify(profile))
+}
+
+let mockAccount = {
+  id: 'mock-user',
+  name: 'Mock User',
+  fullName: 'Mock User',
+  email: 'mock@example.com',
+  phone: null as string | null,
+  role: 'seeker',
+  roles: ['seeker'],
+  emailVerified: false,
+  phoneVerified: false,
+  addressVerified: false,
+  addressBook: null as Record<string, any> | null,
+}
+
+let mockVerificationCodes: { email?: string; phone?: string } = {}
+
+const generateMockCode = () => String(Math.floor(100000 + Math.random() * 900000))
+
+export async function updateMyProfile(payload: { fullName?: string; phone?: string | null; addressBook?: any }) {
+  await delay()
+  const nextPhone = payload.phone ?? mockAccount.phone
+  mockAccount = {
+    ...mockAccount,
+    fullName: payload.fullName ?? mockAccount.fullName,
+    name: payload.fullName ?? mockAccount.name,
+    phone: nextPhone,
+    phoneVerified: nextPhone === mockAccount.phone ? mockAccount.phoneVerified : false,
+    addressBook: payload.addressBook ?? mockAccount.addressBook,
+  }
+  return JSON.parse(JSON.stringify(mockAccount))
+}
+
+export async function requestEmailVerification() {
+  await delay()
+  if (mockAccount.emailVerified) {
+    throw new Error('Email already verified')
+  }
+  const code = generateMockCode()
+  mockVerificationCodes.email = code
+  return { message: 'Verification code sent', devCode: code, destination: 'mock@example.com' }
+}
+
+export async function confirmEmailVerification(payload: { code: string }) {
+  await delay()
+  if (!mockVerificationCodes.email) {
+    throw new Error('Verification code not found')
+  }
+  if (payload.code !== mockVerificationCodes.email) {
+    throw new Error('Invalid verification code')
+  }
+  mockAccount.emailVerified = true
+  mockVerificationCodes.email = undefined
+  return { user: JSON.parse(JSON.stringify(mockAccount)) }
+}
+
+export async function requestPhoneVerification() {
+  await delay()
+  if (!mockAccount.phone) {
+    throw new Error('Phone number is missing')
+  }
+  if (mockAccount.phoneVerified) {
+    throw new Error('Phone already verified')
+  }
+  const code = generateMockCode()
+  mockVerificationCodes.phone = code
+  return { message: 'Verification code sent', devCode: code, destination: mockAccount.phone }
+}
+
+export async function confirmPhoneVerification(payload: { code: string }) {
+  await delay()
+  if (!mockVerificationCodes.phone) {
+    throw new Error('Verification code not found')
+  }
+  if (payload.code !== mockVerificationCodes.phone) {
+    throw new Error('Invalid verification code')
+  }
+  mockAccount.phoneVerified = true
+  mockVerificationCodes.phone = undefined
+  return { user: JSON.parse(JSON.stringify(mockAccount)) }
+}
+
+export async function changeMyPassword(_payload: {
+  currentPassword: string
+  newPassword: string
+  newPasswordConfirmation: string
+}) {
+  await delay()
+  return { message: 'Password updated' }
 }
 
 const mapRating = (data: any): Rating => ({
@@ -1366,6 +1466,7 @@ const mapRating = (data: any): Rating => ({
   rateeId: data.rateeId,
   listing: data.listing,
   reportCount: data.reportCount ?? 0,
+  replies: data.replies ?? [],
 })
 
 export async function leaveRating(
@@ -1394,6 +1495,29 @@ export async function getUserRatings(_userId: string): Promise<Rating[]> {
 export async function reportRating(_ratingId: string, _reason: string, _details?: string) {
   await delay()
   return null
+}
+
+export async function replyToRating(ratingId: string, body: string) {
+  await delay()
+  return mapRating({
+    id: ratingId,
+    listingId: '1',
+    rating: 5,
+    comment: 'Mock comment',
+    createdAt: new Date().toISOString(),
+    rater: { id: 'mock-seeker', name: 'Mock Seeker' },
+    rateeId: 'mock-landlord',
+    listing: { id: '1', title: 'Mock Listing', city: 'Split' },
+    replies: [
+      {
+        id: makeId(),
+        body,
+        isAdmin: false,
+        createdAt: new Date().toISOString(),
+        author: { id: 'mock-landlord', name: 'Mock Landlord' },
+      },
+    ],
+  })
 }
 
 export async function getAdminRatings(): Promise<Rating[]> {

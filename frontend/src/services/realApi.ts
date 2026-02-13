@@ -50,12 +50,12 @@ const mapListing = (data: any): Listing => {
         verifiedAt: data.landlord.verifiedAt ?? data.landlord.verified_at,
         badges: data.landlord.badges ?? data.landlordBadges ?? [],
       }
-    : data.landlord_verification_status || data.landlord_verified_at
+    : data.verification_status || data.verified_at || data.landlord_verification_status || data.landlord_verified_at
     ? {
         id: data.ownerId ?? data.owner_id ?? data.landlordId ?? data.landlord_id,
         fullName: data.landlord_name ?? data.owner_name,
-        verificationStatus: data.landlord_verification_status ?? data.landlordVerificationStatus,
-        verifiedAt: data.landlord_verified_at ?? data.landlordVerifiedAt ?? null,
+        verificationStatus: data.verification_status ?? data.landlord_verification_status ?? data.landlordVerificationStatus,
+        verifiedAt: data.verified_at ?? data.landlord_verified_at ?? data.landlordVerifiedAt ?? null,
         badges: data.landlord_badges ?? [],
       }
     : undefined
@@ -108,6 +108,7 @@ const mapApplication = (data: any): Application => ({
   status: data.status,
   message: data.message ?? null,
   createdAt: data.createdAt ?? data.created_at ?? '',
+  hasCompletedTransaction: Boolean(data.hasCompletedTransaction ?? data.has_completed_transaction ?? false),
   listing: {
     id: String(data.listing?.id ?? data.listingId ?? data.listing_id ?? ''),
     title: data.listing?.title ?? data.listingTitle,
@@ -728,6 +729,7 @@ export const getOrCreateConversationForApplication = async (applicationId: strin
 
 const mapProfile = (data: any): PublicProfile => ({
   id: String(data.id),
+  role: data.role ?? data.userRole ?? data.user_role,
   fullName: data.fullName ?? data.full_name ?? data.name ?? '',
   joinedAt: data.joinedAt ?? data.joined_at ?? data.created_at,
   badges: data.badges ?? [],
@@ -736,15 +738,15 @@ const mapProfile = (data: any): PublicProfile => ({
     phone: Boolean(data.verifications?.phone),
     address: Boolean(data.verifications?.address),
   },
-  landlordVerification: data.landlordVerification
+  verification: data.verification
     ? {
-        status: data.landlordVerification.status ?? data.landlord_verification_status ?? 'none',
-        verifiedAt: data.landlordVerification.verifiedAt ?? data.landlord_verified_at ?? null,
+        status: data.verification.status ?? data.verification_status ?? 'none',
+        verifiedAt: data.verification.verifiedAt ?? data.verified_at ?? null,
       }
-    : data.landlord_verification_status
+    : data.verification_status || data.verified_at || data.landlord_verification_status || data.landlord_verified_at
     ? {
-        status: data.landlord_verification_status ?? 'none',
-        verifiedAt: data.landlord_verified_at ?? null,
+        status: data.verification_status ?? data.landlord_verification_status ?? 'none',
+        verifiedAt: data.verified_at ?? data.landlord_verified_at ?? null,
       }
     : undefined,
   ratingStats: {
@@ -752,6 +754,10 @@ const mapProfile = (data: any): PublicProfile => ({
     total: Number(data.ratingStats?.total ?? 0),
     breakdown: data.ratingStats?.breakdown ?? {},
   },
+  canRateLandlord: Boolean(data.canRateLandlord ?? data.can_rate_landlord ?? false),
+  canRateSeeker: Boolean(data.canRateSeeker ?? data.can_rate_seeker ?? false),
+  canRateListing: Boolean(data.canRateListing ?? data.can_rate_listing ?? false),
+  eligibleListingIds: (data.eligibleListingIds ?? data.eligible_listing_ids ?? []) as Array<string | number>,
   recentRatings:
     data.recentRatings?.map((r: any) => ({
       raterName: r.raterName ?? r.rater_name,
@@ -800,6 +806,48 @@ export const getPublicProfile = async (userId: string): Promise<PublicProfile> =
   return mapProfile(data.data ?? data)
 }
 
+export const updateMyProfile = async (payload: { fullName?: string; phone?: string | null; addressBook?: any }) => {
+  const body: any = {}
+  if (payload.fullName !== undefined) body.full_name = payload.fullName
+  if (payload.phone !== undefined) body.phone = payload.phone
+  if (payload.addressBook !== undefined) body.address_book = payload.addressBook
+  const { data } = await apiClient.patch('/me/profile', body)
+  return data.user ?? data
+}
+
+export const changeMyPassword = async (payload: {
+  currentPassword: string
+  newPassword: string
+  newPasswordConfirmation: string
+}) => {
+  const { data } = await apiClient.patch('/me/password', {
+    current_password: payload.currentPassword,
+    new_password: payload.newPassword,
+    new_password_confirmation: payload.newPasswordConfirmation,
+  })
+  return data
+}
+
+export const requestEmailVerification = async (): Promise<{ message: string; devCode?: string; destination?: string }> => {
+  const { data } = await apiClient.post('/me/verification/email/request')
+  return data
+}
+
+export const confirmEmailVerification = async (payload: { code: string }) => {
+  const { data } = await apiClient.post('/me/verification/email/confirm', { code: payload.code })
+  return data
+}
+
+export const requestPhoneVerification = async (): Promise<{ message: string; devCode?: string; destination?: string }> => {
+  const { data } = await apiClient.post('/me/verification/phone/request')
+  return data
+}
+
+export const confirmPhoneVerification = async (payload: { code: string }) => {
+  const { data } = await apiClient.post('/me/verification/phone/confirm', { code: payload.code })
+  return data
+}
+
 const mapRating = (data: any): Rating => ({
   id: String(data.id),
   listingId: String(data.listingId ?? data.listing_id ?? data.listing?.id ?? ''),
@@ -816,6 +864,16 @@ const mapRating = (data: any): Rating => ({
     ? { id: data.listing.id, title: data.listing.title, city: data.listing.city }
     : undefined,
   reportCount: data.reportCount ?? data.report_count,
+  replies:
+    data.replies?.map((reply: any) => ({
+      id: String(reply.id),
+      body: reply.body ?? '',
+      isAdmin: Boolean(reply.isAdmin ?? reply.is_admin ?? false),
+      createdAt: reply.createdAt ?? reply.created_at,
+      author: reply.author
+        ? { id: reply.author.id, name: reply.author.fullName ?? reply.author.name }
+        : undefined,
+    })) ?? [],
 })
 
 const mapReportType = (targetType?: string): Report['type'] => {
@@ -863,6 +921,11 @@ export const getUserRatings = async (userId: string): Promise<Rating[]> => {
 
 export const reportRating = async (ratingId: string, reason: string, details?: string) => {
   const { data } = await apiClient.post(`/ratings/${ratingId}/report`, { reason, details })
+  return mapRating(data.data ?? data)
+}
+
+export const replyToRating = async (ratingId: string, body: string) => {
+  const { data } = await apiClient.post(`/ratings/${ratingId}/replies`, { body })
   return mapRating(data.data ?? data)
 }
 

@@ -122,6 +122,7 @@ export interface Application {
   status: 'submitted' | 'accepted' | 'rejected' | 'withdrawn'
   message?: string | null
   createdAt?: string
+  hasCompletedTransaction?: boolean
   listing: {
     id: string
     title?: string
@@ -177,6 +178,7 @@ export interface ChatAttachment {
 
 export interface PublicProfile {
   id: string
+  role?: string
   fullName: string
   joinedAt?: string
   badges?: string[]
@@ -185,7 +187,7 @@ export interface PublicProfile {
     phone: boolean
     address: boolean
   }
-  landlordVerification?: {
+  verification?: {
     status: 'none' | 'pending' | 'approved' | 'rejected'
     verifiedAt?: string | null
   }
@@ -194,6 +196,10 @@ export interface PublicProfile {
     total: number
     breakdown: Record<string, number>
   }
+  canRateLandlord?: boolean
+  canRateSeeker?: boolean
+  canRateListing?: boolean
+  eligibleListingIds?: Array<string | number>
   recentRatings: Array<{
     raterName?: string
     rating: number
@@ -281,6 +287,15 @@ export interface Rating {
   rateeId?: string | number
   listing?: { id?: string | number; title?: string; city?: string }
   reportCount?: number
+  replies?: RatingReply[]
+}
+
+export interface RatingReply {
+  id: string
+  body: string
+  isAdmin?: boolean
+  createdAt?: string
+  author?: { id?: string | number; name?: string }
 }
 
 export type ReportType = 'rating' | 'message' | 'listing' | 'other'

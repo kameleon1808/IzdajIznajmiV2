@@ -35,8 +35,10 @@ const baseItems = computed(() => [
 
 const menuItems = computed(() => {
   const extras = []
-  if (auth.hasRole('landlord')) {
+  if (auth.hasRole('landlord') || auth.hasRole('seeker')) {
     extras.push({ label: t('profile.menu.verification'), icon: Shield, action: () => router.push('/profile/verification') })
+  }
+  if (auth.hasRole('landlord')) {
     extras.push({ label: t('profile.menu.myListings'), icon: Store, action: () => router.push('/landlord/listings') })
     extras.push({ label: t('profile.menu.transactions'), icon: FileText, action: () => router.push('/transactions') })
   }

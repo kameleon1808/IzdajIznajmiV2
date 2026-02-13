@@ -8,12 +8,17 @@ interface User {
   name: string
   fullName?: string
   email?: string
+  phone?: string | null
   role: Role
   roles: Role[]
+  emailVerified?: boolean
+  phoneVerified?: boolean
+  addressVerified?: boolean
   mfaEnabled?: boolean
   mfaConfirmedAt?: string | null
   mfaRequired?: boolean
   isSuspicious?: boolean
+  addressBook?: Record<string, any> | null
 }
 
 interface PersistedState {
@@ -66,12 +71,17 @@ export const useAuthStore = defineStore('auth', {
         name: user?.name ?? user?.fullName ?? user?.full_name ?? 'User',
         fullName: user?.fullName ?? user?.full_name,
         email: user?.email,
+        phone: user?.phone ?? null,
         role: primary,
         roles: normalizedRoles,
+        emailVerified: Boolean(user?.emailVerified ?? user?.email_verified ?? false),
+        phoneVerified: Boolean(user?.phoneVerified ?? user?.phone_verified ?? false),
+        addressVerified: Boolean(user?.addressVerified ?? user?.address_verified ?? false),
         mfaEnabled: Boolean(user?.mfaEnabled ?? user?.mfa_enabled ?? false),
         mfaConfirmedAt: user?.mfaConfirmedAt ?? user?.mfa_confirmed_at ?? null,
         mfaRequired: Boolean(user?.mfaRequired ?? user?.mfa_required ?? false),
         isSuspicious: Boolean(user?.isSuspicious ?? user?.is_suspicious ?? false),
+        addressBook: user?.addressBook ?? user?.address_book ?? null,
       }
     },
     setSession(payload: { user?: any; impersonating?: boolean; impersonator?: any }) {
@@ -254,7 +264,17 @@ export const useAuthStore = defineStore('auth', {
         landlord: 'Lana Landlord',
         admin: 'Admin',
       }
-      this.user = { id: `${role}-1`, name: names[role] ?? 'User', role, roles: [role] }
+      this.user = {
+        id: `${role}-1`,
+        name: names[role] ?? 'User',
+        role,
+        roles: [role],
+        email: `${role}@example.com`,
+        phone: role === 'landlord' ? '+38591111222' : null,
+        emailVerified: false,
+        phoneVerified: false,
+        addressVerified: false,
+      }
       this.isAuthenticated = role !== 'guest'
       this.persist()
     },
