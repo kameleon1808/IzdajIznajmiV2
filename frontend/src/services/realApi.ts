@@ -806,9 +806,21 @@ export const getPublicProfile = async (userId: string): Promise<PublicProfile> =
   return mapProfile(data.data ?? data)
 }
 
-export const updateMyProfile = async (payload: { fullName?: string; phone?: string | null; addressBook?: any }) => {
+export const updateMyProfile = async (payload: {
+  fullName?: string
+  dateOfBirth?: string | null
+  gender?: string | null
+  residentialAddress?: string | null
+  employmentStatus?: string | null
+  phone?: string | null
+  addressBook?: any
+}) => {
   const body: any = {}
   if (payload.fullName !== undefined) body.full_name = payload.fullName
+  if (payload.dateOfBirth !== undefined) body.date_of_birth = payload.dateOfBirth
+  if (payload.gender !== undefined) body.gender = payload.gender
+  if (payload.residentialAddress !== undefined) body.residential_address = payload.residentialAddress
+  if (payload.employmentStatus !== undefined) body.employment_status = payload.employmentStatus
   if (payload.phone !== undefined) body.phone = payload.phone
   if (payload.addressBook !== undefined) body.address_book = payload.addressBook
   const { data } = await apiClient.patch('/me/profile', body)

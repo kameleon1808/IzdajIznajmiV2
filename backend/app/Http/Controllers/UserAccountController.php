@@ -25,6 +25,10 @@ class UserAccountController extends Controller
 
         $data = $request->validate([
             'full_name' => ['sometimes', 'string', 'max:255'],
+            'date_of_birth' => ['sometimes', 'nullable', 'date'],
+            'gender' => ['sometimes', 'nullable', Rule::in(['muski', 'zenski'])],
+            'residential_address' => ['sometimes', 'nullable', 'string', 'max:255'],
+            'employment_status' => ['sometimes', 'nullable', Rule::in(['zaposlen', 'nezaposlen', 'student'])],
             'phone' => ['sometimes', 'nullable', 'string', 'max:32', Rule::unique('users', 'phone')->ignore($user->id)],
             'address_book' => ['sometimes', 'nullable', 'array'],
         ]);
@@ -33,6 +37,21 @@ class UserAccountController extends Controller
         if (array_key_exists('full_name', $data)) {
             $updates['full_name'] = $data['full_name'];
             $updates['name'] = $data['full_name'];
+        }
+        if (array_key_exists('date_of_birth', $data)) {
+            $updates['date_of_birth'] = $data['date_of_birth'];
+        }
+        if (array_key_exists('gender', $data)) {
+            $updates['gender'] = $data['gender'];
+        }
+        if (array_key_exists('residential_address', $data)) {
+            $updates['residential_address'] = $data['residential_address'];
+            if ($data['residential_address'] !== $user->residential_address) {
+                $updates['address_verified'] = false;
+            }
+        }
+        if (array_key_exists('employment_status', $data)) {
+            $updates['employment_status'] = $data['employment_status'];
         }
         if (array_key_exists('phone', $data)) {
             $updates['phone'] = $data['phone'];

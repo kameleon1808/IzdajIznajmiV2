@@ -14,6 +14,10 @@ const t = (key: Parameters<typeof languageStore.t>[0]) => languageStore.t(key)
 
 const profileForm = reactive({
   fullName: auth.user.fullName ?? auth.user.name ?? '',
+  dateOfBirth: auth.user.dateOfBirth ?? '',
+  gender: auth.user.gender ?? '',
+  residentialAddress: auth.user.residentialAddress ?? '',
+  employmentStatus: auth.user.employmentStatus ?? '',
   phone: auth.user.phone ?? '',
   address: typeof auth.user.addressBook === 'string'
     ? auth.user.addressBook
@@ -24,6 +28,10 @@ const initialProfile = ref({ ...profileForm })
 const profileDirty = computed(
   () =>
     profileForm.fullName !== initialProfile.value.fullName ||
+    profileForm.dateOfBirth !== initialProfile.value.dateOfBirth ||
+    profileForm.gender !== initialProfile.value.gender ||
+    profileForm.residentialAddress !== initialProfile.value.residentialAddress ||
+    profileForm.employmentStatus !== initialProfile.value.employmentStatus ||
     profileForm.phone !== initialProfile.value.phone ||
     profileForm.address !== initialProfile.value.address,
 )
@@ -38,6 +46,10 @@ const saveProfile = async () => {
   try {
     const payload = {
       fullName: profileForm.fullName,
+      dateOfBirth: profileForm.dateOfBirth ? profileForm.dateOfBirth : null,
+      gender: profileForm.gender ? profileForm.gender : null,
+      residentialAddress: profileForm.residentialAddress ? profileForm.residentialAddress : null,
+      employmentStatus: profileForm.employmentStatus ? profileForm.employmentStatus : null,
       phone: profileForm.phone ? profileForm.phone : null,
       addressBook: profileForm.address ? { primary: profileForm.address } : null,
     }
@@ -92,6 +104,10 @@ watch(
   () => auth.user,
   (next) => {
     profileForm.fullName = next.fullName ?? next.name ?? ''
+    profileForm.dateOfBirth = next.dateOfBirth ?? ''
+    profileForm.gender = next.gender ?? ''
+    profileForm.residentialAddress = next.residentialAddress ?? ''
+    profileForm.employmentStatus = next.employmentStatus ?? ''
     profileForm.phone = next.phone ?? ''
     profileForm.address = typeof next.addressBook === 'string'
       ? next.addressBook
@@ -109,6 +125,37 @@ watch(
       <label class="space-y-1 text-sm font-semibold text-slate-900">
         {{ t('settings.personal.fullName') }}
         <input v-model="profileForm.fullName" type="text" class="w-full rounded-xl border border-line px-3 py-3 text-sm focus:border-primary focus:outline-none" />
+      </label>
+      <label class="space-y-1 text-sm font-semibold text-slate-900">
+        {{ t('settings.personal.dateOfBirth') }}
+        <input v-model="profileForm.dateOfBirth" type="date" class="w-full rounded-xl border border-line px-3 py-3 text-sm focus:border-primary focus:outline-none" />
+      </label>
+      <label class="space-y-1 text-sm font-semibold text-slate-900">
+        {{ t('settings.personal.gender') }}
+        <select
+          v-model="profileForm.gender"
+          class="w-full rounded-xl border border-line px-3 py-3 text-sm focus:border-primary focus:outline-none"
+        >
+          <option value="">{{ t('common.notProvided') }}</option>
+          <option value="muski">{{ t('common.gender.male') }}</option>
+          <option value="zenski">{{ t('common.gender.female') }}</option>
+        </select>
+      </label>
+      <label class="space-y-1 text-sm font-semibold text-slate-900">
+        {{ t('settings.personal.residentialAddress') }}
+        <input v-model="profileForm.residentialAddress" type="text" class="w-full rounded-xl border border-line px-3 py-3 text-sm focus:border-primary focus:outline-none" />
+      </label>
+      <label class="space-y-1 text-sm font-semibold text-slate-900">
+        {{ t('settings.personal.employmentStatus') }}
+        <select
+          v-model="profileForm.employmentStatus"
+          class="w-full rounded-xl border border-line px-3 py-3 text-sm focus:border-primary focus:outline-none"
+        >
+          <option value="">{{ t('common.notProvided') }}</option>
+          <option value="zaposlen">{{ t('common.employmentStatus.employed') }}</option>
+          <option value="nezaposlen">{{ t('common.employmentStatus.unemployed') }}</option>
+          <option value="student">{{ t('common.employmentStatus.student') }}</option>
+        </select>
       </label>
       <label class="space-y-1 text-sm font-semibold text-slate-900">
         {{ t('settings.personal.phone') }}

@@ -1370,6 +1370,10 @@ let mockAccount = {
   id: 'mock-user',
   name: 'Mock User',
   fullName: 'Mock User',
+  dateOfBirth: '1994-01-10',
+  gender: 'muski',
+  residentialAddress: 'Mock Street 12',
+  employmentStatus: 'zaposlen',
   email: 'mock@example.com',
   phone: null as string | null,
   role: 'seeker',
@@ -1384,13 +1388,25 @@ let mockVerificationCodes: { email?: string; phone?: string } = {}
 
 const generateMockCode = () => String(Math.floor(100000 + Math.random() * 900000))
 
-export async function updateMyProfile(payload: { fullName?: string; phone?: string | null; addressBook?: any }) {
+export async function updateMyProfile(payload: {
+  fullName?: string
+  dateOfBirth?: string | null
+  gender?: string | null
+  residentialAddress?: string | null
+  employmentStatus?: string | null
+  phone?: string | null
+  addressBook?: any
+}) {
   await delay()
   const nextPhone = payload.phone ?? mockAccount.phone
   mockAccount = {
     ...mockAccount,
     fullName: payload.fullName ?? mockAccount.fullName,
     name: payload.fullName ?? mockAccount.name,
+    dateOfBirth: payload.dateOfBirth ?? mockAccount.dateOfBirth,
+    gender: payload.gender ?? mockAccount.gender,
+    residentialAddress: payload.residentialAddress ?? mockAccount.residentialAddress,
+    employmentStatus: payload.employmentStatus ?? mockAccount.employmentStatus,
     phone: nextPhone,
     phoneVerified: nextPhone === mockAccount.phone ? mockAccount.phoneVerified : false,
     addressBook: payload.addressBook ?? mockAccount.addressBook,

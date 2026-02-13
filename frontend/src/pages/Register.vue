@@ -17,6 +17,10 @@ const t = (key: Parameters<typeof languageStore.t>[0]) => languageStore.t(key)
 const name = ref('')
 const email = ref('')
 const phone = ref('')
+const dateOfBirth = ref('')
+const gender = ref<'muski' | 'zenski' | ''>('')
+const residentialAddress = ref('')
+const employmentStatus = ref<'zaposlen' | 'nezaposlen' | 'student' | ''>('')
 const password = ref('')
 const passwordConfirmation = ref('')
 const role = ref<Role>('seeker')
@@ -29,6 +33,10 @@ const onSubmit = async () => {
       name: name.value,
       email: email.value,
       phone: phone.value || undefined,
+      dateOfBirth: dateOfBirth.value || undefined,
+      gender: gender.value || undefined,
+      residentialAddress: residentialAddress.value || undefined,
+      employmentStatus: employmentStatus.value || undefined,
       password: password.value,
       passwordConfirmation: passwordConfirmation.value,
       role: role.value,
@@ -60,6 +68,37 @@ const onSubmit = async () => {
       <div class="space-y-1">
         <p class="text-sm font-semibold text-slate-900">{{ t('auth.phoneOptional') }}</p>
         <Input v-model="phone" :placeholder="t('auth.phonePlaceholder')" type="tel" />
+      </div>
+      <div class="space-y-1">
+        <p class="text-sm font-semibold text-slate-900">{{ t('auth.dateOfBirth') }}</p>
+        <Input v-model="dateOfBirth" type="date" />
+      </div>
+      <div class="space-y-1">
+        <p class="text-sm font-semibold text-slate-900">{{ t('auth.gender') }}</p>
+        <select
+          v-model="gender"
+          class="w-full rounded-xl border border-line px-3 py-3 text-sm focus:border-primary focus:outline-none"
+        >
+          <option value="">{{ t('common.notProvided') }}</option>
+          <option value="muski">{{ t('common.gender.male') }}</option>
+          <option value="zenski">{{ t('common.gender.female') }}</option>
+        </select>
+      </div>
+      <div class="space-y-1">
+        <p class="text-sm font-semibold text-slate-900">{{ t('auth.residentialAddress') }}</p>
+        <Input v-model="residentialAddress" :placeholder="t('auth.residentialAddressPlaceholder')" />
+      </div>
+      <div class="space-y-1">
+        <p class="text-sm font-semibold text-slate-900">{{ t('auth.employmentStatus') }}</p>
+        <select
+          v-model="employmentStatus"
+          class="w-full rounded-xl border border-line px-3 py-3 text-sm focus:border-primary focus:outline-none"
+        >
+          <option value="">{{ t('common.notProvided') }}</option>
+          <option value="zaposlen">{{ t('common.employmentStatus.employed') }}</option>
+          <option value="nezaposlen">{{ t('common.employmentStatus.unemployed') }}</option>
+          <option value="student">{{ t('common.employmentStatus.student') }}</option>
+        </select>
       </div>
       <div class="space-y-1">
         <p class="text-sm font-semibold text-slate-900">{{ t('auth.password') }}</p>

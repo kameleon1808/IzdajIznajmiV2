@@ -7,6 +7,10 @@ interface User {
   id: string
   name: string
   fullName?: string
+  dateOfBirth?: string | null
+  gender?: 'muski' | 'zenski' | null
+  residentialAddress?: string | null
+  employmentStatus?: 'zaposlen' | 'nezaposlen' | 'student' | null
   email?: string
   phone?: string | null
   role: Role
@@ -28,7 +32,16 @@ interface PersistedState {
 }
 
 const STORAGE_KEY = 'ii-auth-state'
-const defaultUser: User = { id: 'guest', name: 'Guest', role: 'guest', roles: ['guest'] }
+const defaultUser: User = {
+  id: 'guest',
+  name: 'Guest',
+  role: 'guest',
+  roles: ['guest'],
+  dateOfBirth: null,
+  gender: null,
+  residentialAddress: null,
+  employmentStatus: null,
+}
 
 const loadState = (): PersistedState => {
   if (typeof localStorage === 'undefined') return { user: { ...defaultUser } }
@@ -70,6 +83,10 @@ export const useAuthStore = defineStore('auth', {
         id: String(user?.id ?? 'guest'),
         name: user?.name ?? user?.fullName ?? user?.full_name ?? 'User',
         fullName: user?.fullName ?? user?.full_name,
+        dateOfBirth: user?.dateOfBirth ?? user?.date_of_birth ?? null,
+        gender: user?.gender ?? null,
+        residentialAddress: user?.residentialAddress ?? user?.residential_address ?? null,
+        employmentStatus: user?.employmentStatus ?? user?.employment_status ?? null,
         email: user?.email,
         phone: user?.phone ?? null,
         role: primary,
@@ -133,6 +150,10 @@ export const useAuthStore = defineStore('auth', {
       role?: Role
       phone?: string
       fullName?: string
+      dateOfBirth?: string | null
+      gender?: 'muski' | 'zenski' | null
+      residentialAddress?: string | null
+      employmentStatus?: 'zaposlen' | 'nezaposlen' | 'student' | null
     }) {
       if (this.isMockMode) {
         this.loginAs(payload.role ?? 'seeker')
@@ -144,6 +165,10 @@ export const useAuthStore = defineStore('auth', {
         const { data } = await apiClient.post('/auth/register', {
           name: payload.name,
           full_name: payload.fullName ?? payload.name,
+          date_of_birth: payload.dateOfBirth ?? null,
+          gender: payload.gender ?? null,
+          residential_address: payload.residentialAddress ?? null,
+          employment_status: payload.employmentStatus ?? null,
           email: payload.email,
           phone: payload.phone,
           password: payload.password,
@@ -274,6 +299,10 @@ export const useAuthStore = defineStore('auth', {
         emailVerified: false,
         phoneVerified: false,
         addressVerified: false,
+        dateOfBirth: null,
+        gender: null,
+        residentialAddress: null,
+        employmentStatus: null,
       }
       this.isAuthenticated = role !== 'guest'
       this.persist()

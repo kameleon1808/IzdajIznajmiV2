@@ -29,6 +29,10 @@ class UserFactory extends Factory
         return [
             'name' => $fullName,
             'full_name' => $fullName,
+            'date_of_birth' => fake()->dateTimeBetween('-65 years', '-18 years')->format('Y-m-d'),
+            'gender' => fake()->randomElement(['muski', 'zenski']),
+            'residential_address' => fake()->streetAddress(),
+            'employment_status' => fake()->randomElement(['zaposlen', 'nezaposlen', 'student']),
             'email' => fake()->unique()->safeEmail(),
             'email_verified_at' => now(),
             'phone' => fake()->unique()->e164PhoneNumber(),
