@@ -28,12 +28,15 @@ class ListingSearchService
     public function baseQuery(): Builder
     {
         // eager-load relations used on listing cards to avoid N+1 fetches
-        return Listing::query()->with([
+        return Listing::query()
+            ->withAvg('listingRatings as listing_rating_avg', 'rating')
+            ->withCount('listingRatings as listing_rating_count')
+            ->with([
             'images' => function ($q) {
                 $q->where('processing_status', 'done')->orderBy('sort_order');
             },
             'facilities',
-            'owner:id,full_name,name,landlord_verification_status,landlord_verified_at,is_suspicious,badge_override_json',
+            'owner:id,full_name,name,verification_status,verified_at,is_suspicious,badge_override_json',
             'owner.landlordMetric:landlord_id,avg_rating_30d,all_time_avg_rating,ratings_count,median_response_time_minutes,completed_transactions_count,updated_at',
         ]);
     }

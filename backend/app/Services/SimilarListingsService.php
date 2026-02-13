@@ -50,7 +50,7 @@ class SimilarListingsService
                     $q->where('processing_status', 'done')->orderBy('sort_order');
                 },
                 'facilities:id,name',
-                'owner:id,full_name,name,landlord_verification_status,landlord_verified_at,is_suspicious,badge_override_json',
+                'owner:id,full_name,name,verification_status,verified_at,is_suspicious,badge_override_json',
                 'owner.landlordMetric:landlord_id,avg_rating_30d,all_time_avg_rating,ratings_count,median_response_time_minutes,completed_transactions_count,updated_at',
             ]);
 
@@ -122,7 +122,7 @@ class SimilarListingsService
             $reasons[] = $amenityReason['label'];
         }
 
-        if (($candidate->owner?->landlord_verification_status ?? null) === 'approved') {
+        if (($candidate->owner?->verification_status ?? null) === 'approved') {
             $score += self::WEIGHT_VERIFIED;
             $reasons[] = 'Verified landlord';
         }

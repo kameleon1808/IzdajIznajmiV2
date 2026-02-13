@@ -79,6 +79,11 @@ class Listing extends Model
         return $this->hasMany(Rating::class);
     }
 
+    public function listingRatings(): HasMany
+    {
+        return $this->hasMany(ListingRating::class);
+    }
+
     public function viewingSlots(): HasMany
     {
         return $this->hasMany(ViewingSlot::class);

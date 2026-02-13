@@ -6,12 +6,12 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class Rating extends Model
+class ListingRating extends Model
 {
     protected $fillable = [
         'listing_id',
-        'rater_id',
-        'ratee_id',
+        'seeker_id',
+        'transaction_id',
         'rating',
         'comment',
         'ip_address',
@@ -23,23 +23,18 @@ class Rating extends Model
         return $this->belongsTo(Listing::class);
     }
 
-    public function rater(): BelongsTo
+    public function seeker(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'rater_id');
+        return $this->belongsTo(User::class, 'seeker_id');
     }
 
-    public function ratee(): BelongsTo
+    public function transaction(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'ratee_id');
+        return $this->belongsTo(RentalTransaction::class, 'transaction_id');
     }
 
     public function reports(): HasMany
     {
-        return $this->hasMany(RatingReport::class);
-    }
-
-    public function replies(): HasMany
-    {
-        return $this->hasMany(RatingReply::class);
+        return $this->hasMany(RatingReport::class, 'listing_rating_id');
     }
 }

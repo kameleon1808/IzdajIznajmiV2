@@ -31,9 +31,9 @@ class User extends Authenticatable
         'phone_verified',
         'address_verified',
         'is_suspicious',
-        'landlord_verification_status',
-        'landlord_verified_at',
-        'landlord_verification_notes',
+        'verification_status',
+        'verified_at',
+        'verification_notes',
         'badge_override_json',
     ];
 
@@ -65,7 +65,7 @@ class User extends Authenticatable
             'is_suspicious' => 'boolean',
             'mfa_enabled' => 'boolean',
             'mfa_confirmed_at' => 'datetime',
-            'landlord_verified_at' => 'datetime',
+            'verified_at' => 'datetime',
             'badge_override_json' => 'array',
         ];
     }

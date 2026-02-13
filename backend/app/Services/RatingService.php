@@ -7,13 +7,36 @@ use App\Models\Listing;
 use App\Models\Rating;
 use App\Models\User;
 use Illuminate\Http\Exceptions\HttpResponseException;
+use App\Services\TransactionEligibilityService;
 
 class RatingService
 {
+    public function __construct(private TransactionEligibilityService $eligibility) {}
+
     public function assertCanRate(User $rater, Listing $listing, int $rateeId): void
     {
         if ($rater->id === $rateeId) {
             throw new HttpResponseException(response()->json(['message' => 'You cannot rate yourself'], 422));
+        }
+
+        if ($this->isSeeker($rater)) {
+            if ((int) $listing->owner_id !== (int) $rateeId) {
+                throw new HttpResponseException(response()->json(['message' => 'Rating must target the listing owner'], 422));
+            }
+
+            if (! $this->eligibility->canRate($rater->id, $rateeId, $listing->id)) {
+                throw new HttpResponseException(response()->json(['message' => 'Completed transaction required to rate'], 403));
+            }
+        } elseif ($this->isLandlord($rater)) {
+            if ((int) $listing->owner_id !== (int) $rater->id) {
+                throw new HttpResponseException(response()->json(['message' => 'Only listing owners can rate seekers'], 422));
+            }
+
+            if (! $this->eligibility->canRate($rateeId, $rater->id, $listing->id)) {
+                throw new HttpResponseException(response()->json(['message' => 'Completed transaction required to rate'], 403));
+            }
+        } else {
+            throw new HttpResponseException(response()->json(['message' => 'Only seekers or landlords can leave ratings'], 403));
         }
 
         if (! $this->isVerified($rater)) {
@@ -62,6 +85,16 @@ class RatingService
     private function isVerified(User $user): bool
     {
         return (bool) $user->email_verified && (bool) $user->phone_verified && (bool) $user->address_verified;
+    }
+
+    private function isSeeker(User $user): bool
+    {
+        return (method_exists($user, 'hasRole') && $user->hasRole('seeker')) || $user->role === 'seeker';
+    }
+
+    private function isLandlord(User $user): bool
+    {
+        return (method_exists($user, 'hasRole') && $user->hasRole('landlord')) || $user->role === 'landlord';
     }
 
     private function hasExistingRating(int $raterId, int $listingId, int $rateeId): bool
