@@ -113,6 +113,8 @@ const canConfirmMoveIn = computed(() => {
   return tx.status === 'deposit_paid'
 })
 
+const canConfirmMoveInAndComplete = computed(() => canConfirmMoveIn.value)
+
 const canComplete = computed(() => {
   const tx = transaction.value
   if (!tx) return false
@@ -125,7 +127,13 @@ const load = async () => {
   try {
     await transactionsStore.fetchTransaction(transactionId.value)
   } catch (error) {
-    toast.push({ title: t('transactions.loadFailed'), message: (error as Error).message, type: 'error' })
+    const err = error as { status?: number; message?: string }
+    if (err?.status === 403 || err?.status === 404) {
+      toast.push({ title: t('transactions.accessDeniedTitle'), message: t('transactions.accessDeniedMessage'), type: 'info' })
+      router.push('/')
+      return
+    }
+    toast.push({ title: t('transactions.loadFailed'), message: err?.message || (error as Error).message, type: 'error' })
   } finally {
     loading.value = false
   }
@@ -182,14 +190,20 @@ const payDepositCash = async () => {
   }
 }
 
-const confirmMoveIn = async () => {
+const confirmMoveInAndComplete = async () => {
   if (!transaction.value) return
   try {
     await transactionsStore.confirmMoveIn(transaction.value.id)
-    toast.push({ title: t('transactions.moveInConfirmed'), type: 'success' })
-    await load()
   } catch (error) {
     toast.push({ title: t('transactions.moveInFailed'), message: (error as Error).message, type: 'error' })
+    return
+  }
+  try {
+    await transactionsStore.completeTransaction(transaction.value.id)
+    toast.push({ title: t('transactions.completedToast'), type: 'success' })
+    await load()
+  } catch (error) {
+    toast.push({ title: t('transactions.completionFailed'), message: (error as Error).message, type: 'error' })
   }
 }
 
@@ -354,11 +368,11 @@ const openProfile = (userId: string) => {
 
       <section class="rounded-3xl border border-line bg-white p-5 shadow-soft">
         <h2 class="text-lg font-semibold text-slate-900">{{ t('transactions.moveInConfirmation') }}</h2>
-        <p class="text-sm text-muted" v-if="canConfirmMoveIn">{{ t('transactions.confirmMoveInHint') }}</p>
+        <p class="text-sm text-muted" v-if="canConfirmMoveInAndComplete">{{ t('transactions.confirmMoveInCompleteHint') }}</p>
         <p class="text-sm text-muted" v-else-if="canComplete">{{ t('transactions.completeHint') }}</p>
         <p class="text-sm text-muted" v-else-if="transaction.status === 'move_in_confirmed'">{{ t('transactions.awaitingCompletion') }}</p>
-        <Button v-if="canConfirmMoveIn" variant="primary" class="mt-3 w-full" @click="confirmMoveIn">
-          {{ t('transactions.confirmMoveIn') }}
+        <Button v-if="canConfirmMoveInAndComplete" variant="primary" class="mt-3 w-full" @click="confirmMoveInAndComplete">
+          {{ t('transactions.confirmMoveInComplete') }}
         </Button>
         <Button v-if="canComplete" variant="primary" class="mt-3 w-full" @click="completeTransaction">
           {{ t('transactions.completeTransaction') }}

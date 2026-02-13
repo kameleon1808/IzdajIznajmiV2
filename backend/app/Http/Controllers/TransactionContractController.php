@@ -4,8 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\GenerateContractRequest;
 use App\Http\Resources\ContractResource;
+use App\Models\Contract;
 use App\Models\Notification;
 use App\Models\RentalTransaction;
+use App\Models\Signature;
 use App\Models\User;
 use App\Services\NotificationService;
 use App\Services\Transactions\ContractService;
@@ -42,10 +44,16 @@ class TransactionContractController extends Controller
         $contract = $this->contracts->generate($transaction, $request->validated());
         $contract->load('signatures');
 
-        $transaction->update(['status' => RentalTransaction::STATUS_CONTRACT_GENERATED]);
+        $transaction->loadMissing(['listing', 'seeker', 'landlord']);
+        $autoSigned = $this->autoSignContract($transaction, $contract);
 
-        $transaction->loadMissing(['listing', 'seeker']);
-        $this->notifyContractReady($transaction);
+        if ($autoSigned) {
+            $transaction->update(['status' => RentalTransaction::STATUS_LANDLORD_SIGNED]);
+            $this->notifyFullySigned($transaction);
+        } else {
+            $transaction->update(['status' => RentalTransaction::STATUS_CONTRACT_GENERATED]);
+            $this->notifyContractReady($transaction);
+        }
 
         $statusCode = $contract->wasRecentlyCreated ? 201 : 200;
 
@@ -88,6 +96,79 @@ class TransactionContractController extends Controller
             $this->notifications->createNotification($landlord, Notification::TYPE_TRANSACTION_CONTRACT_READY, [
                 'title' => 'Contract prepared',
                 'body' => sprintf('Contract for "%s" is ready to sign.', $listingTitle),
+                'data' => [
+                    'transaction_id' => $transaction->id,
+                    'listing_id' => $transaction->listing_id,
+                ],
+                'url' => $this->transactionDeepLink($transaction->id),
+            ]);
+        }
+    }
+
+    private function autoSignContract(RentalTransaction $transaction, Contract $contract): bool
+    {
+        if ($contract->status === Contract::STATUS_FINAL) {
+            return true;
+        }
+
+        $seeker = $transaction->seeker;
+        $landlord = $transaction->landlord;
+        if (! $seeker || ! $landlord) {
+            return false;
+        }
+
+        $existing = $contract->signatures->keyBy('user_id');
+
+        $this->createSignatureIfMissing($contract, $seeker, 'seeker', $existing);
+        $this->createSignatureIfMissing($contract, $landlord, 'landlord', $existing);
+
+        $contract->load('signatures');
+
+        $hasSeeker = $contract->signatures->contains('role', 'seeker');
+        $hasLandlord = $contract->signatures->contains('role', 'landlord');
+
+        if ($hasSeeker && $hasLandlord) {
+            $contract->update(['status' => Contract::STATUS_FINAL]);
+
+            return true;
+        }
+
+        return false;
+    }
+
+    private function createSignatureIfMissing(Contract $contract, User $user, string $role, $existing): void
+    {
+        if ($existing->has($user->id)) {
+            return;
+        }
+
+        Signature::create([
+            'contract_id' => $contract->id,
+            'user_id' => $user->id,
+            'role' => $role,
+            'signed_at' => now(),
+            'ip' => null,
+            'user_agent' => null,
+            'signature_method' => Signature::METHOD_TYPED_NAME,
+            'signature_data' => [
+                'typed_name' => $user->full_name ?? $user->name ?? 'User',
+                'consent' => true,
+                'auto_signed' => true,
+            ],
+        ]);
+    }
+
+    private function notifyFullySigned(RentalTransaction $transaction): void
+    {
+        $listingTitle = $transaction->listing?->title ?? 'listing';
+        foreach ([$transaction->seeker_id, $transaction->landlord_id] as $userId) {
+            $recipient = User::find($userId);
+            if (! $recipient) {
+                continue;
+            }
+            $this->notifications->createNotification($recipient, Notification::TYPE_TRANSACTION_FULLY_SIGNED, [
+                'title' => 'Contract fully signed',
+                'body' => sprintf('Both parties signed the contract for "%s".', $listingTitle),
                 'data' => [
                     'transaction_id' => $transaction->id,
                     'listing_id' => $transaction->listing_id,

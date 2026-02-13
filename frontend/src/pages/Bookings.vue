@@ -522,7 +522,10 @@ const scrollToHighlightedViewing = () => {
                 {{ tx('bookings.withdraw', 'Withdraw') }}
               </Button>
             </div>
-            <div class="flex justify-end" v-else-if="auth.hasRole('landlord') && request.status === 'accepted'">
+            <div
+              class="flex justify-end"
+              v-else-if="auth.hasRole('landlord') && request.status === 'accepted' && !request.hasCompletedTransaction"
+            >
               <Button variant="primary" size="md" @click="openStartContract(request)">
                 {{ tx('bookings.startContract', 'Start contract') }}
               </Button>

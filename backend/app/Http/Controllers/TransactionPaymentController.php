@@ -40,7 +40,8 @@ class TransactionPaymentController extends Controller
             return response()->json(['message' => 'Contract must be fully signed before payment'], 422);
         }
 
-        if (! $transaction->deposit_amount || (float) $transaction->deposit_amount <= 0) {
+        $depositAmount = $this->resolveDepositAmount($transaction, $contract);
+        if ($depositAmount === null) {
             return response()->json(['message' => 'Deposit amount is missing'], 422);
         }
 
@@ -69,7 +70,7 @@ class TransactionPaymentController extends Controller
             'transaction_id' => $transaction->id,
             'provider' => Payment::PROVIDER_STRIPE,
             'type' => Payment::TYPE_DEPOSIT,
-            'amount' => $transaction->deposit_amount,
+            'amount' => $depositAmount,
             'currency' => $transaction->currency,
             'status' => Payment::STATUS_PENDING,
         ]);
@@ -86,7 +87,7 @@ class TransactionPaymentController extends Controller
                         'quantity' => 1,
                         'price_data' => [
                             'currency' => strtolower($transaction->currency),
-                            'unit_amount' => (int) round(((float) $transaction->deposit_amount) * 100),
+                            'unit_amount' => (int) round($depositAmount * 100),
                             'product_data' => [
                                 'name' => 'Security Deposit',
                                 'description' => 'Deposit for rental agreement',
@@ -148,7 +149,8 @@ class TransactionPaymentController extends Controller
             return response()->json(['message' => 'Contract must be fully signed before payment'], 422);
         }
 
-        if (! $transaction->deposit_amount || (float) $transaction->deposit_amount <= 0) {
+        $depositAmount = $this->resolveDepositAmount($transaction, $contract);
+        if ($depositAmount === null) {
             return response()->json(['message' => 'Deposit amount is missing'], 422);
         }
 
@@ -166,7 +168,7 @@ class TransactionPaymentController extends Controller
             'transaction_id' => $transaction->id,
             'provider' => Payment::PROVIDER_CASH,
             'type' => Payment::TYPE_DEPOSIT,
-            'amount' => $transaction->deposit_amount,
+            'amount' => $depositAmount,
             'currency' => $transaction->currency,
             'status' => Payment::STATUS_SUCCEEDED,
         ]);
@@ -252,6 +254,27 @@ class TransactionPaymentController extends Controller
                 'url' => $this->transactionDeepLink($transaction->id),
             ]);
         }
+    }
+
+    private function resolveDepositAmount(RentalTransaction $transaction, ?Contract $contract): ?float
+    {
+        if ($transaction->deposit_amount !== null) {
+            return (float) $transaction->deposit_amount;
+        }
+
+        $payloadAmount = $contract?->rendered_payload['deposit_amount'] ?? null;
+        if ($payloadAmount === null || $payloadAmount === '') {
+            return null;
+        }
+
+        if (! is_numeric($payloadAmount)) {
+            return null;
+        }
+
+        $amount = (float) $payloadAmount;
+        $transaction->update(['deposit_amount' => $amount]);
+
+        return $amount;
     }
 
     private function transactionDeepLink(int $transactionId): string

@@ -11,6 +11,7 @@ class ApplicationResource extends JsonResource
     public function toArray(Request $request): array
     {
         $listing = $this->resource->relationLoaded('listing') ? $this->listing : null;
+        $hasCompletedTransaction = (bool) ($this->resource->has_completed_transaction ?? false);
 
         return [
             'id' => $this->id,
@@ -18,6 +19,7 @@ class ApplicationResource extends JsonResource
             'message' => $this->message,
             'createdAt' => optional($this->created_at)->toISOString(),
             'listing' => $listing ? $this->formatListing($listing) : null,
+            'hasCompletedTransaction' => $hasCompletedTransaction,
             'participants' => [
                 'seekerId' => $this->seeker_id,
                 'landlordId' => $this->landlord_id,

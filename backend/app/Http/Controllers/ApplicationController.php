@@ -79,7 +79,11 @@ class ApplicationController extends Controller
 
         $this->recordRapidApplications($user);
 
-        return response()->json(new ApplicationResource($application->load('listing.images')), 201);
+        $application = Application::withCompletedTransactionFlag()
+            ->with(['listing.images'])
+            ->findOrFail($application->id);
+
+        return response()->json(new ApplicationResource($application), 201);
     }
 
     public function seekerIndex(Request $request): JsonResponse
@@ -88,7 +92,8 @@ class ApplicationController extends Controller
         abort_unless($user, 401, 'Unauthenticated');
         abort_unless($this->userHasRole($user, ['seeker', 'admin']), 403, 'Forbidden');
 
-        $applications = Application::with(['listing.images'])
+        $applications = Application::withCompletedTransactionFlag()
+            ->with(['listing.images'])
             ->where('seeker_id', $user->id)
             ->latest()
             ->get();
@@ -108,7 +113,8 @@ class ApplicationController extends Controller
 
         $listingId = $request->input('listing_id');
 
-        $applications = Application::with(['listing.images'])
+        $applications = Application::withCompletedTransactionFlag()
+            ->with(['listing.images'])
             ->where('landlord_id', $landlordId)
             ->when($listingId, fn ($query) => $query->where('listing_id', (int) $listingId))
             ->latest()
@@ -133,7 +139,11 @@ class ApplicationController extends Controller
             'status' => $status,
         ]);
 
-        return response()->json(new ApplicationResource($application->load('listing.images')));
+        $application = Application::withCompletedTransactionFlag()
+            ->with(['listing.images'])
+            ->findOrFail($application->id);
+
+        return response()->json(new ApplicationResource($application));
     }
 
     private function userHasRole($user, array|string $roles): bool

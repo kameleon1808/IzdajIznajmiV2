@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Application;
 use App\Models\Listing;
+use App\Models\RentalTransaction;
 use App\Models\User;
 use App\Services\ListingAddressGuardService;
 use App\Services\ListingStatusService;
@@ -141,6 +142,40 @@ class ApplicationsApiTest extends TestCase
         $payload = $response->json('data') ?? $response->json();
         $this->assertCount(1, $payload);
         $this->assertSame($listing->id, (int) $payload[0]['listing']['id']);
+    }
+
+    public function test_application_payload_flags_completed_transaction(): void
+    {
+        $landlord = User::factory()->create(['role' => 'landlord']);
+        $seeker = User::factory()->create(['role' => 'seeker']);
+        $listing = $this->createListing($landlord);
+
+        Application::create([
+            'listing_id' => $listing->id,
+            'seeker_id' => $seeker->id,
+            'landlord_id' => $landlord->id,
+            'message' => 'Hello',
+            'status' => Application::STATUS_ACCEPTED,
+        ]);
+
+        RentalTransaction::create([
+            'listing_id' => $listing->id,
+            'landlord_id' => $landlord->id,
+            'seeker_id' => $seeker->id,
+            'status' => RentalTransaction::STATUS_COMPLETED,
+            'deposit_amount' => 0,
+            'rent_amount' => 250,
+            'currency' => 'EUR',
+            'started_at' => now()->subDays(2),
+            'completed_at' => now()->subDay(),
+        ]);
+
+        $this->actingAs($landlord);
+        $response = $this->getJson('/api/v1/landlord/applications');
+
+        $response->assertOk();
+        $payload = $response->json('data') ?? $response->json();
+        $this->assertTrue($payload[0]['hasCompletedTransaction']);
     }
 
     public function test_cannot_apply_to_inactive_listing(): void

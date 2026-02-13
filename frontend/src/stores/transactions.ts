@@ -81,7 +81,7 @@ export const useTransactionsStore = defineStore('transactions', {
         const contract = await generateTransactionContract(transactionId, payload)
         if (this.current && this.current.id === transactionId) {
           this.current.contract = contract
-          this.current.status = 'contract_generated'
+          this.current.status = contract.status === 'final' ? 'landlord_signed' : 'contract_generated'
         }
         return contract
       } catch (error) {
