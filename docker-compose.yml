@@ -108,9 +108,10 @@ services:
       - ./frontend:/app
       - frontend-node-modules:/app/node_modules
     environment:
-      VITE_API_BASE_URL: ""
+      VITE_API_BASE_URL: "http://localhost:8000"
       API_PROXY_TARGET: http://backend:8000
       VITE_USE_MOCK_API: "false"
+      NODE_OPTIONS: --dns-result-order=ipv4first
       CHOKIDAR_USEPOLLING: "1"
       CHOKIDAR_INTERVAL: "100"
     depends_on:
