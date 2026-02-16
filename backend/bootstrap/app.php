@@ -1,7 +1,7 @@
 <?php
 
-use App\Console\Commands\ExpireListingsCommand;
 use App\Console\Commands\DbReportIndexesCommand;
+use App\Console\Commands\ExpireListingsCommand;
 use App\Console\Commands\GeocodeListingsCommand;
 use App\Console\Commands\RecomputeBadgesCommand;
 use App\Console\Commands\SavedSearchMatchCommand;

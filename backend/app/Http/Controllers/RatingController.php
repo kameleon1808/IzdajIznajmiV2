@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Resources\RatingResource;
 use App\Http\Resources\ListingRatingResource;
+use App\Http\Resources\RatingResource;
 use App\Models\Listing;
 use App\Models\ListingRating;
 use App\Models\Rating;

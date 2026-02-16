@@ -7,7 +7,6 @@ use App\Models\Listing;
 use App\Models\Rating;
 use App\Models\User;
 use Illuminate\Http\Exceptions\HttpResponseException;
-use App\Services\TransactionEligibilityService;
 
 class RatingService
 {

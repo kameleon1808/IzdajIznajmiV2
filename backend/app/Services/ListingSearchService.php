@@ -32,13 +32,13 @@ class ListingSearchService
             ->withAvg('listingRatings as listing_rating_avg', 'rating')
             ->withCount('listingRatings as listing_rating_count')
             ->with([
-            'images' => function ($q) {
-                $q->where('processing_status', 'done')->orderBy('sort_order');
-            },
-            'facilities',
-            'owner:id,full_name,name,verification_status,verified_at,is_suspicious,badge_override_json',
-            'owner.landlordMetric:landlord_id,avg_rating_30d,all_time_avg_rating,ratings_count,median_response_time_minutes,completed_transactions_count,updated_at',
-        ]);
+                'images' => function ($q) {
+                    $q->where('processing_status', 'done')->orderBy('sort_order');
+                },
+                'facilities',
+                'owner:id,full_name,name,verification_status,verified_at,is_suspicious,badge_override_json',
+                'owner.landlordMetric:landlord_id,avg_rating_30d,all_time_avg_rating,ratings_count,median_response_time_minutes,completed_transactions_count,updated_at',
+            ]);
     }
 
     /**
