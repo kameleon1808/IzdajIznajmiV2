@@ -18,9 +18,9 @@ const name = ref('')
 const email = ref('')
 const phone = ref('')
 const dateOfBirth = ref('')
-const gender = ref<'muski' | 'zenski' | ''>('')
+const gender = ref<'muski' | 'zenski' | 'ne_zelim_da_kazem' | ''>('')
 const residentialAddress = ref('')
-const employmentStatus = ref<'zaposlen' | 'nezaposlen' | 'student' | ''>('')
+const employmentStatus = ref<'zaposlen' | 'nezaposlen' | 'student' | 'penzioner' | ''>('')
 const password = ref('')
 const passwordConfirmation = ref('')
 const role = ref<Role>('seeker')
@@ -82,6 +82,7 @@ const onSubmit = async () => {
           <option value="">{{ t('common.notProvided') }}</option>
           <option value="muski">{{ t('common.gender.male') }}</option>
           <option value="zenski">{{ t('common.gender.female') }}</option>
+          <option value="ne_zelim_da_kazem">{{ t('common.gender.ratherNotToSay') }}</option>
         </select>
       </div>
       <div class="space-y-1">
@@ -98,6 +99,7 @@ const onSubmit = async () => {
           <option value="zaposlen">{{ t('common.employmentStatus.employed') }}</option>
           <option value="nezaposlen">{{ t('common.employmentStatus.unemployed') }}</option>
           <option value="student">{{ t('common.employmentStatus.student') }}</option>
+          <option value="penzioner">{{ t('common.employmentStatus.retired') }}</option>
         </select>
       </div>
       <div class="space-y-1">

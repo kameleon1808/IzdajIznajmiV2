@@ -13,8 +13,8 @@ class RolesUsersSeeder extends Seeder
         User::truncate();
 
         $faker = fake();
-        $genders = ['muski', 'zenski'];
-        $employmentStatuses = ['zaposlen', 'nezaposlen', 'student'];
+        $genders = User::GENDERS;
+        $employmentStatuses = User::EMPLOYMENT_STATUSES;
 
         User::create([
             'name' => 'Admin User',

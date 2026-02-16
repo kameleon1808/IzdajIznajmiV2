@@ -11,6 +11,9 @@ use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
+    public const GENDERS = ['muski', 'zenski', 'ne_zelim_da_kazem'];
+    public const EMPLOYMENT_STATUSES = ['zaposlen', 'nezaposlen', 'student', 'penzioner'];
+
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasApiTokens, HasFactory, HasRoles, Notifiable;
 

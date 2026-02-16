@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -30,9 +31,9 @@ class UserFactory extends Factory
             'name' => $fullName,
             'full_name' => $fullName,
             'date_of_birth' => fake()->dateTimeBetween('-65 years', '-18 years')->format('Y-m-d'),
-            'gender' => fake()->randomElement(['muski', 'zenski']),
+            'gender' => fake()->randomElement(User::GENDERS),
             'residential_address' => fake()->streetAddress(),
-            'employment_status' => fake()->randomElement(['zaposlen', 'nezaposlen', 'student']),
+            'employment_status' => fake()->randomElement(User::EMPLOYMENT_STATUSES),
             'email' => fake()->unique()->safeEmail(),
             'email_verified_at' => now(),
             'phone' => fake()->unique()->e164PhoneNumber(),

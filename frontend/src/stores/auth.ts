@@ -8,9 +8,9 @@ interface User {
   name: string
   fullName?: string
   dateOfBirth?: string | null
-  gender?: 'muski' | 'zenski' | null
+  gender?: 'muski' | 'zenski' | 'ne_zelim_da_kazem' | null
   residentialAddress?: string | null
-  employmentStatus?: 'zaposlen' | 'nezaposlen' | 'student' | null
+  employmentStatus?: 'zaposlen' | 'nezaposlen' | 'student' | 'penzioner' | null
   email?: string
   phone?: string | null
   role: Role
@@ -151,9 +151,9 @@ export const useAuthStore = defineStore('auth', {
       phone?: string
       fullName?: string
       dateOfBirth?: string | null
-      gender?: 'muski' | 'zenski' | null
+      gender?: 'muski' | 'zenski' | 'ne_zelim_da_kazem' | null
       residentialAddress?: string | null
-      employmentStatus?: 'zaposlen' | 'nezaposlen' | 'student' | null
+      employmentStatus?: 'zaposlen' | 'nezaposlen' | 'student' | 'penzioner' | null
     }) {
       if (this.isMockMode) {
         this.loginAs(payload.role ?? 'seeker')

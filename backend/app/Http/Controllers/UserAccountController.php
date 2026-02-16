@@ -26,9 +26,9 @@ class UserAccountController extends Controller
         $data = $request->validate([
             'full_name' => ['sometimes', 'string', 'max:255'],
             'date_of_birth' => ['sometimes', 'nullable', 'date'],
-            'gender' => ['sometimes', 'nullable', Rule::in(['muski', 'zenski'])],
+            'gender' => ['sometimes', 'nullable', Rule::in(User::GENDERS)],
             'residential_address' => ['sometimes', 'nullable', 'string', 'max:255'],
-            'employment_status' => ['sometimes', 'nullable', Rule::in(['zaposlen', 'nezaposlen', 'student'])],
+            'employment_status' => ['sometimes', 'nullable', Rule::in(User::EMPLOYMENT_STATUSES)],
             'phone' => ['sometimes', 'nullable', 'string', 'max:32', Rule::unique('users', 'phone')->ignore($user->id)],
             'address_book' => ['sometimes', 'nullable', 'array'],
         ]);

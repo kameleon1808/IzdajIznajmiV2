@@ -139,6 +139,7 @@ watch(
           <option value="">{{ t('common.notProvided') }}</option>
           <option value="muski">{{ t('common.gender.male') }}</option>
           <option value="zenski">{{ t('common.gender.female') }}</option>
+          <option value="ne_zelim_da_kazem">{{ t('common.gender.ratherNotToSay') }}</option>
         </select>
       </label>
       <label class="space-y-1 text-sm font-semibold text-slate-900">
@@ -155,6 +156,7 @@ watch(
           <option value="zaposlen">{{ t('common.employmentStatus.employed') }}</option>
           <option value="nezaposlen">{{ t('common.employmentStatus.unemployed') }}</option>
           <option value="student">{{ t('common.employmentStatus.student') }}</option>
+          <option value="penzioner">{{ t('common.employmentStatus.retired') }}</option>
         </select>
       </label>
       <label class="space-y-1 text-sm font-semibold text-slate-900">

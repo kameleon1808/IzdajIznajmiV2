@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests;
 
+use App\Models\User;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class RegisterRequest extends FormRequest
 {
@@ -17,9 +19,9 @@ class RegisterRequest extends FormRequest
             'name' => ['sometimes', 'string', 'max:255'],
             'full_name' => ['required', 'string', 'max:255'],
             'date_of_birth' => ['nullable', 'date'],
-            'gender' => ['nullable', 'string', 'in:muski,zenski'],
+            'gender' => ['nullable', 'string', Rule::in(User::GENDERS)],
             'residential_address' => ['nullable', 'string', 'max:255'],
-            'employment_status' => ['nullable', 'string', 'in:zaposlen,nezaposlen,student'],
+            'employment_status' => ['nullable', 'string', Rule::in(User::EMPLOYMENT_STATUSES)],
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'phone' => ['nullable', 'string', 'max:32', 'unique:users,phone'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
