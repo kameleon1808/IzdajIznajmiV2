@@ -7,8 +7,9 @@ PHP_BIN=${PHP_BIN:-php}
 COMPOSER_BIN=${COMPOSER_BIN:-composer}
 FRONTEND_BUILD=${FRONTEND_BUILD:-0}
 HEALTH_URL=${HEALTH_URL:-http://127.0.0.1/api/v1/health}
+APP_VERSION=${APP_VERSION:-$(git -C "$APP_DIR" rev-parse --short HEAD 2>/dev/null || echo dev)}
 
-echo "[deploy] environment=${ENVIRONMENT} app_dir=${APP_DIR}"
+echo "[deploy] environment=${ENVIRONMENT} app_dir=${APP_DIR} app_version=${APP_VERSION}"
 
 cd "$APP_DIR/backend"
 
@@ -16,6 +17,8 @@ if [[ ! -f .env ]]; then
   echo "backend/.env not found. Copy an env file before deploying." >&2
   exit 1
 fi
+
+export APP_VERSION
 
 echo "[deploy] composer install"
 "$COMPOSER_BIN" install --no-dev --prefer-dist --optimize-autoloader

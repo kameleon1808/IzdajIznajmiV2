@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\SentryReporter;
+use App\Services\StructuredLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
@@ -10,6 +12,11 @@ use Illuminate\Support\Facades\Schema;
 
 class HealthController extends Controller
 {
+    public function __construct(
+        private readonly StructuredLogger $log,
+        private readonly SentryReporter $sentry
+    ) {}
+
     public function liveness(): JsonResponse
     {
         $dbCheck = $this->checkDatabase();
@@ -28,7 +35,7 @@ class HealthController extends Controller
         $checks = [
             'db' => $this->checkDatabase(),
             'cache' => $this->checkCache(),
-            'queue' => $this->checkQueue(),
+            'queue' => $this->checkQueue(includeAlertHooks: true),
         ];
 
         $ok = collect($checks)->every(fn ($check) => $check['ok']);
@@ -38,6 +45,19 @@ class HealthController extends Controller
             'app' => $this->appMeta(),
             'checks' => $checks,
         ], $ok ? 200 : 500);
+    }
+
+    public function queue(): JsonResponse
+    {
+        $queue = $this->checkQueue(includeAlertHooks: true);
+
+        return response()->json([
+            'status' => $queue['ok'] ? 'ok' : 'error',
+            'app' => $this->appMeta(),
+            'checks' => [
+                'queue' => $queue,
+            ],
+        ], $queue['ok'] ? 200 : 500);
     }
 
     private function appMeta(): array
@@ -80,9 +100,12 @@ class HealthController extends Controller
         }
     }
 
-    private function checkQueue(): array
+    private function checkQueue(bool $includeAlertHooks = false): array
     {
         $driver = config('queue.default');
+        $failedJobs = $this->checkFailedJobs();
+        $threshold = (int) config('queue.alerts.threshold', 0);
+        $alertTriggered = $failedJobs['count'] !== null && $failedJobs['count'] > $threshold;
 
         try {
             if ($driver === 'database') {
@@ -90,34 +113,133 @@ class HealthController extends Controller
                 $connection = config('queue.connections.database.connection');
                 $schema = $connection ? Schema::connection($connection) : Schema::getFacadeRoot();
 
-                return [
-                    'ok' => $schema->hasTable($table),
+                $result = [
+                    'ok' => $schema->hasTable($table) && $failedJobs['ok'],
                     'driver' => $driver,
                     'connection' => $connection ?: config('database.default'),
                     'table' => $table,
+                    'failed_jobs' => $failedJobs,
+                    'alerts' => [
+                        'enabled' => (bool) config('queue.alerts.enabled', false),
+                        'threshold' => $threshold,
+                        'triggered' => $alertTriggered,
+                    ],
                 ];
-            }
-
-            if ($driver === 'redis') {
+            } elseif ($driver === 'redis') {
                 $connectionName = config('queue.connections.redis.connection', 'default');
                 $queue = config('queue.connections.redis.queue', 'default');
                 $ping = Redis::connection($connectionName)->ping();
 
-                return [
-                    'ok' => $ping === true || $ping === 'PONG' || $ping === '+PONG',
+                $result = [
+                    'ok' => ($ping === true || $ping === 'PONG' || $ping === '+PONG') && $failedJobs['ok'],
                     'driver' => $driver,
                     'connection' => $connectionName,
                     'queue' => $queue,
+                    'failed_jobs' => $failedJobs,
+                    'alerts' => [
+                        'enabled' => (bool) config('queue.alerts.enabled', false),
+                        'threshold' => $threshold,
+                        'triggered' => $alertTriggered,
+                    ],
+                ];
+            } elseif ($driver === 'sync') {
+                $result = [
+                    'ok' => $failedJobs['ok'],
+                    'driver' => $driver,
+                    'failed_jobs' => $failedJobs,
+                    'alerts' => [
+                        'enabled' => (bool) config('queue.alerts.enabled', false),
+                        'threshold' => $threshold,
+                        'triggered' => $alertTriggered,
+                    ],
+                ];
+            } else {
+                $result = [
+                    'ok' => $failedJobs['ok'],
+                    'driver' => $driver,
+                    'failed_jobs' => $failedJobs,
+                    'alerts' => [
+                        'enabled' => (bool) config('queue.alerts.enabled', false),
+                        'threshold' => $threshold,
+                        'triggered' => $alertTriggered,
+                    ],
                 ];
             }
 
-            if ($driver === 'sync') {
-                return ['ok' => true, 'driver' => $driver];
+            if ($includeAlertHooks) {
+                $this->emitFailedJobsAlert($failedJobs['count'], $threshold);
             }
 
-            return ['ok' => true, 'driver' => $driver];
+            return $result;
         } catch (\Throwable $e) {
             return ['ok' => false, 'driver' => $driver, 'error' => $e->getMessage()];
         }
+    }
+
+    private function checkFailedJobs(): array
+    {
+        $connection = config('queue.failed.database', config('database.default'));
+        $table = config('queue.failed.table', 'failed_jobs');
+
+        try {
+            $schema = $connection ? Schema::connection((string) $connection) : Schema::getFacadeRoot();
+            if (! $schema->hasTable($table)) {
+                return [
+                    'ok' => false,
+                    'connection' => $connection,
+                    'table' => $table,
+                    'count' => null,
+                    'error' => 'Failed jobs table is missing',
+                ];
+            }
+
+            $count = (int) DB::connection($connection)->table($table)->count();
+
+            return [
+                'ok' => true,
+                'connection' => $connection,
+                'table' => $table,
+                'count' => $count,
+            ];
+        } catch (\Throwable $e) {
+            return [
+                'ok' => false,
+                'connection' => $connection,
+                'table' => $table,
+                'count' => null,
+                'error' => $e->getMessage(),
+            ];
+        }
+    }
+
+    private function emitFailedJobsAlert(?int $count, int $threshold): void
+    {
+        if (! config('queue.alerts.enabled', false) || $count === null) {
+            return;
+        }
+
+        $cacheKey = 'queue:failed_jobs:alerted';
+        $cooldown = (int) config('queue.alerts.cooldown_seconds', 300);
+
+        if ($count <= $threshold) {
+            Cache::forget($cacheKey);
+
+            return;
+        }
+
+        if (Cache::has($cacheKey)) {
+            return;
+        }
+
+        Cache::put($cacheKey, now()->toIso8601String(), now()->addSeconds($cooldown));
+
+        $context = [
+            'failed_jobs_count' => $count,
+            'threshold' => $threshold,
+            'flow' => 'queue_health',
+        ];
+
+        $this->log->error('queue_failed_jobs_alert', $context);
+        $this->sentry->captureMessage('Failed jobs threshold exceeded', 'error', $context);
     }
 }

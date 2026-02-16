@@ -63,6 +63,7 @@ $apiRoutes = function () use ($authRoutes) {
 
     Route::get('/health', [HealthController::class, 'liveness']);
     Route::get('/health/ready', [HealthController::class, 'readiness']);
+    Route::get('/health/queue', [HealthController::class, 'queue']);
     Route::post('/webhooks/stripe', [StripeWebhookController::class, 'handle']);
 
     Route::get('/listings', [ListingController::class, 'index'])->middleware('throttle:listings_search');

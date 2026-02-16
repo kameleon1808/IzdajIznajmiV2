@@ -36,8 +36,10 @@ return [
     ],
 
     'sentry' => [
-        'dsn' => env('SENTRY_LARAVEL_DSN'),
+        'dsn' => env('SENTRY_DSN', env('SENTRY_LARAVEL_DSN')),
         'enabled' => env('SENTRY_ENABLED', false),
+        'release' => env('SENTRY_RELEASE', env('APP_VERSION', 'dev')),
+        'environment' => env('SENTRY_ENVIRONMENT', env('APP_ENV', 'production')),
     ],
 
     'stripe' => [

@@ -55,7 +55,9 @@
   - `listings_search` 60/min IP, `geocode_suggest` 40/min IP; landlord/viewing write limiti ostaju kao ranije
 - Observability: struktuisani JSON logovi u `storage/logs/structured-YYYY-MM-DD.log` preko `App\Services\StructuredLogger`.
   - Bitne akcije (listing create/update/publish, prijave, poruke, ocene, prijave ocena) loguju `action`, `user_id`, `listing_id`, `ip`, `user_agent`, bez sadržaja poruka.
-  - Neobrađeni 5xx izuzetci se loguju kao `unhandled_exception`; opciono Sentry iza `SENTRY_ENABLED` + `SENTRY_LARAVEL_DSN` (ako je SDK prisutan).
+  - Svaki API odgovor nosi `X-Request-Id`; JSON error payload uključuje `request_id` radi korelacije sa logovima.
+  - Neobrađeni 5xx izuzetci i queue/job greške se loguju i opciono šalju u Sentry iza `SENTRY_ENABLED` + `SENTRY_DSN` (ako je SDK prisutan).
+  - Queue health endpoint: `GET /api/v1/health/queue` (status + failed_jobs count).
 - Saved-search matcher: `php artisan saved-searches:match` koristi cache mutex i obrađuje samo nove ACTIVE oglase od poslednjeg pokretanja.
   - Koristi cache store `CACHE_LOCK_STORE` (default `CACHE_DRIVER`). Za rad zaključavanja mora biti `file`/`redis`/`database` — ne `array`.
   - Notifikacije deep-linkuju na `/search?savedSearchId={id}` i poštuju frekvenciju `instant|daily|weekly`.

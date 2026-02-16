@@ -7,14 +7,17 @@ COMPOSER_BIN=${COMPOSER_BIN:-composer}
 HEALTH_URL=${HEALTH_URL:-http://127.0.0.1/api/v1/health}
 ROLLBACK_REF=${ROLLBACK_REF:-${1:-HEAD~1}}
 ALLOW_MIGRATE=${ALLOW_MIGRATE:-0}
+APP_VERSION=${APP_VERSION:-$(git -C "$APP_DIR" rev-parse --short "$ROLLBACK_REF" 2>/dev/null || echo dev)}
 
-echo "[rollback] ref=${ROLLBACK_REF} app_dir=${APP_DIR}"
+echo "[rollback] ref=${ROLLBACK_REF} app_dir=${APP_DIR} app_version=${APP_VERSION}"
 
 cd "$APP_DIR"
 git fetch --all --prune
 git checkout "$ROLLBACK_REF"
 
 cd backend
+
+export APP_VERSION
 
 "$COMPOSER_BIN" install --no-dev --prefer-dist --optimize-autoloader
 

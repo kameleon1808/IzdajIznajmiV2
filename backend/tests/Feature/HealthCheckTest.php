@@ -29,4 +29,14 @@ class HealthCheckTest extends TestCase
             ->assertJsonPath('checks.cache.ok', true)
             ->assertJsonPath('checks.queue.ok', true);
     }
+
+    public function test_queue_health_endpoint_reports_failed_jobs_count(): void
+    {
+        $response = $this->getJson('/api/v1/health/queue');
+
+        $response->assertStatus(200)
+            ->assertJsonPath('status', 'ok')
+            ->assertJsonPath('checks.queue.ok', true)
+            ->assertJsonPath('checks.queue.failed_jobs.count', 0);
+    }
 }

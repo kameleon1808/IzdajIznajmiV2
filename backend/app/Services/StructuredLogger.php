@@ -36,7 +36,8 @@ class StructuredLogger
             'ip' => $context['ip'] ?? $request?->ip(),
             'user_agent' => $context['user_agent'] ?? $request?->userAgent(),
             'route' => $context['route'] ?? $request?->path(),
-            'request_id' => $context['request_id'] ?? $request?->header('X-Request-Id'),
+            'request_id' => $context['request_id'] ?? $request?->attributes->get('request_id') ?? $request?->header('X-Request-Id'),
+            'release' => $context['release'] ?? config('app.version', 'dev'),
         ], $context);
 
         Log::channel('structured')->{$level}($action, $payload);

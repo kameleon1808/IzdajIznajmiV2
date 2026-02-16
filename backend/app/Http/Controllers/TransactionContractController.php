@@ -10,6 +10,8 @@ use App\Models\RentalTransaction;
 use App\Models\Signature;
 use App\Models\User;
 use App\Services\NotificationService;
+use App\Services\SentryReporter;
+use App\Services\StructuredLogger;
 use App\Services\Transactions\ContractService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -19,7 +21,9 @@ class TransactionContractController extends Controller
 {
     public function __construct(
         private readonly ContractService $contracts,
-        private readonly NotificationService $notifications
+        private readonly NotificationService $notifications,
+        private readonly StructuredLogger $log,
+        private readonly SentryReporter $sentry
     ) {}
 
     public function store(GenerateContractRequest $request, RentalTransaction $transaction): JsonResponse
@@ -41,7 +45,20 @@ class TransactionContractController extends Controller
             return response()->json(['message' => 'Cannot regenerate contract at this stage'], 422);
         }
 
-        $contract = $this->contracts->generate($transaction, $request->validated());
+        try {
+            $contract = $this->contracts->generate($transaction, $request->validated());
+        } catch (\Throwable $e) {
+            $context = [
+                'flow' => 'transaction_contract_generation',
+                'transaction_id' => $transaction->id,
+                'exception' => get_class($e),
+                'message' => $e->getMessage(),
+            ];
+            $this->log->error('transaction_contract_generation_failed', $context);
+            $this->sentry->captureException($e, $context);
+
+            throw $e;
+        }
         $contract->load('signatures');
 
         $transaction->loadMissing(['listing', 'seeker', 'landlord']);

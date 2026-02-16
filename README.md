@@ -20,6 +20,7 @@ The goal is to demonstrate a UX-forward SPA backed by a clean, well-documented A
 - Listing images: multipart upload, ordering, cover selection, and async processing queue (WebP resize/convert). Processing status per image: pending/done/failed; cover auto-updates when processed.
 - Rate limiting: 429 protection on auth (10/min/IP), listings search (60/min/IP), booking requests (20/min/user or IP), landlord writes (30/min/user or IP).
 - Dual-mode frontend: `VITE_USE_MOCK_API=true` uses local mock data; `false` hits real Laravel API with route guards redirecting to login.
+- Ops readiness: request correlation (`X-Request-Id`), queue health endpoint (`/api/v1/health/queue` with failed jobs count), env-gated security headers, Postgres backup/restore scripts, and baseline k6 load test scripts under `ops/loadtest`.
 
 ## Tech Stack
 - Frontend: Vue 3, Vite, TypeScript, Tailwind CSS, Pinia, Vue Router.
@@ -163,6 +164,7 @@ Troubleshooting:
 ## Deploy
 - Deployment guide, env templates, and ops scripts live in `docs/deploy/DEPLOYMENT.md`.
 - Ready-to-run scripts: `ops/deploy.sh` (idempotent deploy), `ops/rollback.sh`.
+- Ops runbooks: `docs/ops/BACKUPS.md`, `docs/ops/QUEUE-OPS.md`, `docs/ops/LOAD-TESTING.md`, `docs/ops/PERFORMANCE.md`.
 - GitHub Actions deploy workflows: `.github/workflows/deploy-staging.yml` and `deploy-production.yml` (SSH-based).
 
 ## Roadmap

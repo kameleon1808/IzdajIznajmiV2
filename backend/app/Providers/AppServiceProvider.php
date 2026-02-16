@@ -24,13 +24,17 @@ use App\Services\Geocoding\FakeSuggestGeocoder;
 use App\Services\Geocoding\Geocoder;
 use App\Services\Geocoding\NominatimGeocoder;
 use App\Services\Geocoding\NominatimSuggestGeocoder;
+use App\Services\SentryReporter;
 use App\Services\Geocoding\SuggestGeocoder;
 use App\Services\Search\MeiliSearchDriver;
 use App\Services\Search\SearchDriver;
 use App\Services\Search\SqlSearchDriver;
+use App\Services\StructuredLogger;
+use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use MeiliSearch\Client;
@@ -106,6 +110,23 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Queue::failing(function (JobFailed $event): void {
+            app(StructuredLogger::class)->error('queue_job_failed', [
+                'connection' => $event->connectionName,
+                'queue' => $event->job?->getQueue(),
+                'job_name' => $event->job?->resolveName(),
+                'job_uuid' => method_exists($event->job, 'uuid') ? $event->job->uuid() : null,
+                'exception' => get_class($event->exception),
+                'message' => $event->exception->getMessage(),
+            ]);
+
+            app(SentryReporter::class)->captureException($event->exception, [
+                'connection' => $event->connectionName,
+                'queue' => $event->job?->getQueue(),
+                'flow' => 'queue_job',
+            ]);
+        });
+
         Listing::observe(ListingObserver::class);
         Gate::policy(Listing::class, ListingPolicy::class);
         Gate::policy(SavedSearch::class, SavedSearchPolicy::class);

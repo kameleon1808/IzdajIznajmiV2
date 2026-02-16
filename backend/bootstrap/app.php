@@ -1,12 +1,16 @@
 <?php
 
 use App\Console\Commands\ExpireListingsCommand;
+use App\Console\Commands\DbReportIndexesCommand;
 use App\Console\Commands\GeocodeListingsCommand;
 use App\Console\Commands\RecomputeBadgesCommand;
 use App\Console\Commands\SavedSearchMatchCommand;
 use App\Console\Commands\SearchListingsReindexCommand;
 use App\Console\Commands\SearchListingsSyncMissingCommand;
 use App\Http\Middleware\ChatAttachmentRateLimit;
+use App\Http\Middleware\RequestIdMiddleware;
+use App\Http\Middleware\SecurityHeadersMiddleware;
+use App\Services\SentryReporter;
 use App\Services\StructuredLogger;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Auth\AuthenticationException;
@@ -39,6 +43,7 @@ return Application::configure(basePath: dirname(__DIR__))
         'middleware' => ['web', 'auth:sanctum'],
     ])
     ->withCommands([
+        DbReportIndexesCommand::class,
         ExpireListingsCommand::class,
         \App\Console\Commands\SendNotificationDigestCommand::class,
         GeocodeListingsCommand::class,
@@ -58,6 +63,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->use([
             ValidatePathEncoding::class,
             TrustProxies::class,
+            RequestIdMiddleware::class,
+            SecurityHeadersMiddleware::class,
             HandleCors::class,
             PreventRequestsDuringMaintenance::class,
             ValidatePostSize::class,
@@ -106,10 +113,12 @@ return Application::configure(basePath: dirname(__DIR__))
                 'exception' => get_class($e),
                 'message' => $e->getMessage(),
                 'url' => request()?->fullUrl(),
+                'request_id' => request()?->attributes->get('request_id') ?? request()?->header('X-Request-Id'),
             ]);
 
-            if (config('services.sentry.enabled', false) && app()->bound('sentry')) {
-                app('sentry')->captureException($e);
-            }
+            app(SentryReporter::class)->captureException($e, [
+                'status' => $status,
+                'flow' => 'http_exception',
+            ]);
         });
     })->create();

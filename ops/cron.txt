@@ -1,1 +1,3 @@
 * * * * * www-data /usr/bin/php /var/www/izdaji/backend/artisan schedule:run >> /var/log/cron.log 2>&1
+# Daily PostgreSQL backup (03:30 UTC)
+30 3 * * * www-data BACKUP_DIR=/var/backups/izdaji/postgres BACKUP_RETENTION_DAYS=14 PGHOST=127.0.0.1 PGPORT=5432 PGDATABASE=izdaji PGUSER=izdaji /var/www/izdaji/ops/backup_pg.sh >> /var/log/izdaji-backup.log 2>&1

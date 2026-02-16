@@ -7,6 +7,8 @@ use App\Models\Payment;
 use App\Models\RentalTransaction;
 use App\Models\User;
 use App\Services\NotificationService;
+use App\Services\SentryReporter;
+use App\Services\StructuredLogger;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Stripe\Stripe;
@@ -14,7 +16,11 @@ use Stripe\Webhook;
 
 class StripeWebhookController extends Controller
 {
-    public function __construct(private readonly NotificationService $notifications) {}
+    public function __construct(
+        private readonly NotificationService $notifications,
+        private readonly StructuredLogger $log,
+        private readonly SentryReporter $sentry
+    ) {}
 
     public function handle(Request $request): Response
     {
@@ -29,24 +35,43 @@ class StripeWebhookController extends Controller
         try {
             $event = Webhook::constructEvent($payload, $sigHeader, $secret);
         } catch (\Throwable $e) {
+            $this->log->warning('stripe_webhook_invalid_signature', [
+                'flow' => 'transaction_payment_webhook',
+                'exception' => get_class($e),
+                'message' => $e->getMessage(),
+            ]);
+
             return response('Invalid signature', 400);
         }
 
         Stripe::setApiKey(config('services.stripe.secret'));
 
-        switch ($event->type) {
-            case 'checkout.session.completed':
-                $this->handleCheckoutCompleted($event->data->object);
-                break;
-            case 'payment_intent.payment_failed':
-                $this->handlePaymentFailed($event->data->object);
-                break;
-            case 'charge.refunded':
-                $this->handleChargeRefunded($event->data->object);
-                break;
-            case 'charge.succeeded':
-                $this->handleChargeSucceeded($event->data->object);
-                break;
+        try {
+            switch ($event->type) {
+                case 'checkout.session.completed':
+                    $this->handleCheckoutCompleted($event->data->object);
+                    break;
+                case 'payment_intent.payment_failed':
+                    $this->handlePaymentFailed($event->data->object);
+                    break;
+                case 'charge.refunded':
+                    $this->handleChargeRefunded($event->data->object);
+                    break;
+                case 'charge.succeeded':
+                    $this->handleChargeSucceeded($event->data->object);
+                    break;
+            }
+        } catch (\Throwable $e) {
+            $context = [
+                'flow' => 'transaction_payment_webhook',
+                'event_type' => $event->type ?? null,
+                'exception' => get_class($e),
+                'message' => $e->getMessage(),
+            ];
+            $this->log->error('stripe_webhook_processing_failed', $context);
+            $this->sentry->captureException($e, $context);
+
+            return response('Webhook processing failed', 500);
         }
 
         return response('ok', 200);

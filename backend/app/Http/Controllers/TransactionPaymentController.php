@@ -9,6 +9,8 @@ use App\Models\Payment;
 use App\Models\RentalTransaction;
 use App\Models\User;
 use App\Services\NotificationService;
+use App\Services\SentryReporter;
+use App\Services\StructuredLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -17,7 +19,11 @@ use Stripe\Stripe;
 
 class TransactionPaymentController extends Controller
 {
-    public function __construct(private readonly NotificationService $notifications) {}
+    public function __construct(
+        private readonly NotificationService $notifications,
+        private readonly StructuredLogger $log,
+        private readonly SentryReporter $sentry
+    ) {}
 
     public function createDepositSession(Request $request, RentalTransaction $transaction): JsonResponse
     {
@@ -113,6 +119,15 @@ class TransactionPaymentController extends Controller
             ]);
         } catch (\Throwable $e) {
             $payment->update(['status' => Payment::STATUS_FAILED]);
+            $context = [
+                'flow' => 'transaction_payment_checkout',
+                'transaction_id' => $transaction->id,
+                'payment_id' => $payment->id,
+                'exception' => get_class($e),
+                'message' => $e->getMessage(),
+            ];
+            $this->log->error('transaction_payment_session_failed', $context);
+            $this->sentry->captureException($e, $context);
 
             return response()->json(['message' => 'Unable to start Stripe Checkout'], 500);
         }

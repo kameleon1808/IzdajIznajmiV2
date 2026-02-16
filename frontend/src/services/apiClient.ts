@@ -83,6 +83,9 @@ apiClient.interceptors.response.use(
   async (error: AxiosError) => {
     const toast = useToastStore()
     const status = error.response?.status
+    const requestId =
+      (error.response?.headers as Record<string, string | undefined> | undefined)?.['x-request-id'] ||
+      (error.response?.data as any)?.request_id
     if (status === 401) {
       toast.push({ title: 'Session expired', message: 'Please log in again.', type: 'error' })
       await onUnauthorized()
@@ -100,10 +103,15 @@ apiClient.interceptors.response.use(
       (error.response?.data as any)?.message ||
       error.message ||
       'Something went wrong. Please try again.'
+    const withRequestId =
+      requestId && status && status >= 500
+        ? `${message} (Request ID: ${requestId})`
+        : message
     return Promise.reject({
       status,
-      message,
+      message: withRequestId,
       errors: (error.response?.data as any)?.errors,
+      requestId,
     })
   },
 )
@@ -112,4 +120,5 @@ export type ApiError = {
   status?: number
   message: string
   errors?: Record<string, string[]>
+  requestId?: string
 }

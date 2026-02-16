@@ -126,4 +126,10 @@ return [
         'table' => 'failed_jobs',
     ],
 
+    'alerts' => [
+        'enabled' => (bool) env('QUEUE_FAILED_JOBS_ALERT_ENABLED', false),
+        'threshold' => (int) env('QUEUE_FAILED_JOBS_ALERT_THRESHOLD', 0),
+        'cooldown_seconds' => (int) env('QUEUE_FAILED_JOBS_ALERT_COOLDOWN_SECONDS', 300),
+    ],
+
 ];

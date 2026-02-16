@@ -67,3 +67,20 @@ When the score meets/exceeds `FRAUD_SCORE_THRESHOLD`, the user is marked `is_sus
 
 - `security/mfa/verify` is throttled at 5/min per user+IP.
 - MFA setup/confirm/disable/recovery are throttled via `mfa_sensitive`.
+
+## Header and Cookie Hardening Checklist
+
+- Enable baseline response headers (`SECURITY_HEADERS_ENABLED=true`):
+  - `X-Content-Type-Options: nosniff`
+  - `X-Frame-Options: SAMEORIGIN` (or stricter via CSP `frame-ancestors`)
+  - `Referrer-Policy: strict-origin-when-cross-origin`
+- HSTS:
+  - enable only on HTTPS production (`SECURITY_HSTS_ENABLED=true`)
+  - keep `SECURITY_HSTS_PROD_ONLY=true`
+- CSP:
+  - start with report-only (`SECURITY_CSP_REPORT_ONLY=true`)
+  - move to enforce mode after policy validation
+- Cookies:
+  - `SESSION_SECURE_COOKIE=true` in production
+  - `SESSION_SAME_SITE=lax` by default
+  - `SESSION_HTTP_ONLY=true`
