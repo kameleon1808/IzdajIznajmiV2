@@ -34,13 +34,7 @@ class SimilarListingsService
     {
         $listing->loadMissing('facilities');
 
-        $basePrice = $listing->price_per_night;
-        $priceMin = null;
-        $priceMax = null;
-        if ($basePrice !== null && $basePrice > 0) {
-            $priceMin = $basePrice * 0.75;
-            $priceMax = $basePrice * 1.25;
-        }
+        [$priceMin, $priceMax] = $this->priceRangeForListing($listing);
 
         $query = Listing::query()
             ->where('status', ListingStatusService::STATUS_ACTIVE)
@@ -83,6 +77,22 @@ class SimilarListingsService
             })
             ->take($limit)
             ->values();
+    }
+
+    /**
+     * @return array{0: int|null, 1: int|null}
+     */
+    private function priceRangeForListing(Listing $listing): array
+    {
+        $basePrice = $listing->price_per_night !== null ? (int) $listing->price_per_night : null;
+        if ($basePrice === null || $basePrice <= 0) {
+            return [null, null];
+        }
+
+        $priceMin = max(0, (int) floor($basePrice * 0.75));
+        $priceMax = max($priceMin, (int) ceil($basePrice * 1.25));
+
+        return [$priceMin, $priceMax];
     }
 
     /**

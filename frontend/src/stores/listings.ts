@@ -49,7 +49,6 @@ const emptyFacets: ListingSearchFacets = {
   area_bucket: [],
 }
 
-const searchV2Enabled = import.meta.env.VITE_SEARCH_V2 === 'true'
 
 const loadFavorites = (): string[] => {
   if (typeof localStorage === 'undefined') return []
@@ -84,8 +83,9 @@ type ListingFormInput = {
   removeImageUrls?: string[]
 }
 
-const shouldUseSearchV2 = (options: { mapMode?: boolean } = {}) => {
-  return searchV2Enabled && !options.mapMode
+const shouldUseSearchV2 = (_options: { mapMode?: boolean } = {}) => {
+  // Force DB-backed search for consistent "all listings" behavior on /search.
+  return false
 }
 
 export const useListingsStore = defineStore('listings', {
@@ -98,6 +98,7 @@ export const useListingsStore = defineStore('listings', {
     landlordStatusFilter: 'all' as 'all' | 'draft' | 'active' | 'paused' | 'archived' | 'rented' | 'expired',
     filters: { ...defaultFilters },
     searchResults: [] as Listing[],
+    mapResults: [] as Listing[],
     searchMeta: null as any,
     searchFacets: { ...emptyFacets } as ListingSearchFacets,
     searchPage: 1,
@@ -221,6 +222,7 @@ export const useListingsStore = defineStore('listings', {
         this.recommended = this.syncFavorites(this.recommended)
         this.popular = this.syncFavorites(this.popular)
         this.searchResults = this.syncFavorites(this.searchResults)
+        this.mapResults = this.syncFavorites(this.mapResults)
         this.landlordListings = this.syncFavorites(this.landlordListings)
       } catch (error) {
         this.error = (error as Error).message || 'Failed to load favorites.'
@@ -239,12 +241,28 @@ export const useListingsStore = defineStore('listings', {
           this.searchMeta = resp.meta ?? null
           this.searchFacets = resp.facets ?? { ...emptyFacets }
           this.searchResults = this.syncFavorites(resp.items ?? [])
+          this.mapResults = []
         } else {
-          const resp = await searchListings(query, this.filters, this.searchPage, 10, options)
-          const list = Array.isArray(resp) ? resp : resp.items
-          this.searchMeta = Array.isArray(resp) ? null : resp.meta
-          this.searchFacets = { ...emptyFacets }
-          this.searchResults = this.syncFavorites(list)
+          if (options.mapMode) {
+            const [resp, mapResp] = await Promise.all([
+              searchListings(query, this.filters, this.searchPage, 10, options),
+              searchListings(query, this.filters, 1, 300, { ...options, mapMode: true }),
+            ])
+
+            const list = Array.isArray(resp) ? resp : resp.items
+            const mapList = Array.isArray(mapResp) ? mapResp : mapResp.items
+            this.searchMeta = Array.isArray(resp) ? null : resp.meta
+            this.searchFacets = { ...emptyFacets }
+            this.searchResults = this.syncFavorites(list)
+            this.mapResults = this.syncFavorites(mapList)
+          } else {
+            const resp = await searchListings(query, this.filters, this.searchPage, 10, options)
+            const list = Array.isArray(resp) ? resp : resp.items
+            this.searchMeta = Array.isArray(resp) ? null : resp.meta
+            this.searchFacets = { ...emptyFacets }
+            this.searchResults = this.syncFavorites(list)
+            this.mapResults = []
+          }
         }
         if (query.trim() && !this.recentSearches.includes(query)) {
           this.recentSearches = [query, ...this.recentSearches].slice(0, 5)
@@ -252,6 +270,7 @@ export const useListingsStore = defineStore('listings', {
       } catch (error) {
         this.error = (error as Error).message || 'Search failed.'
         this.searchResults = []
+        this.mapResults = []
         this.searchFacets = { ...emptyFacets }
       } finally {
         this.loading = false

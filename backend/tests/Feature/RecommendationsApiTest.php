@@ -15,6 +15,13 @@ class RecommendationsApiTest extends TestCase
 {
     use RefreshDatabase;
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        config(['search.driver' => 'sql']);
+    }
+
     public function test_recommendations_requires_seeker(): void
     {
         $landlord = User::factory()->create(['role' => 'landlord']);
@@ -76,5 +83,38 @@ class RecommendationsApiTest extends TestCase
         foreach ($data as $item) {
             $this->assertEquals('active', $item['status']);
         }
+    }
+
+    public function test_recommendations_handles_price_window_with_decimal_bounds(): void
+    {
+        $seeker = User::factory()->create(['role' => 'seeker']);
+        $landlord = User::factory()->create(['role' => 'landlord']);
+
+        $viewed = Listing::factory()->create([
+            'owner_id' => $landlord->id,
+            'city' => 'Beograd',
+            'price_per_night' => 115,
+            'status' => ListingStatusService::STATUS_ACTIVE,
+        ]);
+
+        $similar = Listing::factory()->create([
+            'owner_id' => $landlord->id,
+            'city' => 'Novi Sad',
+            'price_per_night' => 120,
+            'status' => ListingStatusService::STATUS_ACTIVE,
+        ]);
+
+        ListingEvent::create([
+            'user_id' => $seeker->id,
+            'listing_id' => $viewed->id,
+            'event_type' => ListingEvent::TYPE_VIEW,
+        ]);
+
+        $response = $this->actingAs($seeker)
+            ->getJson('/api/v1/recommendations?perPage=10');
+
+        $response->assertOk();
+        $ids = collect($response->json('data') ?? [])->pluck('id');
+        $this->assertTrue($ids->contains($similar->id));
     }
 }

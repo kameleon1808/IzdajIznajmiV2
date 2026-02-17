@@ -161,7 +161,9 @@ class ListingSearchService
         $radiusKm = $radius ?? 10.0;
         $earthRadius = 6371; // km
         $cosPart = 'cos(radians(?)) * cos(radians(lat)) * cos(radians(lng) - radians(?)) + sin(radians(?)) * sin(radians(lat))';
-        $haversine = "({$earthRadius} * acos(max(-1, min(1, {$cosPart}))))";
+        $driver = $query->getConnection()->getDriverName();
+        $clampedCosPart = $this->clampUnitRangeExpression($cosPart, $driver);
+        $haversine = "({$earthRadius} * acos({$clampedCosPart}))";
         $distanceExpr = "COALESCE({$haversine}, 0)";
         $query->select('*')->selectRaw("{$distanceExpr} as distance_km", [$centerLat, $centerLng, $centerLat]);
         $query->whereRaw("{$haversine} <= ?", [$centerLat, $centerLng, $centerLat, $radiusKm]);
@@ -234,5 +236,14 @@ class ListingSearchService
         }
 
         return $expr;
+    }
+
+    private function clampUnitRangeExpression(string $expression, string $driver): string
+    {
+        if ($driver === 'sqlite') {
+            return "max(-1.0, min(1.0, {$expression}))";
+        }
+
+        return "greatest(-1.0, least(1.0, {$expression}))";
     }
 }

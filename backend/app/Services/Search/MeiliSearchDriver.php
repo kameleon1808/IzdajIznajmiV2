@@ -34,7 +34,7 @@ class MeiliSearchDriver implements SearchDriver
             $options['sort'] = [$sort];
         }
 
-        $result = $index->search($query, $options);
+        $result = $this->executeSearch($index, $query, $options);
         $payload = $result instanceof SearchResult ? $result->toArray() : (array) $result;
         $hits = $payload['hits'] ?? [];
         $total = $payload['estimatedTotalHits'] ?? $payload['nbHits'] ?? count($hits);
@@ -65,7 +65,7 @@ class MeiliSearchDriver implements SearchDriver
         $limit = max(1, min($limit, 12));
 
         $index = $this->getIndex();
-        $result = $index->search($query, [
+        $result = $this->executeSearch($index, $query, [
             'limit' => $limit,
             'offset' => 0,
             'filter' => $this->buildFilters(['status' => ListingStatusService::STATUS_ACTIVE]),
@@ -130,29 +130,7 @@ class MeiliSearchDriver implements SearchDriver
     public function configureIndex(): void
     {
         $index = $this->getIndex();
-        $task = $index->updateSettings([
-            'searchableAttributes' => ['title', 'description', 'city', 'city_normalized', 'amenities_normalized'],
-            'filterableAttributes' => [
-                'city',
-                'status',
-                'rooms',
-                'beds',
-                'category',
-                'amenities',
-                'price_bucket',
-                'area_bucket',
-                'price_per_night',
-                'area',
-                'rating',
-                'instant_book',
-            ],
-            'sortableAttributes' => ['price_per_night', 'created_at', 'rating_avg'],
-            'displayedAttributes' => $this->displayedAttributes(),
-        ]);
-        $taskUid = $task['taskUid'] ?? $task['uid'] ?? null;
-        if ($taskUid !== null) {
-            $this->client->waitForTask($taskUid);
-        }
+        $this->applySettings($index);
     }
 
     public function resetIndex(): void
@@ -385,7 +363,67 @@ class MeiliSearchDriver implements SearchDriver
             $this->client->waitForTask($taskUid);
         }
 
-        return $this->client->getIndex($name);
+        $index = $this->client->getIndex($name);
+        $this->applySettings($index);
+
+        return $index;
+    }
+
+    private function executeSearch(\Meilisearch\Endpoints\Indexes $index, string $query, array $options): mixed
+    {
+        try {
+            return $index->search($query, $options);
+        } catch (ApiException $e) {
+            if (! $this->shouldRetryAfterSettingsUpdate($e)) {
+                throw $e;
+            }
+
+            $this->applySettings($index);
+
+            return $index->search($query, $options);
+        }
+    }
+
+    private function shouldRetryAfterSettingsUpdate(ApiException $e): bool
+    {
+        $message = mb_strtolower($e->getMessage());
+
+        return str_contains($message, 'not filterable')
+            || str_contains($message, 'filterable attributes')
+            || str_contains($message, 'not sortable')
+            || str_contains($message, 'sortable attributes');
+    }
+
+    private function applySettings(\Meilisearch\Endpoints\Indexes $index): void
+    {
+        $task = $index->updateSettings($this->indexSettings());
+        $taskUid = $task['taskUid'] ?? $task['uid'] ?? null;
+        if ($taskUid !== null) {
+            $this->client->waitForTask($taskUid);
+        }
+    }
+
+    private function indexSettings(): array
+    {
+        return [
+            'searchableAttributes' => ['title', 'description', 'city', 'city_normalized', 'amenities_normalized'],
+            'filterableAttributes' => [
+                'city',
+                'status',
+                'rooms',
+                'beds',
+                'category',
+                'amenities',
+                'price_bucket',
+                'area_bucket',
+                'price_per_night',
+                'area',
+                'rating',
+                'instant_book',
+            ],
+            'sortableAttributes' => ['price_per_night', 'created_at', 'rating_avg'],
+            'displayedAttributes' => $this->displayedAttributes(),
+        ];
     }
 
     private function normalizeSuggestionToken(string $value): string

@@ -338,9 +338,14 @@ const appendBoolean = (form: FormData, key: string, value: boolean | null | unde
 }
 
 const mapPaginated = (payload: any) => {
-  const data = payload.data ?? payload
-  if (Array.isArray(data)) {
-    return { items: data.map(mapListing), meta: null }
+  if (Array.isArray(payload)) {
+    return { items: payload.map(mapListing), meta: null }
+  }
+  if (Array.isArray(payload?.data)) {
+    return {
+      items: payload.data.map(mapListing),
+      meta: payload.meta ?? null,
+    }
   }
   return {
     items: (payload.data ?? []).map(mapListing),

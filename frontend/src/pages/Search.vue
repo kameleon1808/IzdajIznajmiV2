@@ -119,41 +119,8 @@ const debouncedSuggest = useDebounceFn(async () => {
 const searchV2Enabled = computed(() => import.meta.env.VITE_SEARCH_V2 === 'true')
 const searchFacets = computed(() => listingsStore.searchFacets)
 
-const hasActiveListFilters = computed(() => {
-  const f = listingsStore.filters
-  if (f.category !== defaultFilters.category) return true
-  if (f.guests !== defaultFilters.guests) return true
-  if (f.priceBucket) return true
-  if (f.areaBucket) return true
-  if (f.instantBook) return true
-  if (f.location) return true
-  if (f.city) return true
-  if (f.rooms) return true
-  if (f.rating) return true
-  if (f.status && f.status !== 'all') return true
-  if (f.amenities?.length) return true
-  if (f.facilities?.length) return true
-  if (f.centerLat != null || f.centerLng != null) return true
-  if (
-    f.priceRange?.length &&
-    (f.priceRange[0] !== defaultFilters.priceRange[0] || f.priceRange[1] !== defaultFilters.priceRange[1])
-  ) {
-    return true
-  }
-  if (
-    f.areaRange?.length &&
-    (f.areaRange[0] !== defaultFilters.areaRange?.[0] || f.areaRange[1] !== defaultFilters.areaRange?.[1])
-  ) {
-    return true
-  }
-  return false
-})
-
-const results = computed(() => {
-  if (viewMode.value === 'map') return listingsStore.searchResults
-  if (searchQuery.value || hasActiveListFilters.value) return listingsStore.searchResults
-  return listingsStore.filteredRecommended
-})
+const results = computed(() => listingsStore.searchResults)
+const mapResults = computed(() => (listingsStore.mapResults.length ? listingsStore.mapResults : listingsStore.searchResults))
 const popular = computed(() => listingsStore.popular.slice(0, 2))
 const loading = computed(() => listingsStore.loading)
 const loadingMore = computed(() => listingsStore.loadingMore)
@@ -168,7 +135,7 @@ const mapCenter = computed(() =>
 )
 const radiusValue = computed<number>(() => listingsStore.filters.radiusKm ?? defaultFilters.radiusKm ?? 0)
 const inlineRadius = ref(radiusValue.value)
-const missingGeoCount = computed(() => results.value.filter((item) => item.lat == null || item.lng == null).length)
+const missingGeoCount = computed(() => mapResults.value.filter((item) => item.lat == null || item.lng == null).length)
 const facetCityOptions = computed(() => (searchFacets.value.city ?? []).slice(0, 8))
 const facetStatusOptions = computed(() => (searchFacets.value.status ?? []).slice(0, 6))
 const facetRoomsOptions = computed(() => {
@@ -346,36 +313,71 @@ const hydrateFromRoute = () => {
   searchQuery.value = typeof query.q === 'string' ? query.q : ''
   viewMode.value = query.view === 'map' ? 'map' : 'list'
 
+  const baseFilters: ListingFilters = {
+    ...defaultFilters,
+    priceRange: [...defaultFilters.priceRange] as [number, number],
+    areaRange: [...(defaultFilters.areaRange ?? [0, 100000])] as [number, number],
+    facilities: [...(defaultFilters.facilities ?? [])],
+    amenities: [...(defaultFilters.amenities ?? [])],
+  }
+
+  const parseQueryNumber = (value: unknown): number | null => {
+    if (value === null || value === undefined || value === '') return null
+    const numeric = Number(value)
+    return Number.isFinite(numeric) ? numeric : null
+  }
+
   const parsed: Partial<ListingFilters> = {}
   if (query.category) parsed.category = query.category as ListingFilters['category']
   if (query.city) parsed.city = String(query.city)
   if (query.location) parsed.location = String(query.location)
-  if (query.guests) parsed.guests = Number(query.guests)
-  if (query.priceMin) parsed.priceRange = [Number(query.priceMin), listingsStore.filters.priceRange[1]] as [number, number]
-  if (query.priceMax) parsed.priceRange = [listingsStore.filters.priceRange[0], Number(query.priceMax)] as [number, number]
+  const guests = parseQueryNumber(query.guests)
+  if (guests !== null) parsed.guests = guests
+  const priceMin = parseQueryNumber(query.priceMin)
+  const priceMax = parseQueryNumber(query.priceMax)
+  if (priceMin !== null || priceMax !== null) {
+    parsed.priceRange = [
+      priceMin ?? baseFilters.priceRange[0],
+      priceMax ?? baseFilters.priceRange[1],
+    ] as [number, number]
+  }
   if (query.priceBucket) parsed.priceBucket = String(query.priceBucket)
-  if (query.rooms) parsed.rooms = Number(query.rooms)
-  if (query.areaMin) parsed.areaRange = [Number(query.areaMin), listingsStore.filters.areaRange?.[1] ?? 100000] as [number, number]
-  if (query.areaMax) parsed.areaRange = [listingsStore.filters.areaRange?.[0] ?? 0, Number(query.areaMax)] as [number, number]
+  const rooms = parseQueryNumber(query.rooms)
+  if (rooms !== null) parsed.rooms = rooms
+  const areaMin = parseQueryNumber(query.areaMin)
+  const areaMax = parseQueryNumber(query.areaMax)
+  if (areaMin !== null || areaMax !== null) {
+    parsed.areaRange = [
+      areaMin ?? (baseFilters.areaRange?.[0] ?? 0),
+      areaMax ?? (baseFilters.areaRange?.[1] ?? 100000),
+    ] as [number, number]
+  }
   if (query.areaBucket) parsed.areaBucket = String(query.areaBucket)
   if (query.status) parsed.status = query.status as any
   if (query.instantBook) parsed.instantBook = query.instantBook === '1' || query.instantBook === 'true'
-  if (query.rating) parsed.rating = Number(query.rating)
+  const rating = parseQueryNumber(query.rating)
+  if (rating !== null) parsed.rating = rating
   const facilities = query.facilities ? ([] as string[]).concat(query.facilities as any) : []
   if (facilities.length) parsed.facilities = facilities
   const amenities = query.amenities ? ([] as string[]).concat(query.amenities as any) : []
   if (amenities.length) parsed.amenities = amenities
-  if (query.centerLat && query.centerLng) {
-    parsed.centerLat = Number(query.centerLat)
-    parsed.centerLng = Number(query.centerLng)
+  const centerLat = parseQueryNumber(query.centerLat)
+  const centerLng = parseQueryNumber(query.centerLng)
+  if (centerLat !== null && centerLng !== null) {
+    parsed.centerLat = centerLat
+    parsed.centerLng = centerLng
   }
-  if (query.radiusKm) parsed.radiusKm = Number(query.radiusKm)
+  const radiusKm = parseQueryNumber(query.radiusKm)
+  if (radiusKm !== null) parsed.radiusKm = radiusKm
 
-  listingsStore.setFilters({ ...listingsStore.filters, ...parsed }, { fetch: false })
-
-  if (!parsed.centerLat && !parsed.centerLng && (listingsStore.filters.centerLat == null || listingsStore.filters.centerLng == null)) {
-    listingsStore.updateGeoFilters(defaultCenter.lat, defaultCenter.lng, listingsStore.filters.radiusKm ?? defaultFilters.radiusKm)
+  const nextFilters: ListingFilters = { ...baseFilters, ...parsed }
+  if (!nextFilters.amenities?.length && nextFilters.facilities?.length) {
+    nextFilters.amenities = [...nextFilters.facilities]
   }
+  if (!nextFilters.facilities?.length && nextFilters.amenities?.length) {
+    nextFilters.facilities = [...nextFilters.amenities]
+  }
+  listingsStore.setFilters(nextFilters, { fetch: false })
 
   syncLocalFilters()
 }
@@ -403,11 +405,11 @@ const buildQueryFromState = () => {
   if (f.amenities?.length) nextQuery.amenities = f.amenities
   if (f.rating) nextQuery.rating = f.rating
   if (f.status && f.status !== 'all') nextQuery.status = f.status
-  if (f.centerLat != null && f.centerLng != null) {
+  if (viewMode.value === 'map' && f.centerLat != null && f.centerLng != null) {
     nextQuery.centerLat = f.centerLat
     nextQuery.centerLng = f.centerLng
   }
-  if (f.radiusKm && f.radiusKm !== defaultFilters.radiusKm) nextQuery.radiusKm = f.radiusKm
+  if (viewMode.value === 'map' && f.radiusKm && f.radiusKm !== defaultFilters.radiusKm) nextQuery.radiusKm = f.radiusKm
   if (route.query.savedSearchId) nextQuery.savedSearchId = route.query.savedSearchId
   return nextQuery
 }
@@ -883,7 +885,7 @@ watch(
       </div>
 
       <MapExplorer
-        :listings="results"
+        :listings="mapResults"
         :center="mapCenter"
         :radius-km="radiusValue"
         :loading="loading"
