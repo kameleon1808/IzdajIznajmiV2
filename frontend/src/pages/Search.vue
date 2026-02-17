@@ -117,6 +117,7 @@ const debouncedSuggest = useDebounceFn(async () => {
   await fetchSuggestions()
 }, 250)
 const searchV2Enabled = computed(() => import.meta.env.VITE_SEARCH_V2 === 'true')
+const facetsEnabled = computed(() => searchV2Enabled.value && viewMode.value === 'list')
 const searchFacets = computed(() => listingsStore.searchFacets)
 
 const results = computed(() => listingsStore.searchResults)
@@ -371,6 +372,11 @@ const hydrateFromRoute = () => {
   if (radiusKm !== null) parsed.radiusKm = radiusKm
 
   const nextFilters: ListingFilters = { ...baseFilters, ...parsed }
+  if (viewMode.value === 'map') {
+    nextFilters.priceBucket = null
+    nextFilters.areaBucket = null
+    nextFilters.status = defaultFilters.status
+  }
   if (!nextFilters.amenities?.length && nextFilters.facilities?.length) {
     nextFilters.amenities = [...nextFilters.facilities]
   }
@@ -393,18 +399,18 @@ const buildQueryFromState = () => {
   if (f.guests !== defaultFilters.guests) nextQuery.guests = f.guests
   if (f.priceRange?.[0] !== defaultFilters.priceRange[0]) nextQuery.priceMin = f.priceRange?.[0]
   if (f.priceRange?.[1] !== defaultFilters.priceRange[1]) nextQuery.priceMax = f.priceRange?.[1]
-  if (f.priceBucket) nextQuery.priceBucket = f.priceBucket
+  if (viewMode.value === 'list' && f.priceBucket) nextQuery.priceBucket = f.priceBucket
   if (f.instantBook) nextQuery.instantBook = '1'
   if (f.location) nextQuery.location = f.location
   if (f.city) nextQuery.city = f.city
   if (f.rooms) nextQuery.rooms = f.rooms
   if (f.areaRange?.[0] !== defaultFilters.areaRange?.[0]) nextQuery.areaMin = f.areaRange?.[0]
   if (f.areaRange?.[1] !== defaultFilters.areaRange?.[1]) nextQuery.areaMax = f.areaRange?.[1]
-  if (f.areaBucket) nextQuery.areaBucket = f.areaBucket
+  if (viewMode.value === 'list' && f.areaBucket) nextQuery.areaBucket = f.areaBucket
   if (f.facilities?.length) nextQuery.facilities = f.facilities
   if (f.amenities?.length) nextQuery.amenities = f.amenities
   if (f.rating) nextQuery.rating = f.rating
-  if (f.status && f.status !== 'all') nextQuery.status = f.status
+  if (viewMode.value === 'list' && f.status && f.status !== 'all') nextQuery.status = f.status
   if (viewMode.value === 'map' && f.centerLat != null && f.centerLng != null) {
     nextQuery.centerLat = f.centerLat
     nextQuery.centerLng = f.centerLng
@@ -560,13 +566,16 @@ const applyFilters = async () => {
       priceMin ?? defaultFilters.priceRange[0],
       priceMax ?? defaultFilters.priceRange[1],
     ] as [number, number],
-    priceBucket: null,
     areaRange: [
       areaMin ?? (defaultFilters.areaRange?.[0] ?? 0),
       areaMax ?? (defaultFilters.areaRange?.[1] ?? 100000),
     ] as [number, number],
-    areaBucket: null,
     rooms: rooms ?? null,
+  }
+  if (viewMode.value === 'map') {
+    nextFilters.priceBucket = null
+    nextFilters.areaBucket = null
+    nextFilters.status = defaultFilters.status
   }
   nextFilters.amenities = [...(nextFilters.amenities ?? nextFilters.facilities ?? [])]
   nextFilters.facilities = [...(nextFilters.amenities ?? [])]
@@ -661,10 +670,14 @@ const setViewMode = async (mode: 'list' | 'map') => {
     geocodeError.value = ''
   }
   if (mode === 'map') {
+    listingsStore.setFilters({
+      priceBucket: null,
+      areaBucket: null,
+      status: defaultFilters.status,
+    }, { fetch: false })
+    syncLocalFilters()
     await ensureMapCenter()
-    if (!listingsStore.searchResults.length) {
-      await runSearch()
-    }
+    await runSearch()
   }
   await syncQueryParams()
 }
@@ -973,7 +986,7 @@ watch(
 
   <ModalSheet v-model="filterOpen" :title="t('search.filterBy')">
     <div class="space-y-4">
-      <div v-if="searchV2Enabled" class="space-y-3">
+      <div v-if="facetsEnabled" class="space-y-3">
         <p class="text-sm font-semibold text-slate-900">{{ t('search.facetsTitle') }}</p>
         <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
           <div class="rounded-2xl border border-line bg-white p-4 shadow-soft">

@@ -49,6 +49,8 @@ const emptyFacets: ListingSearchFacets = {
   area_bucket: [],
 }
 
+const searchV2Enabled = import.meta.env.VITE_SEARCH_V2 === 'true'
+
 
 const loadFavorites = (): string[] => {
   if (typeof localStorage === 'undefined') return []
@@ -83,9 +85,8 @@ type ListingFormInput = {
   removeImageUrls?: string[]
 }
 
-const shouldUseSearchV2 = (_options: { mapMode?: boolean } = {}) => {
-  // Force DB-backed search for consistent "all listings" behavior on /search.
-  return false
+const shouldUseSearchV2 = (options: { mapMode?: boolean } = {}) => {
+  return searchV2Enabled && !options.mapMode
 }
 
 export const useListingsStore = defineStore('listings', {
