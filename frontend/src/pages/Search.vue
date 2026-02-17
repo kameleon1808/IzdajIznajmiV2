@@ -719,8 +719,8 @@ watch(
 <template>
   <div class="space-y-5">
     <ErrorState v-if="error" :message="error" :retry-label="t('search.retry')" @retry="retrySearch" />
-    <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-      <div class="w-full md:max-w-xl relative">
+    <div class="flex flex-col gap-3 md:flex-row md:items-start md:justify-between md:gap-4">
+      <div class="relative w-full md:max-w-xl md:self-start">
         <Input
           v-model="searchQuery"
           class="w-full"
@@ -752,12 +752,14 @@ watch(
           </button>
         </div>
       </div>
-      <div class="flex flex-wrap items-center gap-2">
+      <div class="flex flex-wrap items-center gap-2 lg:hidden">
         <div class="inline-flex overflow-hidden rounded-full border border-line bg-surface text-sm font-semibold shadow-soft">
           <button
             :class="[
               'flex items-center gap-2 px-4 py-2 transition',
-              viewMode === 'list' ? 'bg-white text-primary shadow-soft' : 'text-muted hover:text-slate-800',
+              viewMode === 'list'
+                ? 'bg-white text-primary shadow-soft'
+                : 'text-muted hover:text-slate-800',
             ]"
             @click="setViewMode('list')"
           >
@@ -785,6 +787,44 @@ watch(
         </Button>
       </div>
     </div>
+    <Teleport to="#page-desktop-sidebar-slot">
+      <aside class="hidden lg:block lg:space-y-3">
+        <div class="rounded-3xl border border-line bg-white/80 p-3 shadow-soft">
+          <div class="inline-flex w-full overflow-hidden rounded-2xl border border-line bg-slate-50 p-1 text-sm font-semibold">
+            <button
+              :class="[
+                'flex flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2 transition',
+                viewMode === 'list' ? 'bg-white text-primary' : 'text-muted hover:bg-white hover:text-slate-800',
+              ]"
+              @click="setViewMode('list')"
+            >
+              <ListIcon class="h-4 w-4" />
+              {{ t('search.list') }}
+            </button>
+            <button
+              :class="[
+                'flex flex-1 items-center justify-center gap-2 rounded-xl px-3 py-2 transition',
+                viewMode === 'map' ? 'bg-primary text-white' : 'text-muted hover:bg-white hover:text-slate-800',
+              ]"
+              @click="setViewMode('map')"
+            >
+              <MapIcon class="h-4 w-4" />
+              {{ t('search.map') }}
+            </button>
+          </div>
+          <div class="mt-3 space-y-2">
+            <Button size="sm" variant="secondary" class="w-full justify-start px-4" @click="saveSearchOpen = true">
+              <BookmarkPlus class="mr-2 h-4 w-4" />
+              {{ t('search.saveSearch') }}
+            </Button>
+            <Button size="sm" variant="ghost" class="w-full justify-start px-4" @click="router.push('/saved-searches')">
+              <Bookmark class="mr-2 h-4 w-4" />
+              {{ t('search.savedSearches') }}
+            </Button>
+          </div>
+        </div>
+      </aside>
+    </Teleport>
 
     <div
       v-if="activeSavedSearch"
@@ -858,29 +898,25 @@ watch(
     </div>
 
     <div v-else class="space-y-4">
-      <div class="flex flex-wrap items-center gap-3 px-1 text-sm text-muted">
-        <div class="flex items-center gap-2 font-semibold text-slate-700">
-          <MapPin class="h-4 w-4 text-primary" />
-          <span>{{ t('search.withinRadius') }} {{ radiusValue }} km {{ t('search.radius') }}</span>
-        </div>
+      <div class="grid grid-cols-1 gap-3 md:grid-cols-[auto,1fr] md:items-center">
         <Button size="sm" variant="secondary" :loading="geocoding" @click="snapCurrentLocation">
           {{ t('search.snapLocation') }}
         </Button>
-      </div>
 
-      <div class="rounded-3xl bg-white px-4 py-3 shadow-soft border border-line/60">
-        <p class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">{{ t('search.radius') }}</p>
-        <div class="mt-1 flex items-center gap-3">
-          <span class="text-sm font-semibold text-slate-900 w-12">{{ inlineRadius }} km</span>
-          <input
-            v-model.number="inlineRadius"
-            type="range"
-            min="1"
-            max="50"
-            step="1"
-            class="flex-1 accent-primary"
-            @input="handleRadiusChange(Number(inlineRadius))"
-          />
+        <div class="rounded-3xl bg-white px-4 py-3 shadow-soft border border-line/60">
+          <p class="text-xs font-semibold uppercase tracking-[0.08em] text-muted">{{ t('search.radius') }}</p>
+          <div class="mt-1 flex items-center gap-3">
+            <span class="text-sm font-semibold text-slate-900 w-12">{{ inlineRadius }} km</span>
+            <input
+              v-model.number="inlineRadius"
+              type="range"
+              min="1"
+              max="50"
+              step="1"
+              class="flex-1 accent-primary"
+              @input="handleRadiusChange(Number(inlineRadius))"
+            />
+          </div>
         </div>
       </div>
 

@@ -64,6 +64,7 @@ const stopImpersonation = async () => {
             class="fixed bottom-0 left-0 right-0 z-40 lg:static lg:z-auto lg:w-full"
           />
           <component :is="sidebarComponent" v-if="hasSidebar" class="hidden lg:block" />
+          <div id="page-desktop-sidebar-slot" class="hidden lg:block"></div>
         </div>
         <main :class="mainClasses">
           <slot />
