@@ -87,8 +87,6 @@ docker compose down -v
 - Frontend: `http://localhost:5173`
 - Meili: `http://localhost:7700`
 
-
-
 ## Production compose (odvojeno od lokalnog razvoja)
 - Production fajl: `docker-compose.production.yml`
 - Env template: `.env.production.compose.example`
@@ -102,7 +100,7 @@ docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compo
 ```
 - Inicijalne migracije:
 ```bash
-docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml exec backend php artisan migrate --force
+docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml exec backend php artisan migrate:fresh --seed
 ```
 - Provera health endpoint-a (preko gateway-a):
 ```bash
@@ -124,6 +122,27 @@ docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compo
 - Stop production stack:
 ```bash
 docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml down
+```
+
+## VAZNO: kako se vide izmene
+- Production test stack koristi bind mount za `./backend` i `./frontend`, pa izmene koje napravis lokalno ulaze i u running production test kontejnere.
+- To znaci da izmene mogu biti vidljive i na `localhost` (dev) i na production test URL-u, jer dele isti source kod na disku.
+- Ako hoces potpunu izolaciju, koristi odvojeni clone projekta ili image-only deployment bez bind mount-a.
+
+## Kada treba dodatna akcija
+- Backend `.php` izmene: najcesce su odmah vidljive (refresh stranice).
+- Frontend izmene u production stack-u: potrebno je rebuild-ovati frontend servis (nema HMR kao u dev modu):
+```bash
+docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml up -d --build frontend
+```
+- Kada menjas `.env`, `config/*`, rute ili middleware:
+```bash
+docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml exec backend php artisan optimize:clear
+docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml up -d --force-recreate backend queue scheduler reverb
+```
+- Kada menjas migracije:
+```bash
+docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml exec backend php artisan migrate --force
 ```
 
 ## Watch (docker compose)
