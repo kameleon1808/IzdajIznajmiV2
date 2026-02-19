@@ -135,6 +135,10 @@ docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compo
 ```bash
 docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml up -d --build frontend
 ```
+- Alternativno (kada je frontend kontejner vec podignut), moze i:
+```bash
+docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml exec frontend npm run build
+```
 - Kada menjas `.env`, `config/*`, rute ili middleware:
 ```bash
 docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml exec backend php artisan optimize:clear
