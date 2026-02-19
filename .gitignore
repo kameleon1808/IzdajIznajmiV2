@@ -1,3 +1,5 @@
 README-V1.md
 
 /docs/development-review.md
+.env.production.compose
+backend/.env.production

@@ -5,10 +5,17 @@ import vue from '@vitejs/plugin-vue'
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   const apiTarget = env.API_PROXY_TARGET || env.VITE_API_BASE_URL || 'http://localhost:8000'
+  const rawAllowedHosts =
+    process.env.VITE_ALLOWED_HOSTS || env.VITE_ALLOWED_HOSTS || 'localhost,127.0.0.1,.trycloudflare.com'
+  const allowedHosts = rawAllowedHosts
+    .split(',')
+    .map((host) => host.trim())
+    .filter(Boolean)
 
   return {
     plugins: [vue()],
     server: {
+      allowedHosts,
       proxy: {
         '/api': {
           target: apiTarget,
@@ -31,6 +38,9 @@ export default defineConfig(({ mode }) => {
           secure: false,
         },
       },
+    },
+    preview: {
+      allowedHosts,
     },
   }
 })

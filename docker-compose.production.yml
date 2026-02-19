@@ -1,0 +1,223 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-izdaji_iznajmi}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+    volumes:
+      - postgres-data-prod:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-izdaji_iznajmi}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    working_dir: /app
+    volumes:
+      - ./backend:/app
+      - backend-vendor-prod:/app/vendor
+      - backend-storage-prod:/app/storage
+    environment:
+      APP_ENV: production
+      APP_DEBUG: "false"
+      APP_URL: ${APP_URL:-http://localhost}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
+      FRONTEND_URLS: ${FRONTEND_URLS:-http://localhost}
+      SANCTUM_STATEFUL_DOMAINS: "${SANCTUM_STATEFUL_DOMAINS:-localhost,*.trycloudflare.com}"
+      SESSION_DOMAIN: "${SESSION_DOMAIN:-}"
+      SESSION_SECURE_COOKIE: ${SESSION_SECURE_COOKIE:-false}
+      SESSION_SAME_SITE: ${SESSION_SAME_SITE:-lax}
+      LOG_LEVEL: ${LOG_LEVEL:-warning}
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: ${POSTGRES_DB:-izdaji_iznajmi}
+      DB_USERNAME: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      BROADCAST_CONNECTION: reverb
+      REVERB_APP_ID: ${REVERB_APP_ID:-local}
+      REVERB_APP_KEY: ${REVERB_APP_KEY:-local}
+      REVERB_APP_SECRET: ${REVERB_APP_SECRET:-local}
+      REVERB_HOST: reverb
+      REVERB_PORT: 8080
+      REVERB_SCHEME: http
+      REVERB_ALLOWED_ORIGINS: "${REVERB_ALLOWED_ORIGINS:-localhost,*.trycloudflare.com}"
+      SEARCH_DRIVER: meili
+      MEILISEARCH_HOST: http://meilisearch:7700
+      MEILISEARCH_KEY: ${MEILISEARCH_KEY:-change-me}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      meilisearch:
+        condition: service_started
+    command: ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
+
+  queue:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    working_dir: /app
+    volumes:
+      - ./backend:/app
+      - backend-vendor-prod:/app/vendor
+      - backend-storage-prod:/app/storage
+    environment:
+      APP_ENV: production
+      APP_DEBUG: "false"
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: ${POSTGRES_DB:-izdaji_iznajmi}
+      DB_USERNAME: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      BROADCAST_CONNECTION: reverb
+      REVERB_APP_ID: ${REVERB_APP_ID:-local}
+      REVERB_APP_KEY: ${REVERB_APP_KEY:-local}
+      REVERB_APP_SECRET: ${REVERB_APP_SECRET:-local}
+      REVERB_HOST: reverb
+      REVERB_PORT: 8080
+      REVERB_SCHEME: http
+      SKIP_COMPOSER_INSTALL: "1"
+      SEARCH_DRIVER: meili
+      MEILISEARCH_HOST: http://meilisearch:7700
+      MEILISEARCH_KEY: ${MEILISEARCH_KEY:-change-me}
+    depends_on:
+      backend:
+        condition: service_started
+      meilisearch:
+        condition: service_started
+    command: ["php", "artisan", "queue:work", "--sleep=3", "--tries=1"]
+
+  scheduler:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    working_dir: /app
+    volumes:
+      - ./backend:/app
+      - backend-vendor-prod:/app/vendor
+      - backend-storage-prod:/app/storage
+    environment:
+      APP_ENV: production
+      APP_DEBUG: "false"
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: ${POSTGRES_DB:-izdaji_iznajmi}
+      DB_USERNAME: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      SKIP_COMPOSER_INSTALL: "1"
+      SEARCH_DRIVER: meili
+      MEILISEARCH_HOST: http://meilisearch:7700
+      MEILISEARCH_KEY: ${MEILISEARCH_KEY:-change-me}
+    depends_on:
+      backend:
+        condition: service_started
+      meilisearch:
+        condition: service_started
+    command: ["php", "artisan", "schedule:work"]
+
+  reverb:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    working_dir: /app
+    volumes:
+      - ./backend:/app
+      - backend-vendor-prod:/app/vendor
+      - backend-storage-prod:/app/storage
+    environment:
+      APP_ENV: production
+      APP_DEBUG: "false"
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: ${POSTGRES_DB:-izdaji_iznajmi}
+      DB_USERNAME: ${POSTGRES_USER:-postgres}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      REVERB_APP_ID: ${REVERB_APP_ID:-local}
+      REVERB_APP_KEY: ${REVERB_APP_KEY:-local}
+      REVERB_APP_SECRET: ${REVERB_APP_SECRET:-local}
+      REVERB_SERVER_HOST: 0.0.0.0
+      REVERB_SERVER_PORT: 8080
+      REVERB_ALLOWED_ORIGINS: "${REVERB_ALLOWED_ORIGINS:-localhost,*.trycloudflare.com}"
+      SKIP_COMPOSER_INSTALL: "1"
+    depends_on:
+      backend:
+        condition: service_started
+    command: ["php", "artisan", "reverb:start", "--host=0.0.0.0", "--port=8080"]
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    working_dir: /app
+    volumes:
+      - ./frontend:/app
+      - frontend-node-modules-prod:/app/node_modules
+    environment:
+      VITE_API_BASE_URL: ""
+      VITE_USE_MOCK_API: "false"
+      VITE_SEARCH_V2: ${VITE_SEARCH_V2:-true}
+      VITE_REVERB_APP_KEY: ${REVERB_APP_KEY:-local}
+      VITE_REVERB_HOST: ""
+      VITE_REVERB_PORT: "80"
+      VITE_REVERB_SCHEME: "http"
+      VITE_ALLOWED_HOSTS: ${VITE_ALLOWED_HOSTS:-localhost,127.0.0.1,.trycloudflare.com}
+      NODE_OPTIONS: --dns-result-order=ipv4first
+    depends_on:
+      backend:
+        condition: service_started
+      reverb:
+        condition: service_started
+    command: ["sh", "-lc", "if [ ! -x node_modules/.bin/vite ]; then npm ci; fi; npm run build && npm run preview -- --host 0.0.0.0 --port 4173"]
+
+  gateway:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./ops/nginx-docker-production.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      frontend:
+        condition: service_started
+      backend:
+        condition: service_started
+      reverb:
+        condition: service_started
+
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command: ["tunnel", "--no-autoupdate", "--url", "http://gateway:80"]
+    depends_on:
+      gateway:
+        condition: service_started
+    profiles: ["public"]
+
+  meilisearch:
+    image: getmeili/meilisearch:v1.8
+    restart: unless-stopped
+    environment:
+      MEILI_MASTER_KEY: ${MEILISEARCH_KEY:-change-me}
+    volumes:
+      - meili-data-prod:/meili_data
+
+volumes:
+  postgres-data-prod:
+  backend-vendor-prod:
+  backend-storage-prod:
+  frontend-node-modules-prod:
+  meili-data-prod:

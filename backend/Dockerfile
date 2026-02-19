@@ -20,8 +20,10 @@ RUN chmod +x /usr/local/bin/install-php-extensions \
     intl \
     mbstring \
     pcntl \
+    pdo_pgsql \
     pdo_mysql \
     pdo_sqlite \
+    pgsql \
     sqlite3 \
     zip
 

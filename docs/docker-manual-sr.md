@@ -87,6 +87,45 @@ docker compose down -v
 - Frontend: `http://localhost:5173`
 - Meili: `http://localhost:7700`
 
+
+
+## Production compose (odvojeno od lokalnog razvoja)
+- Production fajl: `docker-compose.production.yml`
+- Env template: `.env.production.compose.example`
+- Priprema env:
+```bash
+cp .env.production.compose.example .env.production.compose
+```
+- Start production stack:
+```bash
+docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml up -d --build
+```
+- Inicijalne migracije:
+```bash
+docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml exec backend php artisan migrate --force
+```
+- Provera health endpoint-a (preko gateway-a):
+```bash
+curl -f http://localhost/api/v1/health
+```
+- Javno izlaganje (Cloudflare Quick Tunnel, bez otvaranja portova na ruteru):
+```bash
+docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml --profile public up -d tunnel
+```
+- Pracenje logova tunela (URL ce biti `https://...trycloudflare.com`):
+```bash
+docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml logs -f tunnel
+```
+- Jednokratno citanje javnog URL-a:
+```bash
+docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml logs tunnel | grep -oE 'https://[a-z0-9-]+\\.trycloudflare\\.com' | head -n 1
+```
+- Napomena: `trycloudflare` URL se obicno menja nakon restarta tunnel servisa.
+- Stop production stack:
+```bash
+docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml down
+```
+
 ## Watch (docker compose)
 - `Watch` je opcija koja prati promene i automatski radi sync/rebuild.
 - U ovom projektu nije neophodan zbog bind mount-ova (`backend/`, `frontend/`).
