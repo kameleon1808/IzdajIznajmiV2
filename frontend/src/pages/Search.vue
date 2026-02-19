@@ -11,13 +11,20 @@ import Button from '../components/ui/Button.vue'
 import EmptyState from '../components/ui/EmptyState.vue'
 import ListSkeleton from '../components/ui/ListSkeleton.vue'
 import ErrorState from '../components/ui/ErrorState.vue'
-import { geocodeLocation, suggestLocations, suggestSearch } from '../services'
+import { geocodeLocation, getFacilitiesCatalog, suggestLocations, suggestSearch } from '../services'
 import { defaultFilters, useListingsStore } from '../stores/listings'
 import { useSavedSearchesStore } from '../stores/savedSearches'
 import { useToastStore } from '../stores/toast'
 import { useAuthStore } from '../stores/auth'
 import { useLanguageStore } from '../stores/language'
-import type { ListingFilters, SavedSearch, SearchSuggestion } from '../types'
+import type { Listing, ListingFilters, SavedSearch, SearchSuggestion } from '../types'
+import {
+  LISTING_AMENITIES,
+  LISTING_AMENITY_LABEL_KEY,
+  normalizeListingAmenity,
+  normalizeListingFacilityValue,
+  normalizeListingAmenities,
+} from '../constants/listingAmenities'
 
 const MapExplorer = defineAsyncComponent(() => import('../components/search/MapExplorer.vue'))
 
@@ -40,6 +47,7 @@ const geocodeError = ref('')
 const suggestLoading = ref(false)
 const suggestions = ref<SearchSuggestion[]>([])
 const showSuggestions = ref(false)
+const facilityOptions = ref<string[]>([...LISTING_AMENITIES])
 const defaultCenter = { lat: 44.8125, lng: 20.4612 } // Belgrade
 type FilterDraft = ListingFilters & {
   areaRange: [number, number]
@@ -48,16 +56,13 @@ type FilterDraft = ListingFilters & {
   areaMinInput: string
   areaMaxInput: string
   roomsInput: string
+  bathsInput: string
+  floorInput: string
 }
 
 const amenityLabel = (value: string) => {
-  if (value === 'Pool') return t('amenities.pool')
-  if (value === 'Spa') return t('amenities.spa')
-  if (value === 'Wi-Fi') return t('amenities.wifi')
-  if (value === 'Breakfast') return t('amenities.breakfast')
-  if (value === 'Parking') return t('amenities.parking')
-  if (value === 'Kitchen') return t('amenities.kitchen')
-  if (value === 'Workspace') return t('amenities.workspace')
+  const normalized = normalizeListingAmenity(value)
+  if (normalized) return t(LISTING_AMENITY_LABEL_KEY[normalized])
   return value
 }
 
@@ -77,6 +82,49 @@ const suggestionTypeLabel = (value: SearchSuggestion['type']) => {
   return t('search.suggestion.query')
 }
 
+const categoryOptions: Listing['category'][] = ['apartment', 'house', 'hotel', 'villa']
+const heatingOptions: NonNullable<Listing['heating']>[] = ['centralno', 'gas', 'elektricno', 'cvrsta_goriva', 'podno', 'etazno', 'toplotne_pumpe']
+const conditionOptions: NonNullable<Listing['condition']>[] = ['stara_gradnja', 'novogradnja', 'izvorno_stanje']
+const furnishingOptions: NonNullable<Listing['furnishing']>[] = ['namesten', 'polunamesten', 'nenamesten']
+
+const categoryLabel = (value: Listing['category']) => {
+  if (value === 'villa') return t('listing.categoryVilla')
+  if (value === 'hotel') return t('listing.categoryHotel')
+  if (value === 'house') return t('listing.categoryHouse')
+  return t('listing.categoryApartment')
+}
+
+const heatingLabel = (value: NonNullable<Listing['heating']>) => {
+  const map: Record<NonNullable<Listing['heating']>, Parameters<typeof languageStore.t>[0]> = {
+    centralno: 'listingForm.heating.centralno',
+    gas: 'listingForm.heating.gas',
+    elektricno: 'listingForm.heating.elektricno',
+    cvrsta_goriva: 'listingForm.heating.cvrstaGoriva',
+    podno: 'listingForm.heating.podno',
+    etazno: 'listingForm.heating.etazno',
+    toplotne_pumpe: 'listingForm.heating.toplotnePumpe',
+  }
+  return t(map[value])
+}
+
+const conditionLabel = (value: NonNullable<Listing['condition']>) => {
+  const map: Record<NonNullable<Listing['condition']>, Parameters<typeof languageStore.t>[0]> = {
+    novogradnja: 'listingForm.condition.novogradnja',
+    stara_gradnja: 'listingForm.condition.staraGradnja',
+    izvorno_stanje: 'listingForm.condition.izvornoStanje',
+  }
+  return t(map[value])
+}
+
+const furnishingLabel = (value: NonNullable<Listing['furnishing']>) => {
+  const map: Record<NonNullable<Listing['furnishing']>, Parameters<typeof languageStore.t>[0]> = {
+    namesten: 'listingForm.furnishing.namesten',
+    polunamesten: 'listingForm.furnishing.polunamesten',
+    nenamesten: 'listingForm.furnishing.nenamesten',
+  }
+  return t(map[value])
+}
+
 const buildFilterDraft = (filters: ListingFilters): FilterDraft => {
   const priceRange = filters.priceRange ?? defaultFilters.priceRange
   const areaRange = filters.areaRange ?? defaultFilters.areaRange ?? [0, 100000]
@@ -88,8 +136,15 @@ const buildFilterDraft = (filters: ListingFilters): FilterDraft => {
   return {
     ...filters,
     priceRange: [...priceRange] as [number, number],
-    facilities: [...filters.facilities],
-    amenities: [...(filters.amenities ?? [])],
+    facilities: normalizeListingAmenities(filters.facilities),
+    amenities: normalizeListingAmenities(filters.amenities ?? []),
+    baths: filters.baths ?? defaultFilters.baths,
+    floor: filters.floor ?? defaultFilters.floor,
+    heating: filters.heating ?? defaultFilters.heating,
+    condition: filters.condition ?? defaultFilters.condition,
+    furnishing: filters.furnishing ?? defaultFilters.furnishing,
+    notLastFloor: Boolean(filters.notLastFloor),
+    notGroundFloor: Boolean(filters.notGroundFloor),
     areaRange: [...areaRange] as [number, number],
     radiusKm: filters.radiusKm ?? defaultFilters.radiusKm,
     priceMinInput: priceRange[0] !== defaultPriceMin ? String(priceRange[0]) : '',
@@ -97,6 +152,8 @@ const buildFilterDraft = (filters: ListingFilters): FilterDraft => {
     areaMinInput: areaRange[0] !== defaultAreaMin ? String(areaRange[0]) : '',
     areaMaxInput: areaRange[1] !== defaultAreaMax ? String(areaRange[1]) : '',
     roomsInput: filters.rooms ? String(filters.rooms) : '',
+    bathsInput: filters.baths ? String(filters.baths) : '',
+    floorInput: filters.floor != null ? String(filters.floor) : '',
   }
 }
 
@@ -117,7 +174,9 @@ const debouncedSuggest = useDebounceFn(async () => {
   await fetchSuggestions()
 }, 250)
 const searchV2Enabled = computed(() => import.meta.env.VITE_SEARCH_V2 === 'true')
-const facetsEnabled = computed(() => searchV2Enabled.value && viewMode.value === 'list')
+const facetsEnabled = computed(
+  () => searchV2Enabled.value && viewMode.value === 'list' && listingsStore.searchResultSource === 'v2',
+)
 const searchFacets = computed(() => listingsStore.searchFacets)
 
 const results = computed(() => listingsStore.searchResults)
@@ -158,13 +217,32 @@ const facetRoomsOptions = computed(() => {
 
   return cumulative.slice(0, 6).map(({ value, count }) => ({ value, count }))
 })
-const facetAmenityOptions = computed(() => (searchFacets.value.amenities ?? []).slice(0, 10))
+const facetAmenityOptions = computed(() => {
+  const counts = new Map<string, number>()
+
+  for (const item of searchFacets.value.amenities ?? []) {
+    const normalized = normalizeListingFacilityValue(item.value)
+    if (!normalized) continue
+    counts.set(normalized, (counts.get(normalized) ?? 0) + item.count)
+  }
+
+  const options = facilityOptions.value.length ? [...facilityOptions.value] : [...LISTING_AMENITIES]
+  for (const value of counts.keys()) {
+    if (!options.includes(value)) options.push(value)
+  }
+
+  return options
+    .map((value) => ({ value, count: counts.get(value) ?? 0 }))
+    .filter((item) => item.count > 0)
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 10)
+})
 const facetPriceOptions = computed(() => searchFacets.value.price_bucket ?? [])
 const facetAreaOptions = computed(() => searchFacets.value.area_bucket ?? [])
 
 const buildSavedSearchFilters = () => {
   const f = listingsStore.filters
-  const amenities = f.amenities?.length ? f.amenities : f.facilities
+  const amenities = normalizeListingAmenities(f.amenities?.length ? f.amenities : f.facilities)
   return {
     category: f.category,
     guests: f.guests,
@@ -172,6 +250,13 @@ const buildSavedSearchFilters = () => {
     priceMax: f.priceRange?.[1],
     priceBucket: f.priceBucket ?? null,
     rooms: f.rooms,
+    baths: f.baths,
+    floor: f.floor,
+    heating: f.heating,
+    condition: f.condition,
+    furnishing: f.furnishing,
+    notLastFloor: Boolean(f.notLastFloor),
+    notGroundFloor: Boolean(f.notGroundFloor),
     areaMin: f.areaRange?.[0],
     areaMax: f.areaRange?.[1],
     areaBucket: f.areaBucket ?? null,
@@ -204,6 +289,13 @@ const applySavedSearch = async (savedSearch: SavedSearch) => {
     ] as [number, number],
     priceBucket: filters.priceBucket ?? null,
     rooms: filters.rooms ?? null,
+    baths: filters.baths ?? defaultFilters.baths,
+    floor: filters.floor ?? defaultFilters.floor,
+    heating: filters.heating ?? defaultFilters.heating,
+    condition: filters.condition ?? defaultFilters.condition,
+    furnishing: filters.furnishing ?? defaultFilters.furnishing,
+    notLastFloor: Boolean(filters.notLastFloor),
+    notGroundFloor: Boolean(filters.notGroundFloor),
     areaRange: [
       filters.areaMin ?? defaultFilters.areaRange?.[0] ?? 0,
       filters.areaMax ?? defaultFilters.areaRange?.[1] ?? 100000,
@@ -212,8 +304,8 @@ const applySavedSearch = async (savedSearch: SavedSearch) => {
     instantBook: Boolean(filters.instantBook),
     location: filters.location ?? '',
     city: filters.city ?? '',
-    facilities: filters.amenities ?? filters.facilities ?? [],
-    amenities: filters.amenities ?? filters.facilities ?? [],
+    facilities: normalizeListingAmenities(filters.amenities ?? filters.facilities ?? []),
+    amenities: normalizeListingAmenities(filters.amenities ?? filters.facilities ?? []),
     rating: filters.rating ?? null,
     status: filters.status ?? defaultFilters.status,
     centerLat: filters.centerLat ?? null,
@@ -345,6 +437,15 @@ const hydrateFromRoute = () => {
   if (query.priceBucket) parsed.priceBucket = String(query.priceBucket)
   const rooms = parseQueryNumber(query.rooms)
   if (rooms !== null) parsed.rooms = rooms
+  const baths = parseQueryNumber(query.baths)
+  if (baths !== null) parsed.baths = baths
+  const floor = parseQueryNumber(query.floor)
+  if (floor !== null) parsed.floor = floor
+  if (typeof query.heating === 'string') parsed.heating = query.heating as Listing['heating']
+  if (typeof query.condition === 'string') parsed.condition = query.condition as Listing['condition']
+  if (typeof query.furnishing === 'string') parsed.furnishing = query.furnishing as Listing['furnishing']
+  if (query.notLastFloor != null) parsed.notLastFloor = query.notLastFloor === '1' || query.notLastFloor === 'true'
+  if (query.notGroundFloor != null) parsed.notGroundFloor = query.notGroundFloor === '1' || query.notGroundFloor === 'true'
   const areaMin = parseQueryNumber(query.areaMin)
   const areaMax = parseQueryNumber(query.areaMax)
   if (areaMin !== null || areaMax !== null) {
@@ -383,6 +484,8 @@ const hydrateFromRoute = () => {
   if (!nextFilters.facilities?.length && nextFilters.amenities?.length) {
     nextFilters.facilities = [...nextFilters.amenities]
   }
+  nextFilters.facilities = normalizeListingAmenities(nextFilters.facilities ?? [])
+  nextFilters.amenities = normalizeListingAmenities(nextFilters.amenities ?? nextFilters.facilities ?? [])
   listingsStore.setFilters(nextFilters, { fetch: false })
 
   syncLocalFilters()
@@ -404,6 +507,13 @@ const buildQueryFromState = () => {
   if (f.location) nextQuery.location = f.location
   if (f.city) nextQuery.city = f.city
   if (f.rooms) nextQuery.rooms = f.rooms
+  if (f.baths) nextQuery.baths = f.baths
+  if (f.floor != null) nextQuery.floor = f.floor
+  if (f.heating) nextQuery.heating = f.heating
+  if (f.condition) nextQuery.condition = f.condition
+  if (f.furnishing) nextQuery.furnishing = f.furnishing
+  if (f.notLastFloor) nextQuery.notLastFloor = '1'
+  if (f.notGroundFloor) nextQuery.notGroundFloor = '1'
   if (f.areaRange?.[0] !== defaultFilters.areaRange?.[0]) nextQuery.areaMin = f.areaRange?.[0]
   if (f.areaRange?.[1] !== defaultFilters.areaRange?.[1]) nextQuery.areaMax = f.areaRange?.[1]
   if (viewMode.value === 'list' && f.areaBucket) nextQuery.areaBucket = f.areaBucket
@@ -500,9 +610,12 @@ const selectSuggestion = async (item: SearchSuggestion) => {
     listingsStore.setFilters({ city: item.value }, { fetch: false })
   }
   if (item.type === 'amenity') {
-    const current = new Set(listingsStore.filters.amenities ?? [])
-    current.add(item.value)
-    listingsStore.setFilters({ amenities: Array.from(current) }, { fetch: false })
+    const normalized = normalizeListingFacilityValue(item.value)
+    if (normalized) {
+      const current = new Set(listingsStore.filters.amenities ?? [])
+      current.add(normalized)
+      listingsStore.setFilters({ amenities: Array.from(current), facilities: Array.from(current) }, { fetch: false })
+    }
   }
   syncLocalFilters()
   showSuggestions.value = false
@@ -553,6 +666,8 @@ const applyFilters = async () => {
     areaMinInput,
     areaMaxInput,
     roomsInput,
+    bathsInput,
+    floorInput,
     ...rest
   } = localFilters.value
   const priceMin = parseOptionalNumber(priceMinInput)
@@ -560,6 +675,8 @@ const applyFilters = async () => {
   const areaMin = parseOptionalNumber(areaMinInput)
   const areaMax = parseOptionalNumber(areaMaxInput)
   const rooms = parseOptionalNumber(roomsInput)
+  const baths = parseOptionalNumber(bathsInput)
+  const floor = parseOptionalNumber(floorInput)
   const nextFilters: ListingFilters = {
     ...rest,
     priceRange: [
@@ -571,6 +688,13 @@ const applyFilters = async () => {
       areaMax ?? (defaultFilters.areaRange?.[1] ?? 100000),
     ] as [number, number],
     rooms: rooms ?? null,
+    baths: baths ?? null,
+    floor: floor ?? null,
+    heating: rest.heating ?? null,
+    condition: rest.condition ?? null,
+    furnishing: rest.furnishing ?? null,
+    notLastFloor: Boolean(rest.notLastFloor),
+    notGroundFloor: Boolean(rest.notGroundFloor),
   }
   if (viewMode.value === 'map') {
     nextFilters.priceBucket = null
@@ -579,6 +703,8 @@ const applyFilters = async () => {
   }
   nextFilters.amenities = [...(nextFilters.amenities ?? nextFilters.facilities ?? [])]
   nextFilters.facilities = [...(nextFilters.amenities ?? [])]
+  nextFilters.amenities = normalizeListingAmenities(nextFilters.amenities)
+  nextFilters.facilities = normalizeListingAmenities(nextFilters.facilities)
   listingsStore.setFilters(nextFilters)
   filterOpen.value = false
   await runSearch()
@@ -610,13 +736,28 @@ const clearCityFacet = async () => {
 }
 
 const toggleAmenityFacet = async (value: string) => {
+  const normalized = normalizeListingFacilityValue(value)
+  if (!normalized) return
   const current = new Set(listingsStore.filters.amenities ?? [])
-  if (current.has(value)) {
-    current.delete(value)
+  if (current.has(normalized)) {
+    current.delete(normalized)
   } else {
-    current.add(value)
+    current.add(normalized)
   }
-  await applyFacetFilters({ amenities: Array.from(current) })
+  const normalizedList = normalizeListingAmenities(Array.from(current))
+  await applyFacetFilters({ amenities: normalizedList, facilities: normalizedList })
+}
+
+const loadFacilitiesOptions = async () => {
+  try {
+    const names = await getFacilitiesCatalog()
+    const normalized = normalizeListingAmenities(names)
+    if (normalized.length) {
+      facilityOptions.value = normalized
+    }
+  } catch {
+    facilityOptions.value = [...LISTING_AMENITIES]
+  }
 }
 
 const selectRoomsFacet = async (value: string) => {
@@ -683,6 +824,7 @@ const setViewMode = async (mode: 'list' | 'map') => {
 }
 
 onMounted(async () => {
+  await loadFacilitiesOptions()
   hydrateFromRoute()
   await listingsStore.fetchRecommended()
   await listingsStore.fetchPopular()
@@ -1132,6 +1274,34 @@ watch(
         </label>
       </div>
 
+      <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+        <div class="space-y-2">
+          <p class="font-semibold text-slate-900">{{ t('filters.category') }}</p>
+          <label class="flex items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow-soft border border-white/70 mt-2">
+            <select
+              v-model="localFilters.category"
+              class="flex-1 bg-transparent text-sm font-medium text-slate-900 focus:outline-none"
+            >
+              <option value="all">{{ t('filters.any') }}</option>
+              <option v-for="category in categoryOptions" :key="category" :value="category">
+                {{ categoryLabel(category) }}
+              </option>
+            </select>
+          </label>
+        </div>
+        <div class="space-y-2">
+          <p class="font-semibold text-slate-900">{{ t('listingForm.furnishing') }}</p>
+          <label class="flex items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow-soft border border-white/70 mt-2">
+            <select v-model="localFilters.furnishing" class="flex-1 bg-transparent text-sm font-medium text-slate-900 focus:outline-none">
+              <option :value="null">{{ t('filters.any') }}</option>
+              <option v-for="furnishing in furnishingOptions" :key="furnishing" :value="furnishing">
+                {{ furnishingLabel(furnishing) }}
+              </option>
+            </select>
+          </label>
+        </div>
+      </div>
+
       <div class="space-y-2">
         <div class="flex items-center justify-between">
           <p class="font-semibold text-slate-900">{{ t('search.priceRange') }}</p>
@@ -1193,27 +1363,57 @@ watch(
         </div>
       </div>
 
-      <div class="space-y-2">
-        <div class="flex items-center justify-between">
-          <p class="font-semibold text-slate-900">{{ t('filters.rooms') }}</p>
-          <span class="text-sm text-muted">{{ localFilters.roomsInput || t('filters.any') }}</span>
+      <div class="grid grid-cols-2 gap-3">
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <p class="font-semibold text-slate-900">{{ t('filters.rooms') }}</p>
+            <span class="text-sm text-muted">{{ localFilters.roomsInput || t('filters.any') }}</span>
+          </div>
+          <label class="flex items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow-soft border border-white/70">
+            <input
+              v-model="localFilters.roomsInput"
+              :placeholder="t('filters.any')"
+              type="number"
+              class="flex-1 bg-transparent text-sm font-medium text-slate-900 placeholder:text-muted focus:outline-none"
+              min="0"
+            />
+          </label>
         </div>
-        <label class="flex items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow-soft border border-white/70">
-          <input
-            v-model="localFilters.roomsInput"
-            :placeholder="t('filters.any')"
-            type="number"
-            class="flex-1 bg-transparent text-sm font-medium text-slate-900 placeholder:text-muted focus:outline-none"
-            min="0"
-          />
-        </label>
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <p class="font-semibold text-slate-900">{{ t('filters.guests') }}</p>
+            <span class="text-sm text-muted">{{ localFilters.guests }} {{ t('search.people') }}</span>
+          </div>
+          <div class="flex gap-2">
+            <button
+              type="button"
+              class="inline-flex items-center justify-center rounded-full font-semibold transition shadow-soft bg-white text-slate-900 border border-line hover:border-primary/50 h-12 px-4 text-sm"
+              @click="localFilters.guests = Math.max(1, localFilters.guests - 1)"
+            >
+              -
+            </button>
+            <button
+              type="button"
+              class="inline-flex items-center justify-center rounded-full font-semibold transition shadow-soft bg-white text-slate-900 border border-line hover:border-primary/50 h-12 px-4 text-sm flex-1"
+            >
+              {{ localFilters.guests }}
+            </button>
+            <button
+              type="button"
+              class="inline-flex items-center justify-center rounded-full font-semibold transition shadow-soft bg-white text-slate-900 border border-line hover:border-primary/50 h-12 px-4 text-sm"
+              @click="localFilters.guests = localFilters.guests + 1"
+            >
+              +
+            </button>
+          </div>
+        </div>
       </div>
 
       <div class="space-y-2">
         <p class="font-semibold text-slate-900">{{ t('filters.amenities') }}</p>
         <div class="grid grid-cols-2 gap-2">
           <label
-            v-for="facility in ['Pool', 'Spa', 'Wi-Fi', 'Breakfast', 'Parking', 'Kitchen', 'Workspace']"
+            v-for="facility in facilityOptions"
             :key="facility"
             class="flex items-center gap-2 rounded-xl border border-line px-3 py-2 text-sm font-semibold text-slate-800"
           >
@@ -1223,33 +1423,72 @@ watch(
         </div>
       </div>
 
+      <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <p class="font-semibold text-slate-900">{{ t('listingForm.baths') }}</p>
+            <span class="text-sm text-muted">{{ localFilters.bathsInput || t('filters.any') }}</span>
+          </div>
+          <label class="flex items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow-soft border border-white/70">
+            <input
+              v-model="localFilters.bathsInput"
+              :placeholder="t('filters.any')"
+              type="number"
+              class="flex-1 bg-transparent text-sm font-medium text-slate-900 placeholder:text-muted focus:outline-none"
+              min="0"
+            />
+          </label>
+        </div>
+        <div class="space-y-2">
+          <div class="flex items-center justify-between">
+            <p class="font-semibold text-slate-900">{{ t('listingForm.floor') }}</p>
+            <span class="text-sm text-muted">{{ localFilters.floorInput || t('filters.any') }}</span>
+          </div>
+          <label class="flex items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow-soft border border-white/70">
+            <input
+              v-model="localFilters.floorInput"
+              :placeholder="t('filters.any')"
+              type="number"
+              class="flex-1 bg-transparent text-sm font-medium text-slate-900 placeholder:text-muted focus:outline-none"
+              min="0"
+            />
+          </label>
+        </div>
+      </div>
+
       <div class="space-y-2">
-        <div class="flex items-center justify-between">
-          <p class="font-semibold text-slate-900">{{ t('filters.guests') }}</p>
-          <span class="text-sm text-muted">{{ localFilters.guests }} {{ t('search.people') }}</span>
-        </div>
-        <div class="flex gap-2">
-          <button
-            type="button"
-            class="inline-flex items-center justify-center rounded-full font-semibold transition shadow-soft bg-white text-slate-900 border border-line hover:border-primary/50 h-12 px-5 text-sm"
-            @click="localFilters.guests = Math.max(1, localFilters.guests - 1)"
-          >
-            -
-          </button>
-          <button
-            type="button"
-            class="inline-flex items-center justify-center rounded-full font-semibold transition shadow-soft bg-white text-slate-900 border border-line hover:border-primary/50 h-12 px-5 text-sm flex-1"
-          >
-            {{ localFilters.guests }}
-          </button>
-          <button
-            type="button"
-            class="inline-flex items-center justify-center rounded-full font-semibold transition shadow-soft bg-white text-slate-900 border border-line hover:border-primary/50 h-12 px-5 text-sm"
-            @click="localFilters.guests = localFilters.guests + 1"
-          >
-            +
-          </button>
-        </div>
+        <p class="font-semibold text-slate-900">{{ t('listingForm.heating') }}</p>
+        <label class="flex items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow-soft border border-white/70">
+          <select v-model="localFilters.heating" class="flex-1 bg-transparent text-sm font-medium text-slate-900 focus:outline-none">
+            <option :value="null">{{ t('filters.any') }}</option>
+            <option v-for="heating in heatingOptions" :key="heating" :value="heating">
+              {{ heatingLabel(heating) }}
+            </option>
+          </select>
+        </label>
+      </div>
+
+      <div class="space-y-2">
+        <p class="font-semibold text-slate-900">{{ t('listingForm.condition') }}</p>
+        <label class="flex items-center gap-3 rounded-2xl bg-white px-4 py-3 shadow-soft border border-white/70">
+          <select v-model="localFilters.condition" class="flex-1 bg-transparent text-sm font-medium text-slate-900 focus:outline-none">
+            <option :value="null">{{ t('filters.any') }}</option>
+            <option v-for="condition in conditionOptions" :key="condition" :value="condition">
+              {{ conditionLabel(condition) }}
+            </option>
+          </select>
+        </label>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <label class="flex items-center gap-3 rounded-xl border border-line px-3 py-3 text-sm font-semibold text-slate-900">
+          <input v-model="localFilters.notLastFloor" type="checkbox" class="h-4 w-4 accent-primary" />
+          {{ t('listingForm.notLastFloor') }}
+        </label>
+        <label class="flex items-center gap-3 rounded-xl border border-line px-3 py-3 text-sm font-semibold text-slate-900">
+          <input v-model="localFilters.notGroundFloor" type="checkbox" class="h-4 w-4 accent-primary" />
+          {{ t('listingForm.notGroundFloor') }}
+        </label>
       </div>
 
       <div class="flex items-center justify-between rounded-2xl bg-surface px-4 py-3">

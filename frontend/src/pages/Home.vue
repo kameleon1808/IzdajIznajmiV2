@@ -61,7 +61,7 @@ const retryHome = async () => {
   <section class="space-y-6 lg:space-y-8">
     <ErrorState v-if="error" :message="error" :retry-label="t('home.retry')" @retry="retryHome" />
 
-    <HomeFiltersCard class="lg:hidden" :accent="true" />
+    <HomeFiltersCard class="lg:hidden" />
 
     <div class="flex items-center justify-between px-1">
       <h2 class="section-title">{{ t('home.mostPopular') }}</h2>
@@ -89,8 +89,8 @@ const retryHome = async () => {
       </button>
     </div>
 
-    <div class="space-y-3 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0">
-      <ListSkeleton v-if="loading && !recommended.length" :count="3" class="lg:col-span-2" />
+    <div class="space-y-3">
+      <ListSkeleton v-if="loading && !recommended.length" :count="3" />
       <div v-for="item in recommended" :key="item.id" class="space-y-1">
         <ListingCardHorizontal
           :listing="item"
@@ -106,7 +106,6 @@ const retryHome = async () => {
         v-if="!loading && !recommended.length && !error"
         :title="t('home.noStaysYet')"
         :subtitle="t('home.tryAdjusting')"
-        class="lg:col-span-2"
       />
     </div>
   </section>

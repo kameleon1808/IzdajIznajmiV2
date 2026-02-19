@@ -2,7 +2,9 @@
 
 namespace App\Http\Requests;
 
+use App\Models\Listing;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class UpdateListingRequest extends FormRequest
 {
@@ -26,7 +28,7 @@ class UpdateListingRequest extends FormRequest
         return [
             'title' => ['sometimes', 'string', 'max:255'],
             'pricePerNight' => ['sometimes', 'integer', 'min:1'],
-            'category' => ['sometimes', 'in:villa,hotel,apartment'],
+            'category' => ['sometimes', Rule::in(Listing::CATEGORY_VALUES)],
             'city' => ['sometimes', 'string', 'max:255'],
             'country' => ['sometimes', 'string', 'max:255'],
             'address' => ['sometimes', 'string', 'max:255'],
@@ -35,6 +37,12 @@ class UpdateListingRequest extends FormRequest
             'baths' => ['sometimes', 'integer', 'min:1', 'max:50'],
             'rooms' => ['sometimes', 'integer', 'min:1', 'max:50'],
             'area' => ['sometimes', 'integer', 'min:10', 'max:100000'],
+            'floor' => ['sometimes', 'integer', 'min:0', 'max:200'],
+            'notLastFloor' => ['sometimes', 'boolean'],
+            'notGroundFloor' => ['sometimes', 'boolean'],
+            'heating' => ['sometimes', Rule::in(Listing::HEATING_VALUES)],
+            'condition' => ['sometimes', Rule::in(Listing::CONDITION_VALUES)],
+            'furnishing' => ['sometimes', Rule::in(Listing::FURNISHING_VALUES)],
             'images' => ['sometimes', 'array', 'max:10'],
             'images.*' => ['image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
             'keepImages' => ['sometimes', 'array'],

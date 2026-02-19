@@ -117,10 +117,24 @@ class ListingsApiTest extends TestCase
             'description' => str_repeat('Nice place. ', 3),
             'beds' => 2,
             'baths' => 2,
+            'floor' => 3,
+            'notLastFloor' => true,
+            'notGroundFloor' => true,
+            'heating' => 'gas',
+            'condition' => 'novogradnja',
+            'furnishing' => 'namesten',
+            'facilities' => ['Lift', 'Terasa'],
             'images' => [$file],
         ], ['Accept' => 'application/json']);
 
         $response->assertCreated()->assertJsonFragment(['title' => 'With Images']);
+        $response->assertJsonPath('floor', 3);
+        $response->assertJsonPath('notLastFloor', true);
+        $response->assertJsonPath('notGroundFloor', true);
+        $response->assertJsonPath('heating', 'gas');
+        $response->assertJsonPath('condition', 'novogradnja');
+        $response->assertJsonPath('furnishing', 'namesten');
+        $this->assertContains('Elevator', $response->json('facilities'));
 
         $listingId = $response->json('id');
         $this->assertNotNull($listingId);

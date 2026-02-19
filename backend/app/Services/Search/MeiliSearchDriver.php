@@ -4,6 +4,7 @@ namespace App\Services\Search;
 
 use App\Models\Listing;
 use App\Services\ListingStatusService;
+use App\Support\ListingAmenityNormalizer;
 use MeiliSearch\Client;
 use Meilisearch\Exceptions\ApiException;
 use Meilisearch\Search\SearchResult;
@@ -105,7 +106,7 @@ class MeiliSearchDriver implements SearchDriver
 
         $amenityFacets = $facetDistribution['amenities'] ?? [];
         foreach (array_keys($amenityFacets) as $amenity) {
-            $value = (string) $amenity;
+            $value = ListingAmenityNormalizer::canonicalize((string) $amenity) ?? (string) $amenity;
             if ($needle === '' || str_contains($this->normalizeSuggestionToken($value), $needle)) {
                 $push($value, 'amenity', $value);
             }
@@ -163,7 +164,9 @@ class MeiliSearchDriver implements SearchDriver
                 $items[] = ['value' => (string) $value, 'count' => (int) $count];
             }
 
-            if (in_array($facet, ['price_bucket', 'area_bucket'], true)) {
+            if ($facet === 'amenities') {
+                $items = ListingAmenityNormalizer::canonicalizeFacetItems($items);
+            } elseif (in_array($facet, ['price_bucket', 'area_bucket'], true)) {
                 $order = $facet === 'price_bucket'
                     ? array_column(ListingSearchBuckets::priceBuckets(), 'label')
                     : array_column(ListingSearchBuckets::areaBuckets(), 'label');
@@ -233,6 +236,16 @@ class MeiliSearchDriver implements SearchDriver
             $clauses[] = 'rooms >= '.(int) $rooms;
         }
 
+        $baths = $filters['baths'] ?? null;
+        if ($baths !== null && $baths !== '') {
+            $clauses[] = 'baths >= '.(int) $baths;
+        }
+
+        $floor = $filters['floor'] ?? null;
+        if ($floor !== null && $floor !== '') {
+            $clauses[] = 'floor = '.(int) $floor;
+        }
+
         $guests = $filters['guests'] ?? null;
         if ($guests !== null && $guests !== '') {
             $clauses[] = 'beds >= '.(int) $guests;
@@ -243,9 +256,48 @@ class MeiliSearchDriver implements SearchDriver
             $clauses[] = sprintf('category = "%s"', $this->escapeFilterValue((string) $category));
         }
 
-        $amenities = $this->normalizeArrayInput($filters['amenities'] ?? $filters['facilities'] ?? []);
+        $heating = $filters['heating'] ?? null;
+        if ($heating !== null && $heating !== '') {
+            $clauses[] = sprintf('heating = "%s"', $this->escapeFilterValue((string) $heating));
+        }
+
+        $condition = $filters['condition'] ?? null;
+        if ($condition !== null && $condition !== '') {
+            $clauses[] = sprintf('condition = "%s"', $this->escapeFilterValue((string) $condition));
+        }
+
+        $furnishing = $filters['furnishing'] ?? null;
+        if ($furnishing !== null && $furnishing !== '') {
+            $clauses[] = sprintf('furnishing = "%s"', $this->escapeFilterValue((string) $furnishing));
+        }
+
+        if (! empty($filters['notLastFloor'])) {
+            $clauses[] = 'not_last_floor = true';
+        }
+
+        if (! empty($filters['notGroundFloor'])) {
+            $clauses[] = 'not_ground_floor = true';
+        }
+
+        $amenities = ListingAmenityNormalizer::canonicalizeMany(
+            $this->normalizeArrayInput($filters['amenities'] ?? $filters['facilities'] ?? [])
+        );
         foreach ($amenities as $amenity) {
-            $clauses[] = sprintf('amenities = "%s"', $this->escapeFilterValue($amenity));
+            $variants = ListingAmenityNormalizer::filterVariants($amenity);
+            if ($variants === []) {
+                continue;
+            }
+
+            if (count($variants) === 1) {
+                $clauses[] = sprintf('amenities = "%s"', $this->escapeFilterValue($variants[0]));
+                continue;
+            }
+
+            $variantClauses = array_map(
+                fn ($variant) => sprintf('amenities = "%s"', $this->escapeFilterValue($variant)),
+                $variants
+            );
+            $clauses[] = '('.implode(' OR ', $variantClauses).')';
         }
 
         $priceBucket = $this->normalizeArrayInput($filters['priceBucket'] ?? $filters['price_bucket'] ?? []);
@@ -324,7 +376,11 @@ class MeiliSearchDriver implements SearchDriver
             'rooms',
             'beds',
             'area',
+            'floor',
             'category',
+            'heating',
+            'condition',
+            'furnishing',
             'amenities',
             'status',
             'owner_id',
@@ -333,6 +389,8 @@ class MeiliSearchDriver implements SearchDriver
             'rating',
             'rating_avg',
             'baths',
+            'not_last_floor',
+            'not_ground_floor',
             'instant_book',
             'cover_image',
             'cover_image_url',
@@ -412,8 +470,15 @@ class MeiliSearchDriver implements SearchDriver
                 'status',
                 'rooms',
                 'beds',
+                'baths',
+                'floor',
                 'category',
+                'heating',
+                'condition',
+                'furnishing',
                 'amenities',
+                'not_last_floor',
+                'not_ground_floor',
                 'price_bucket',
                 'area_bucket',
                 'price_per_night',

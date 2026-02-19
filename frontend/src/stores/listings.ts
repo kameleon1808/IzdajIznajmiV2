@@ -32,6 +32,13 @@ export const defaultFilters: ListingFilters = {
   amenities: [],
   rating: null,
   rooms: null,
+  baths: null,
+  floor: null,
+  heating: null,
+  condition: null,
+  furnishing: null,
+  notLastFloor: false,
+  notGroundFloor: false,
   areaRange: [0, 100000],
   areaBucket: null,
   status: 'all',
@@ -50,6 +57,7 @@ const emptyFacets: ListingSearchFacets = {
 }
 
 const searchV2Enabled = import.meta.env.VITE_SEARCH_V2 === 'true'
+type SearchResultSource = 'v2' | 'legacy'
 
 
 const loadFavorites = (): string[] => {
@@ -73,6 +81,12 @@ type ListingFormInput = {
   baths: number
   rooms?: number
   area?: number
+  floor?: number
+  notLastFloor?: boolean
+  notGroundFloor?: boolean
+  heating?: Listing['heating']
+  condition?: Listing['condition']
+  furnishing?: Listing['furnishing']
   images?: string[]
   description?: string
   lat?: number
@@ -102,6 +116,7 @@ export const useListingsStore = defineStore('listings', {
     mapResults: [] as Listing[],
     searchMeta: null as any,
     searchFacets: { ...emptyFacets } as ListingSearchFacets,
+    searchResultSource: (searchV2Enabled ? 'v2' : 'legacy') as SearchResultSource,
     searchPage: 1,
     recentSearches: ['Bali', 'Barcelona', 'Lisbon'],
     loading: false,
@@ -232,38 +247,62 @@ export const useListingsStore = defineStore('listings', {
         this.favoritesLoading = false
       }
     },
+    async runLegacySearch(query: string, options: { mapMode?: boolean } = {}) {
+      if (options.mapMode) {
+        const [resp, mapResp] = await Promise.all([
+          searchListings(query, this.filters, this.searchPage, 10, options),
+          searchListings(query, this.filters, 1, 300, { ...options, mapMode: true }),
+        ])
+
+        const list = Array.isArray(resp) ? resp : resp.items
+        const mapList = Array.isArray(mapResp) ? mapResp : mapResp.items
+        this.searchMeta = Array.isArray(resp) ? null : resp.meta
+        this.searchFacets = { ...emptyFacets }
+        this.searchResults = this.syncFavorites(list)
+        this.mapResults = this.syncFavorites(mapList)
+        this.searchResultSource = 'legacy'
+        return
+      }
+
+      const resp = await searchListings(query, this.filters, this.searchPage, 10, options)
+      const list = Array.isArray(resp) ? resp : resp.items
+      this.searchMeta = Array.isArray(resp) ? null : resp.meta
+      this.searchFacets = { ...emptyFacets }
+      this.searchResults = this.syncFavorites(list)
+      this.mapResults = []
+      this.searchResultSource = 'legacy'
+    },
     async search(query: string, options: { mapMode?: boolean } = {}) {
       this.loading = true
       this.error = ''
       this.searchPage = 1
       try {
         if (shouldUseSearchV2(options)) {
-          const resp = await searchListingsV2(query, this.filters, this.searchPage, 10)
-          this.searchMeta = resp.meta ?? null
-          this.searchFacets = resp.facets ?? { ...emptyFacets }
-          this.searchResults = this.syncFavorites(resp.items ?? [])
-          this.mapResults = []
-        } else {
-          if (options.mapMode) {
-            const [resp, mapResp] = await Promise.all([
-              searchListings(query, this.filters, this.searchPage, 10, options),
-              searchListings(query, this.filters, 1, 300, { ...options, mapMode: true }),
-            ])
+          let v2Error: Error | null = null
+          try {
+            const resp = await searchListingsV2(query, this.filters, this.searchPage, 10)
+            const items = resp.items ?? []
 
-            const list = Array.isArray(resp) ? resp : resp.items
-            const mapList = Array.isArray(mapResp) ? mapResp : mapResp.items
-            this.searchMeta = Array.isArray(resp) ? null : resp.meta
-            this.searchFacets = { ...emptyFacets }
-            this.searchResults = this.syncFavorites(list)
-            this.mapResults = this.syncFavorites(mapList)
-          } else {
-            const resp = await searchListings(query, this.filters, this.searchPage, 10, options)
-            const list = Array.isArray(resp) ? resp : resp.items
-            this.searchMeta = Array.isArray(resp) ? null : resp.meta
-            this.searchFacets = { ...emptyFacets }
-            this.searchResults = this.syncFavorites(list)
-            this.mapResults = []
+            // In production, stale/unsynced search index can return empty while legacy search still has data.
+            // If V2 returns empty, fall back to legacy search so list mode remains usable.
+            if (!items.length) {
+              await this.runLegacySearch(query, options)
+            } else {
+              this.searchMeta = resp.meta ?? null
+              this.searchFacets = resp.facets ?? { ...emptyFacets }
+              this.searchResults = this.syncFavorites(items)
+              this.mapResults = []
+              this.searchResultSource = 'v2'
+            }
+          } catch (error) {
+            v2Error = error as Error
+            await this.runLegacySearch(query, options)
           }
+          if (v2Error && this.searchResultSource === 'legacy') {
+            this.error = ''
+          }
+        } else {
+          await this.runLegacySearch(query, options)
         }
         if (query.trim() && !this.recentSearches.includes(query)) {
           this.recentSearches = [query, ...this.recentSearches].slice(0, 5)
@@ -273,6 +312,7 @@ export const useListingsStore = defineStore('listings', {
         this.searchResults = []
         this.mapResults = []
         this.searchFacets = { ...emptyFacets }
+        this.searchResultSource = 'legacy'
       } finally {
         this.loading = false
       }
@@ -285,7 +325,7 @@ export const useListingsStore = defineStore('listings', {
       try {
         const currentPage = Number(this.searchMeta?.current_page ?? this.searchMeta?.page ?? this.searchPage)
         const nextPage = currentPage + 1
-        if (shouldUseSearchV2(options)) {
+        if (shouldUseSearchV2(options) && this.searchResultSource === 'v2') {
           const resp = await searchListingsV2(q, this.filters, nextPage, 10)
           this.searchMeta = resp.meta ?? null
           this.searchPage = nextPage

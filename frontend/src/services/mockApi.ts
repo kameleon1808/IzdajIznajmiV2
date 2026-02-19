@@ -24,6 +24,7 @@ import type {
   ViewingRequest,
   ViewingSlot,
 } from '../types'
+import { normalizeListingAmenities } from '../constants/listingAmenities'
 
 const makeId = () =>
   typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -57,7 +58,7 @@ const listings: Listing[] = [
     category: 'villa',
     isFavorite: true,
     instantBook: true,
-    facilities: ['Pool', 'Wi-Fi', 'Ocean View', 'Kitchen', 'Parking'],
+    facilities: ['Terrace', 'Internet', 'Air conditioning', 'Garage', 'Elevator'],
     ownerId: 'landlord-1',
     landlord: { id: 'landlord-1', fullName: 'Lana Landlord', verificationStatus: 'approved', verifiedAt: '2025-12-01T00:00:00Z' },
     createdAt: '2025-11-20T10:00:00Z',
@@ -88,7 +89,7 @@ const listings: Listing[] = [
     category: 'hotel',
     isFavorite: false,
     instantBook: true,
-    facilities: ['Breakfast', 'Wi-Fi', 'Gym', 'Spa', 'Parking'],
+    facilities: ['Internet', 'Cable TV', 'Elevator', 'Air conditioning', 'Phone'],
     ownerId: 'landlord-2',
     landlord: { id: 'landlord-2', fullName: 'Luka Landlord', verificationStatus: 'pending', verifiedAt: null },
     createdAt: '2025-10-11T14:20:00Z',
@@ -119,7 +120,7 @@ const listings: Listing[] = [
     category: 'apartment',
     isFavorite: false,
     instantBook: false,
-    facilities: ['Wi-Fi', 'City View', 'Kitchen', 'Workspace'],
+    facilities: ['Internet', 'Terrace', 'Phone'],
     ownerId: 'landlord-1',
     landlord: { id: 'landlord-1', fullName: 'Lana Landlord', verificationStatus: 'approved', verifiedAt: '2025-12-01T00:00:00Z' },
     createdAt: '2025-09-02T09:15:00Z',
@@ -150,7 +151,7 @@ const listings: Listing[] = [
     category: 'hotel',
     isFavorite: true,
     instantBook: true,
-    facilities: ['Pool', 'Spa', 'Breakfast', 'Wi-Fi', 'Bar'],
+    facilities: ['Internet', 'Air conditioning', 'Elevator', 'Garage', 'Terrace'],
     ownerId: 'landlord-3',
     landlord: { id: 'landlord-3', fullName: 'Liam Landlord', verificationStatus: 'rejected', verifiedAt: null },
     createdAt: '2025-12-05T08:00:00Z',
@@ -181,7 +182,7 @@ const listings: Listing[] = [
     category: 'villa',
     isFavorite: false,
     instantBook: true,
-    facilities: ['Mountain View', 'Fireplace', 'Wi-Fi', 'Parking'],
+    facilities: ['Yard', 'Garage', 'Internet', 'Air conditioning', 'Basement'],
     ownerId: 'landlord-2',
     landlord: { id: 'landlord-2', fullName: 'Luka Landlord', verificationStatus: 'pending', verifiedAt: null },
     createdAt: '2025-08-15T17:45:00Z',
@@ -212,7 +213,7 @@ const listings: Listing[] = [
     category: 'apartment',
     isFavorite: true,
     instantBook: false,
-    facilities: ['Canal View', 'Wi-Fi', 'Bike Rental'],
+    facilities: ['Internet', 'Phone', 'Elevator'],
     ownerId: 'landlord-3',
     landlord: { id: 'landlord-3', fullName: 'Liam Landlord', verificationStatus: 'approved', verifiedAt: '2025-10-10T00:00:00Z' },
     createdAt: '2025-07-01T12:30:00Z',
@@ -230,6 +231,12 @@ listings.forEach((item) => {
   ;(item as any).status = (item as any).status ?? 'active'
   ;(item as any).rooms = (item as any).rooms ?? item.beds
   ;(item as any).area = (item as any).area ?? 80 + Math.floor(Math.random() * 70)
+  ;(item as any).floor = (item as any).floor ?? Math.floor(Math.random() * 6)
+  ;(item as any).notGroundFloor = (item as any).notGroundFloor ?? ((item as any).floor ?? 0) > 0
+  ;(item as any).notLastFloor = (item as any).notLastFloor ?? ((item as any).floor ?? 0) < 5
+  ;(item as any).heating = (item as any).heating ?? 'centralno'
+  ;(item as any).condition = (item as any).condition ?? 'stara_gradnja'
+  ;(item as any).furnishing = (item as any).furnishing ?? 'polunamesten'
   ;(item as any).warnings = []
 })
 
@@ -526,10 +533,9 @@ const adminTrends: AdminTrendPoint[] = Array.from({ length: 14 }).map((_, idx) =
 
 const facilityGroups: Record<string, { title: string; items: string[] }[]> = {
   default: [
-    { title: 'Food & Drink', items: ['Restaurant', 'Room service', 'Bar'] },
-    { title: 'Transportation', items: ['Airport shuttle', 'Free parking', 'Bike rental'] },
-    { title: 'Wellness', items: ['Spa', 'Gym', 'Yoga deck'] },
-    { title: 'Connectivity', items: ['High-speed Wi-Fi', 'Co-working space'] },
+    { title: 'Property', items: ['Basement', 'Garage', 'Terrace', 'Yard'] },
+    { title: 'Connectivity', items: ['Internet', 'Cable TV', 'Phone'] },
+    { title: 'Comfort', items: ['Air conditioning', 'Elevator'] },
   ],
 }
 
@@ -619,12 +625,19 @@ const applyFilters = (items: Listing[], filters?: Partial<ListingFilters>) => {
       : true
     const matchCity = filters.city ? item.city.toLowerCase().includes(filters.city.toLowerCase()) : true
     const matchRooms = filters.rooms ? (item.rooms ?? item.beds) >= filters.rooms : true
+    const matchBaths = filters.baths ? item.baths >= filters.baths : true
+    const matchFloor = filters.floor != null ? (item.floor ?? 0) === filters.floor : true
+    const matchHeating = filters.heating ? item.heating === filters.heating : true
+    const matchCondition = filters.condition ? item.condition === filters.condition : true
+    const matchFurnishing = filters.furnishing ? item.furnishing === filters.furnishing : true
+    const matchNotLastFloor = filters.notLastFloor ? Boolean(item.notLastFloor) : true
+    const matchNotGroundFloor = filters.notGroundFloor ? Boolean(item.notGroundFloor) : true
     const matchArea = filters.areaRange
       ? (item.area ?? 0) >= (filters.areaRange[0] ?? 0) && (item.area ?? 0) <= (filters.areaRange[1] ?? Infinity)
       : true
     const matchAreaBucket = filters.areaBucket ? bucketFor(item.area ?? 0, areaBuckets) === filters.areaBucket : true
     const matchRating = filters.rating ? item.rating >= filters.rating : true
-    const amenities = (filters.amenities?.length ? filters.amenities : filters.facilities) ?? []
+    const amenities = normalizeListingAmenities((filters.amenities?.length ? filters.amenities : filters.facilities) ?? [])
     const matchFacilities = amenities.length ? amenities.some((f) => item.facilities?.includes(f)) : true
     const matchStatus = filters.status && filters.status !== 'all' ? item.status === filters.status : true
 
@@ -637,6 +650,13 @@ const applyFilters = (items: Listing[], filters?: Partial<ListingFilters>) => {
       matchLocation &&
       matchCity &&
       matchRooms &&
+      matchBaths &&
+      matchFloor &&
+      matchHeating &&
+      matchCondition &&
+      matchFurnishing &&
+      matchNotLastFloor &&
+      matchNotGroundFloor &&
       matchArea &&
       matchAreaBucket &&
       matchRating &&
@@ -828,6 +848,36 @@ export async function getListingById(id: string): Promise<Listing | null> {
 export async function getListingFacilities(id: string): Promise<{ title: string; items: string[] }[]> {
   const group = facilityGroups[id] ?? facilityGroups.default
   return simulate(group ?? [])
+}
+
+export async function getFacilitiesCatalog(): Promise<string[]> {
+  const canonical = [
+    'Basement',
+    'Garage',
+    'Terrace',
+    'Yard',
+    'Internet',
+    'Cable TV',
+    'Phone',
+    'Air conditioning',
+    'Elevator',
+  ]
+
+  const extras = listings
+    .flatMap((item) => item.facilities ?? [])
+    .map((item) => item.trim())
+    .filter(Boolean)
+
+  const seen = new Set<string>()
+  const result: string[] = []
+  ;[...canonical, ...extras].forEach((name) => {
+    const key = name.toLowerCase()
+    if (seen.has(key)) return
+    seen.add(key)
+    result.push(name)
+  })
+
+  return simulate(result)
 }
 
 export async function getListingReviews(id: string): Promise<Review[]> {
@@ -1587,6 +1637,12 @@ type ListingInput = {
   baths: number
   rooms?: number
   area?: number
+  floor?: number
+  notLastFloor?: boolean
+  notGroundFloor?: boolean
+  heating?: Listing['heating']
+  condition?: Listing['condition']
+  furnishing?: Listing['furnishing']
   images?: string[]
   description?: string
   lat?: number
@@ -1618,10 +1674,16 @@ export async function createListing(payload: ListingInput & { ownerId: string | 
     baths: payload.baths,
     rooms: (payload as any).rooms ?? payload.beds,
     area: (payload as any).area ?? 90,
+    floor: (payload as any).floor ?? 0,
+    notLastFloor: (payload as any).notLastFloor ?? false,
+    notGroundFloor: (payload as any).notGroundFloor ?? false,
+    heating: (payload as any).heating ?? 'centralno',
+    condition: (payload as any).condition ?? 'stara_gradnja',
+    furnishing: (payload as any).furnishing ?? 'polunamesten',
     category: payload.category,
     isFavorite: false,
     instantBook: payload.instantBook ?? true,
-    facilities: payload.facilities ?? [],
+    facilities: normalizeListingAmenities(payload.facilities ?? []),
     ownerId: payload.ownerId,
     createdAt: new Date().toISOString(),
     status: 'draft',
@@ -1644,6 +1706,13 @@ export async function updateListing(id: string, payload: Partial<ListingInput>):
     images: payload.images ?? current.images,
     rooms: (payload as any).rooms ?? current.rooms,
     area: (payload as any).area ?? current.area,
+    floor: (payload as any).floor ?? current.floor,
+    notLastFloor: (payload as any).notLastFloor ?? current.notLastFloor,
+    notGroundFloor: (payload as any).notGroundFloor ?? current.notGroundFloor,
+    heating: (payload as any).heating ?? current.heating,
+    condition: (payload as any).condition ?? current.condition,
+    furnishing: (payload as any).furnishing ?? current.furnishing,
+    facilities: payload.facilities !== undefined ? normalizeListingAmenities(payload.facilities) : current.facilities,
   }
   listings[index] = updated
   return JSON.parse(JSON.stringify(updated))

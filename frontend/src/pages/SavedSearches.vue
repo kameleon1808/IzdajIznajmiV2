@@ -12,6 +12,12 @@ import { useSavedSearchesStore } from '../stores/savedSearches'
 import { useToastStore } from '../stores/toast'
 import { useLanguageStore } from '../stores/language'
 import type { SavedSearch } from '../types'
+import {
+  LISTING_AMENITIES,
+  LISTING_AMENITY_LABEL_KEY,
+  normalizeListingAmenity,
+  normalizeListingAmenities,
+} from '../constants/listingAmenities'
 
 const router = useRouter()
 const store = useSavedSearchesStore()
@@ -46,22 +52,18 @@ const editForm = ref({
   },
 })
 
-const amenityOptions = ['Pool', 'Spa', 'Wi-Fi', 'Breakfast', 'Parking', 'Kitchen', 'Workspace']
+const amenityOptions = [...LISTING_AMENITIES]
 
 const amenityLabel = (value: string) => {
-  if (value === 'Pool') return t('amenities.pool')
-  if (value === 'Spa') return t('amenities.spa')
-  if (value === 'Wi-Fi') return t('amenities.wifi')
-  if (value === 'Breakfast') return t('amenities.breakfast')
-  if (value === 'Parking') return t('amenities.parking')
-  if (value === 'Kitchen') return t('amenities.kitchen')
-  if (value === 'Workspace') return t('amenities.workspace')
-  return value
+  const normalized = normalizeListingAmenity(value)
+  if (!normalized) return value
+  return t(LISTING_AMENITY_LABEL_KEY[normalized])
 }
 
 const categoryLabel = (value: string) => {
   if (value === 'villa') return t('listing.categoryVilla')
   if (value === 'hotel') return t('listing.categoryHotel')
+  if (value === 'house') return t('listing.categoryHouse')
   if (value === 'apartment') return t('listing.categoryApartment')
   if (value === 'all') return t('filters.any')
   return value
@@ -101,7 +103,7 @@ const openEdit = (search: SavedSearch) => {
       areaMax: filters.areaMax ?? null,
       instantBook: Boolean(filters.instantBook),
       rating: filters.rating ?? null,
-      amenities: filters.amenities ?? filters.facilities ?? [],
+      amenities: normalizeListingAmenities(filters.amenities ?? filters.facilities ?? []),
       mapMode: Boolean(filters.mapMode),
       centerLat: filters.centerLat ?? null,
       centerLng: filters.centerLng ?? null,
@@ -133,7 +135,7 @@ const buildFiltersPayload = () => {
     areaMax: normalizeNumber(f.areaMax),
     instantBook: Boolean(f.instantBook),
     rating: normalizeNumber(f.rating),
-    amenities: f.amenities ?? [],
+    amenities: normalizeListingAmenities(f.amenities ?? []),
     mapMode: mapEnabled,
     centerLat: mapEnabled ? normalizeNumber(f.centerLat) : null,
     centerLng: mapEnabled ? normalizeNumber(f.centerLng) : null,
@@ -206,7 +208,8 @@ const describeFilters = (filters: Record<string, any>) => {
   }
   if (filters.instantBook) items.push(t('filters.instantBook'))
   if (filters.rating) items.push(`${t('filters.rating')}: ${filters.rating}+`)
-  if (filters.amenities?.length) items.push(`${t('filters.amenities')}: ${filters.amenities.map(amenityLabel).join(', ')}`)
+  const normalizedAmenities = normalizeListingAmenities(filters.amenities ?? filters.facilities ?? [])
+  if (normalizedAmenities.length) items.push(`${t('filters.amenities')}: ${normalizedAmenities.map(amenityLabel).join(', ')}`)
   if (filters.mapMode && (filters.radiusKm || (filters.centerLat && filters.centerLng))) {
     items.push(`${t('filters.mapRadius')}: ${filters.radiusKm ?? 10} km`)
   }
@@ -326,6 +329,7 @@ const formatLastAlert = (value?: string | null) => {
               <option value="all">{{ t('filters.any') }}</option>
               <option value="villa">{{ t('listing.categoryVilla') }}</option>
               <option value="hotel">{{ t('listing.categoryHotel') }}</option>
+              <option value="house">{{ t('listing.categoryHouse') }}</option>
               <option value="apartment">{{ t('listing.categoryApartment') }}</option>
             </select>
           </label>

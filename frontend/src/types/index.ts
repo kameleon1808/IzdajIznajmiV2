@@ -1,4 +1,4 @@
-export type ListingCategory = 'villa' | 'hotel' | 'apartment'
+export type ListingCategory = 'villa' | 'hotel' | 'apartment' | 'house'
 
 export interface Listing {
   id: string
@@ -22,6 +22,12 @@ export interface Listing {
   baths: number
   rooms?: number
   area?: number
+  floor?: number
+  notLastFloor?: boolean
+  notGroundFloor?: boolean
+  heating?: 'centralno' | 'gas' | 'elektricno' | 'cvrsta_goriva' | 'podno' | 'etazno' | 'toplotne_pumpe'
+  condition?: 'novogradnja' | 'stara_gradnja' | 'izvorno_stanje'
+  furnishing?: 'namesten' | 'polunamesten' | 'nenamesten'
   category: ListingCategory
   isFavorite: boolean
   instantBook?: boolean
@@ -349,6 +355,13 @@ export interface ListingFilters {
   rating: number | null
   city?: string
   rooms?: number | null
+  baths?: number | null
+  floor?: number | null
+  heating?: Listing['heating'] | null
+  condition?: Listing['condition'] | null
+  furnishing?: Listing['furnishing'] | null
+  notLastFloor?: boolean
+  notGroundFloor?: boolean
   areaRange?: [number, number] | null
   areaBucket?: string | null
   status?: Listing['status'] | 'all'

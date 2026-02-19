@@ -24,6 +24,7 @@ const categoryLabel = computed(() => {
   if (!props.useTranslations) return props.listing.category
   if (props.listing.category === 'villa') return t('listing.categoryVilla')
   if (props.listing.category === 'hotel') return t('listing.categoryHotel')
+  if (props.listing.category === 'house') return t('listing.categoryHouse')
   if (props.listing.category === 'apartment') return t('listing.categoryApartment')
   return props.listing.category
 })

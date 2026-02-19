@@ -16,6 +16,7 @@ const categories = computed(() => [
   { key: 'all', label: t('home.categoryAll') },
   { key: 'villa', label: t('home.categoryVilla') },
   { key: 'hotel', label: t('home.categoryHotel') },
+  { key: 'house', label: t('home.categoryHouse') },
   { key: 'apartment', label: t('home.categoryApartment') },
 ])
 </script>

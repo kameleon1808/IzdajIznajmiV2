@@ -84,20 +84,27 @@ const mapListing = (data: any): Listing => {
     baths: Number(data.baths ?? 0),
     rooms: data.rooms != null ? Number(data.rooms) : undefined,
     area: data.area != null ? Number(data.area) : undefined,
+    floor: data.floor != null ? Number(data.floor) : undefined,
+    notLastFloor: data.notLastFloor != null ? Boolean(data.notLastFloor) : data.not_last_floor != null ? Boolean(data.not_last_floor) : undefined,
+    notGroundFloor:
+      data.notGroundFloor != null ? Boolean(data.notGroundFloor) : data.not_ground_floor != null ? Boolean(data.not_ground_floor) : undefined,
+    heating: data.heating ?? undefined,
+    condition: data.condition ?? undefined,
+    furnishing: data.furnishing ?? undefined,
     category: data.category,
     isFavorite: Boolean(data.isFavorite ?? false),
     instantBook: Boolean(data.instantBook ?? data.instant_book ?? false),
-  facilities:
-    data.facilities?.map((f: any) => (typeof f === 'string' ? f : f.name)) ??
-    data.facilities ??
+    facilities:
+      data.facilities?.map((f: any) => (typeof f === 'string' ? f : f.name)) ??
+      data.facilities ??
       [],
-  ownerId: data.ownerId ?? data.owner_id,
-  landlord: landlordPayload,
-  createdAt: data.createdAt ?? data.created_at,
-  status: data.status,
-  publishedAt: data.publishedAt ?? data.published_at,
-  archivedAt: data.archivedAt ?? data.archived_at,
-  expiredAt: data.expiredAt ?? data.expired_at,
+    ownerId: data.ownerId ?? data.owner_id,
+    landlord: landlordPayload,
+    createdAt: data.createdAt ?? data.created_at,
+    status: data.status,
+    publishedAt: data.publishedAt ?? data.published_at,
+    archivedAt: data.archivedAt ?? data.archived_at,
+    expiredAt: data.expiredAt ?? data.expired_at,
     warnings: data.warnings ?? [],
     why: data.why ?? undefined,
   }
@@ -300,6 +307,13 @@ const applyListingFilters = (filters?: ListingFilters) => {
   if (filters.location) params.location = filters.location
   if (filters.city) params.city = filters.city
   if (filters.rooms) params.rooms = filters.rooms
+  if (filters.baths) params.baths = filters.baths
+  if (filters.floor != null) params.floor = filters.floor
+  if (filters.heating) params.heating = filters.heating
+  if (filters.condition) params.condition = filters.condition
+  if (filters.furnishing) params.furnishing = filters.furnishing
+  if (filters.notLastFloor) params.notLastFloor = true
+  if (filters.notGroundFloor) params.notGroundFloor = true
   if (
     filters.areaRange?.length &&
     (filters.areaRange[0] !== defaultFilters.areaRange?.[0] || filters.areaRange[1] !== defaultFilters.areaRange?.[1])
@@ -440,6 +454,15 @@ export const getListingFacilities = async (id: string): Promise<{ group: string;
   return [{ group: 'Facilities', items: listing.facilities }]
 }
 
+export const getFacilitiesCatalog = async (): Promise<string[]> => {
+  const { data } = await apiClient.get('/facilities')
+  const list = (data.data ?? data) as Array<string | { name?: string }>
+  return list
+    .map((item) => (typeof item === 'string' ? item : item?.name ?? ''))
+    .map((name) => name.trim())
+    .filter(Boolean)
+}
+
 export const getListingReviews = async (): Promise<any[]> => {
   return []
 }
@@ -467,6 +490,12 @@ export const createListing = async (payload: any): Promise<Listing> => {
   appendIfValue(form, 'baths', payload.baths)
   appendIfValue(form, 'rooms', payload.rooms)
   appendIfValue(form, 'area', payload.area)
+  appendIfValue(form, 'floor', payload.floor)
+  appendBoolean(form, 'notLastFloor', payload.notLastFloor)
+  appendBoolean(form, 'notGroundFloor', payload.notGroundFloor)
+  appendIfValue(form, 'heating', payload.heating)
+  appendIfValue(form, 'condition', payload.condition)
+  appendIfValue(form, 'furnishing', payload.furnishing)
   appendIfValue(form, 'lat', payload.lat)
   appendIfValue(form, 'lng', payload.lng)
   appendBoolean(form, 'instantBook', payload.instantBook)
@@ -491,6 +520,12 @@ export const updateListing = async (id: string, payload: any): Promise<Listing> 
   if (payload.baths !== undefined) form.append('baths', payload.baths)
   if (payload.rooms !== undefined) form.append('rooms', payload.rooms)
   if (payload.area !== undefined) form.append('area', payload.area)
+  if (payload.floor !== undefined) form.append('floor', payload.floor)
+  appendBoolean(form, 'notLastFloor', payload.notLastFloor)
+  appendBoolean(form, 'notGroundFloor', payload.notGroundFloor)
+  if (payload.heating !== undefined) form.append('heating', payload.heating)
+  if (payload.condition !== undefined) form.append('condition', payload.condition)
+  if (payload.furnishing !== undefined) form.append('furnishing', payload.furnishing)
   if (payload.lat !== undefined) form.append('lat', payload.lat)
   if (payload.lng !== undefined) form.append('lng', payload.lng)
   appendBoolean(form, 'instantBook', payload.instantBook)

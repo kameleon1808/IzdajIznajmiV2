@@ -60,6 +60,43 @@ class MeiliSearchDriverRecoveryTest extends TestCase
         $this->assertSame('active', $result->items[0]['status']);
     }
 
+    public function test_search_builds_amenity_alias_or_filter_for_garage(): void
+    {
+        config(['search.meili.index' => 'listings']);
+
+        $capturedFilter = null;
+
+        $client = Mockery::mock(Client::class);
+        $index = Mockery::mock(\Meilisearch\Endpoints\Indexes::class);
+
+        $client->shouldReceive('getIndex')
+            ->once()
+            ->with('listings')
+            ->andReturn($index);
+
+        $index->shouldReceive('search')
+            ->once()
+            ->with('', Mockery::on(function (array $options) use (&$capturedFilter): bool {
+                $capturedFilter = $options['filter'] ?? null;
+
+                return true;
+            }))
+            ->andReturn([
+                'hits' => [],
+                'estimatedTotalHits' => 0,
+                'facetDistribution' => ['amenities' => []],
+            ]);
+
+        $driver = new MeiliSearchDriver($client);
+        $driver->searchListings(['amenities' => ['Garage']], 1, 10);
+
+        $this->assertIsArray($capturedFilter);
+        $joined = implode(' ', $capturedFilter);
+        $this->assertStringContainsString('amenities = "Garage"', $joined);
+        $this->assertStringContainsString('amenities = "Garaza"', $joined);
+        $this->assertStringContainsString('amenities = "Parking"', $joined);
+    }
+
     private function buildApiException(string $message): ApiException
     {
         $response = Mockery::mock(ResponseInterface::class);

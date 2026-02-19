@@ -31,7 +31,7 @@ class ListingsSeeder extends Seeder
             'https://images.unsplash.com/photo-1501117716987-c8e1ecb210af?auto=format&fit=crop&w=1400&q=80',
         ];
 
-        $categories = ['villa', 'hotel', 'apartment'];
+        $categories = Listing::CATEGORY_VALUES;
         $faker = fake();
         $beogradListings = [
             [
@@ -299,6 +299,9 @@ class ListingsSeeder extends Seeder
             $area = $data['area'] ?? $faker->numberBetween(35, 120);
             $price = $data['price'] ?? $faker->numberBetween(60, 180);
             $title = $data['title'] ?? ('Belgrade Stay - '.$data['address']);
+            $floor = $faker->numberBetween(0, 10);
+            $notGroundFloor = $floor > 0;
+            $notLastFloor = $floor < 10 ? $faker->boolean(80) : false;
 
             $listing = Listing::create([
                 'owner_id' => $ownerId,
@@ -319,6 +322,12 @@ class ListingsSeeder extends Seeder
                 'baths' => 1,
                 'rooms' => $rooms,
                 'area' => $area,
+                'floor' => $floor,
+                'not_last_floor' => $notLastFloor,
+                'not_ground_floor' => $notGroundFloor,
+                'heating' => $faker->randomElement(Listing::HEATING_VALUES),
+                'condition' => $faker->randomElement(Listing::CONDITION_VALUES),
+                'furnishing' => $faker->randomElement(Listing::FURNISHING_VALUES),
                 'category' => $data['category'] ?? $categories[array_rand($categories)],
                 'instant_book' => true,
                 'status' => $status,

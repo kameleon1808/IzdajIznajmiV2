@@ -59,7 +59,7 @@ const goProfile = () => {
 
 <template>
   <header
-    class="sticky top-0 z-30 flex flex-col gap-3 border-b border-border bg-surface-2 px-4 pb-3 pt-4 backdrop-blur-lg"
+    class="sticky top-0 z-30 px-4 pt-4 lg:pl-0 lg:pr-6"
     v-if="variant !== 'detail'"
   >
     <div v-if="variant === 'home'" class="flex items-center justify-between rounded-2xl bg-surface-2 px-4 py-3 shadow-soft border border-border">

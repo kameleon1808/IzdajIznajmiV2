@@ -15,6 +15,7 @@ use App\Http\Controllers\ChatSignalController;
 use App\Http\Controllers\ContractPdfController;
 use App\Http\Controllers\ContractSignatureController;
 use App\Http\Controllers\ConversationController;
+use App\Http\Controllers\FacilityController;
 use App\Http\Controllers\GeocodeSuggestController;
 use App\Http\Controllers\GeocodingController;
 use App\Http\Controllers\HealthController;
@@ -68,6 +69,7 @@ $apiRoutes = function () use ($authRoutes) {
 
     Route::get('/listings', [ListingController::class, 'index'])->middleware('throttle:listings_search');
     Route::get('/listings/{listing}', [ListingController::class, 'show']);
+    Route::get('/facilities', [FacilityController::class, 'index']);
     Route::get('/listings/{listing}/ratings', [RatingController::class, 'listingRatings']);
     Route::get('/listings/{listing}/similar', [\App\Http\Controllers\SimilarListingsController::class, 'index']);
     Route::prefix('search')->group(function () {

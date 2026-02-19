@@ -7,6 +7,7 @@ use App\Models\Facility;
 use App\Models\Listing;
 use App\Services\ListingSearchService;
 use App\Services\ListingStatusService;
+use App\Support\ListingAmenityNormalizer;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -162,7 +163,9 @@ class SqlSearchDriver implements SearchDriver
             ->orderByDesc('count')
             ->limit(15)
             ->get();
-        $facets['amenities'] = $this->mapFacetRows($amenityRows, 'name');
+        $facets['amenities'] = ListingAmenityNormalizer::canonicalizeFacetItems(
+            $this->mapFacetRows($amenityRows, 'name')
+        );
 
         $priceCase = ListingSearchBuckets::caseExpression('price_per_night', ListingSearchBuckets::priceBuckets());
         $priceRows = (clone $baseQuery)
@@ -308,7 +311,9 @@ class SqlSearchDriver implements SearchDriver
         $filters['location'] = $query !== '' ? $query : ($filters['location'] ?? null);
         $filters['city'] = $city !== '' ? $city : ($filters['city'] ?? null);
 
-        $filters['amenities'] = $this->normalizeArrayInput($filters['amenities'] ?? $filters['facilities'] ?? []);
+        $filters['amenities'] = ListingAmenityNormalizer::canonicalizeMany(
+            $this->normalizeArrayInput($filters['amenities'] ?? $filters['facilities'] ?? [])
+        );
         $filters['status'] = $this->normalizeArrayInput($filters['status'] ?? []);
 
         return $filters;

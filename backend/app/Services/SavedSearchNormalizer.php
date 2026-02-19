@@ -20,7 +20,7 @@ class SavedSearchNormalizer
                 }
             }
 
-            if (in_array($key, ['instantBook', 'mapMode'], true)) {
+            if (in_array($key, ['instantBook', 'mapMode', 'notLastFloor', 'notGroundFloor'], true)) {
                 $value = filter_var($value, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
                 if ($value !== true) {
                     continue;
@@ -41,7 +41,7 @@ class SavedSearchNormalizer
                 }
             }
 
-            if (in_array($key, ['priceMin', 'priceMax', 'rooms', 'areaMin', 'areaMax', 'guests'], true)) {
+            if (in_array($key, ['priceMin', 'priceMax', 'rooms', 'baths', 'floor', 'areaMin', 'areaMax', 'guests'], true)) {
                 if (! is_numeric($value)) {
                     continue;
                 }

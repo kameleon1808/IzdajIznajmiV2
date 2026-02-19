@@ -18,7 +18,7 @@ const t = (key: Parameters<typeof languageStore.t>[0]) => languageStore.t(key)
 const useTranslations = computed(() => route.path === '/favorites')
 const tx = (key: Parameters<typeof languageStore.t>[0], fallback: string) =>
   useTranslations.value ? t(key) : fallback
-const category = ref<'all' | 'villa' | 'hotel' | 'apartment'>('all')
+const category = ref<'all' | 'villa' | 'hotel' | 'house' | 'apartment'>('all')
 const query = ref('')
 
 onMounted(() => {
@@ -41,6 +41,7 @@ const categories = computed(() => [
   { key: 'all', label: tx('home.categoryAll', 'All') },
   { key: 'villa', label: tx('home.categoryVilla', 'Villas') },
   { key: 'hotel', label: tx('home.categoryHotel', 'Hotels') },
+  { key: 'house', label: tx('home.categoryHouse', 'Houses') },
   { key: 'apartment', label: tx('home.categoryApartment', 'Apartments') },
 ])
 </script>

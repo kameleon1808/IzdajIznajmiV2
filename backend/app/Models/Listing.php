@@ -12,6 +12,30 @@ class Listing extends Model
 {
     use HasFactory;
 
+    public const CATEGORY_VALUES = ['apartment', 'house', 'hotel', 'villa'];
+
+    public const HEATING_VALUES = [
+        'centralno',
+        'gas',
+        'elektricno',
+        'cvrsta_goriva',
+        'podno',
+        'etazno',
+        'toplotne_pumpe',
+    ];
+
+    public const CONDITION_VALUES = [
+        'novogradnja',
+        'stara_gradnja',
+        'izvorno_stanje',
+    ];
+
+    public const FURNISHING_VALUES = [
+        'namesten',
+        'polunamesten',
+        'nenamesten',
+    ];
+
     protected $fillable = [
         'owner_id',
         'title',
@@ -31,6 +55,12 @@ class Listing extends Model
         'baths',
         'rooms',
         'area',
+        'floor',
+        'not_last_floor',
+        'not_ground_floor',
+        'heating',
+        'condition',
+        'furnishing',
         'category',
         'instant_book',
         'status',
@@ -44,6 +74,8 @@ class Listing extends Model
 
     protected $casts = [
         'instant_book' => 'boolean',
+        'not_last_floor' => 'boolean',
+        'not_ground_floor' => 'boolean',
         'lat' => 'float',
         'lng' => 'float',
         'geocoded_at' => 'datetime',

@@ -10,6 +10,7 @@ use App\Jobs\ProcessListingImage;
 use App\Models\Facility;
 use App\Models\Listing;
 use App\Models\ListingImage;
+use App\Support\ListingAmenityNormalizer;
 use App\Services\FraudSignalService;
 use App\Services\ListingAddressGuardService;
 use App\Services\ListingStatusService;
@@ -82,6 +83,12 @@ class LandlordListingController extends Controller
                 'baths' => $data['baths'],
                 'rooms' => $rooms,
                 'area' => $data['area'] ?? null,
+                'floor' => $data['floor'] ?? null,
+                'not_last_floor' => $data['notLastFloor'] ?? false,
+                'not_ground_floor' => $data['notGroundFloor'] ?? false,
+                'heating' => $data['heating'] ?? null,
+                'condition' => $data['condition'] ?? null,
+                'furnishing' => $data['furnishing'] ?? null,
                 'category' => $data['category'],
                 'instant_book' => $data['instantBook'] ?? false,
                 'status' => ListingStatusService::STATUS_DRAFT,
@@ -143,6 +150,12 @@ class LandlordListingController extends Controller
             'baths' => 'baths',
             'rooms' => 'rooms',
             'area' => 'area',
+            'floor' => 'floor',
+            'notLastFloor' => 'not_last_floor',
+            'notGroundFloor' => 'not_ground_floor',
+            'heating' => 'heating',
+            'condition' => 'condition',
+            'furnishing' => 'furnishing',
             'lat' => 'lat',
             'lng' => 'lng',
             'instantBook' => 'instant_book',
@@ -438,8 +451,8 @@ class LandlordListingController extends Controller
 
     private function syncFacilities(Listing $listing, array $facilities): void
     {
-        $facilityIds = collect($facilities)
-            ->filter()
+        $normalized = ListingAmenityNormalizer::canonicalizeMany($facilities);
+        $facilityIds = collect($normalized)
             ->map(fn ($name) => Facility::firstOrCreate(['name' => $name])->id)
             ->values()
             ->all();

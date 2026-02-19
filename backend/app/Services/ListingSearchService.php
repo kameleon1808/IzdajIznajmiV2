@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Listing;
+use App\Support\ListingAmenityNormalizer;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -68,6 +69,27 @@ class ListingSearchService
         if ($this->hasValue($filters['rooms'] ?? null)) {
             $query->where('rooms', '>=', (int) $filters['rooms']);
         }
+        if ($this->hasValue($filters['baths'] ?? null)) {
+            $query->where('baths', '>=', (int) $filters['baths']);
+        }
+        if ($this->hasValue($filters['floor'] ?? null)) {
+            $query->where('floor', '=', (int) $filters['floor']);
+        }
+        if ($this->hasValue($filters['heating'] ?? null)) {
+            $query->where('heating', '=', (string) $filters['heating']);
+        }
+        if ($this->hasValue($filters['condition'] ?? null)) {
+            $query->where('condition', '=', (string) $filters['condition']);
+        }
+        if ($this->hasValue($filters['furnishing'] ?? null)) {
+            $query->where('furnishing', '=', (string) $filters['furnishing']);
+        }
+        if (! empty($filters['notLastFloor'])) {
+            $query->where('not_last_floor', true);
+        }
+        if (! empty($filters['notGroundFloor'])) {
+            $query->where('not_ground_floor', true);
+        }
 
         if ($this->hasValue($filters['areaMin'] ?? null)) {
             $query->where('area', '>=', (int) $filters['areaMin']);
@@ -127,12 +149,24 @@ class ListingSearchService
             $query->where('beds', '>=', (int) $filters['guests']);
         }
 
-        $amenitiesToApply = $filters['amenities'] ?? $filters['facilities'] ?? [];
-        if (! empty($amenitiesToApply)) {
-            $facilityIds = array_values((array) $amenitiesToApply);
-            foreach ($facilityIds as $facilityName) {
-                $query->whereHas('facilities', function ($builder) use ($facilityName) {
-                    $builder->where('name', $facilityName);
+        $amenitiesToApply = ListingAmenityNormalizer::canonicalizeMany($filters['amenities'] ?? $filters['facilities'] ?? []);
+        if ($amenitiesToApply !== []) {
+            foreach ($amenitiesToApply as $amenity) {
+                $normalizedVariants = ListingAmenityNormalizer::normalizedFilterVariants($amenity);
+                if ($normalizedVariants === []) {
+                    continue;
+                }
+
+                $query->whereHas('facilities', function ($builder) use ($normalizedVariants) {
+                    $normalizedNameExpr = $this->normalizedColumn('facilities.name');
+                    $builder->where(function ($variantQuery) use ($normalizedVariants, $normalizedNameExpr) {
+                        $isFirst = true;
+                        foreach ($normalizedVariants as $variant) {
+                            $method = $isFirst ? 'whereRaw' : 'orWhereRaw';
+                            $variantQuery->{$method}("{$normalizedNameExpr} = ?", [$variant]);
+                            $isFirst = false;
+                        }
+                    });
                 });
             }
         }

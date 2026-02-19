@@ -9,9 +9,15 @@ import ErrorBanner from '../components/ui/ErrorBanner.vue'
 import ListSkeleton from '../components/ui/ListSkeleton.vue'
 import { useAuthStore } from '../stores/auth'
 import { useListingsStore } from '../stores/listings'
-import { getListingById, isMockApi } from '../services'
+import { getFacilitiesCatalog, getListingById, isMockApi } from '../services'
 import { useLanguageStore } from '../stores/language'
 import type { Listing } from '../types'
+import {
+  LISTING_AMENITIES,
+  LISTING_AMENITY_LABEL_KEY,
+  normalizeListingAmenity,
+  normalizeListingAmenities,
+} from '../constants/listingAmenities'
 
 type GalleryItem = {
   key: string
@@ -40,7 +46,7 @@ const isEdit = computed(() => route.name === 'landlord-listing-edit')
 const form = reactive({
   title: '',
   pricePerNight: 0,
-  category: 'villa' as Listing['category'],
+  category: 'apartment' as Listing['category'],
   address: '',
   city: '',
   country: '',
@@ -48,6 +54,12 @@ const form = reactive({
   beds: 1,
   baths: 1,
   rooms: 1,
+  floor: 0,
+  notLastFloor: false,
+  notGroundFloor: false,
+  heating: 'centralno' as NonNullable<Listing['heating']>,
+  condition: 'stara_gradnja' as NonNullable<Listing['condition']>,
+  furnishing: 'polunamesten' as NonNullable<Listing['furnishing']>,
   area: '',
   facilities: [] as string[],
   instantBook: false,
@@ -56,22 +68,44 @@ const form = reactive({
 })
 
 const gallery = ref<GalleryItem[]>([])
-const amenityOptions = ['Pool', 'Spa', 'Wi-Fi', 'Breakfast', 'Parking', 'Kitchen', 'Workspace']
-const amenityLabel = (value: string) => {
-  const map: Record<string, Parameters<typeof languageStore.t>[0]> = {
-    Pool: 'amenities.pool',
-    Spa: 'amenities.spa',
-    'Wi-Fi': 'amenities.wifi',
-    Breakfast: 'amenities.breakfast',
-    Parking: 'amenities.parking',
-    Kitchen: 'amenities.kitchen',
-    Workspace: 'amenities.workspace',
+const contentOptions = ref<string[]>([...LISTING_AMENITIES])
+const contentLabel = (value: string) => {
+  const normalized = normalizeListingAmenity(value)
+  if (!normalized) return value
+  return t(LISTING_AMENITY_LABEL_KEY[normalized])
+}
+const heatingLabel = (value: NonNullable<Listing['heating']>) => {
+  const map: Record<NonNullable<Listing['heating']>, Parameters<typeof languageStore.t>[0]> = {
+    centralno: 'listingForm.heating.centralno',
+    gas: 'listingForm.heating.gas',
+    elektricno: 'listingForm.heating.elektricno',
+    cvrsta_goriva: 'listingForm.heating.cvrstaGoriva',
+    podno: 'listingForm.heating.podno',
+    etazno: 'listingForm.heating.etazno',
+    toplotne_pumpe: 'listingForm.heating.toplotnePumpe',
   }
-  return map[value] ? t(map[value]) : value
+  return t(map[value])
+}
+const conditionLabel = (value: NonNullable<Listing['condition']>) => {
+  const map: Record<NonNullable<Listing['condition']>, Parameters<typeof languageStore.t>[0]> = {
+    novogradnja: 'listingForm.condition.novogradnja',
+    stara_gradnja: 'listingForm.condition.staraGradnja',
+    izvorno_stanje: 'listingForm.condition.izvornoStanje',
+  }
+  return t(map[value])
+}
+const furnishingLabel = (value: NonNullable<Listing['furnishing']>) => {
+  const map: Record<NonNullable<Listing['furnishing']>, Parameters<typeof languageStore.t>[0]> = {
+    namesten: 'listingForm.furnishing.namesten',
+    polunamesten: 'listingForm.furnishing.polunamesten',
+    nenamesten: 'listingForm.furnishing.nenamesten',
+  }
+  return t(map[value])
 }
 const categoryLabel = (value: Listing['category']) => {
   if (value === 'villa') return t('listing.categoryVilla')
   if (value === 'hotel') return t('listing.categoryHotel')
+  if (value === 'house') return t('listing.categoryHouse')
   if (value === 'apartment') return t('listing.categoryApartment')
   return value
 }
@@ -94,6 +128,12 @@ const loadListing = async () => {
       form.beds = data.beds
       form.baths = data.baths
       form.rooms = data.rooms ?? data.beds
+      form.floor = data.floor ?? 0
+      form.notLastFloor = Boolean(data.notLastFloor)
+      form.notGroundFloor = Boolean(data.notGroundFloor)
+      form.heating = data.heating ?? 'centralno'
+      form.condition = data.condition ?? 'stara_gradnja'
+      form.furnishing = data.furnishing ?? 'polunamesten'
       form.area = data.area != null ? String(data.area) : ''
       const detailed: { url: string; sortOrder: number; isCover?: boolean; processingStatus?: string }[] = data.imagesDetailed?.length
         ? data.imagesDetailed
@@ -108,7 +148,7 @@ const loadListing = async () => {
         keep: true,
         processingStatus: img.processingStatus ?? 'done',
       }))
-      form.facilities = data.facilities || []
+      form.facilities = normalizeListingAmenities(data.facilities || [])
       form.instantBook = Boolean(data.instantBook)
       form.lat = data.lat?.toString() || ''
       form.lng = data.lng?.toString() || ''
@@ -122,6 +162,30 @@ const loadListing = async () => {
 
 onMounted(() => {
   loadListing()
+  loadFacilitiesOptions()
+})
+
+const loadFacilitiesOptions = async () => {
+  try {
+    const names = await getFacilitiesCatalog()
+    const normalized = normalizeListingAmenities(names)
+    if (normalized.length) {
+      contentOptions.value = normalized
+    }
+  } catch {
+    contentOptions.value = [...LISTING_AMENITIES]
+  }
+}
+
+const amenityOptions = computed(() => {
+  const seen = new Set<string>()
+  const options = [...contentOptions.value, ...form.facilities]
+  return options.filter((item) => {
+    const key = item.toLowerCase()
+    if (seen.has(key)) return false
+    seen.add(key)
+    return true
+  })
 })
 
 const isValid = computed(() => {
@@ -144,7 +208,9 @@ const isValid = computed(() => {
     Number.isInteger(form.baths) &&
     form.baths >= 1 &&
     Number.isInteger(form.rooms) &&
-    form.rooms >= 1
+    form.rooms >= 1 &&
+    Number.isInteger(form.floor) &&
+    form.floor >= 0
   )
 })
 
@@ -220,6 +286,7 @@ const save = async () => {
     const roomsValue = Number.isFinite(form.rooms) ? form.rooms : undefined
     const payload: any = {
       ...form,
+      facilities: normalizeListingAmenities(form.facilities),
       instantBook: Boolean(form.instantBook),
       area: areaValue,
       rooms: roomsValue,
@@ -271,6 +338,7 @@ const publishNow = async () => {
       const roomsValue = Number.isFinite(form.rooms) ? form.rooms : undefined
       const created = await listingsStore.createListing({
         ...form,
+        facilities: normalizeListingAmenities(form.facilities),
         instantBook: Boolean(form.instantBook),
         area: areaValue,
         rooms: roomsValue,
@@ -341,6 +409,7 @@ const publishNow = async () => {
           >
             <option value="villa">{{ categoryLabel('villa') }}</option>
             <option value="hotel">{{ categoryLabel('hotel') }}</option>
+            <option value="house">{{ categoryLabel('house') }}</option>
             <option value="apartment">{{ categoryLabel('apartment') }}</option>
           </select>
         </label>
@@ -432,6 +501,65 @@ const publishNow = async () => {
             :placeholder="t('listingForm.areaPlaceholder')"
           />
         </label>
+        <label class="text-sm font-semibold text-slate-900">
+          {{ t('listingForm.floor') }}
+          <input
+            v-model.number="form.floor"
+            type="number"
+            min="0"
+            step="1"
+            class="mt-1 w-full rounded-xl border border-line px-3 py-3 text-sm focus:border-primary focus:outline-none"
+            :placeholder="t('listingForm.floorPlaceholder')"
+          />
+        </label>
+        <label class="text-sm font-semibold text-slate-900">
+          {{ t('listingForm.heating') }}
+          <select
+            v-model="form.heating"
+            class="mt-1 w-full rounded-xl border border-line px-3 py-3 text-sm focus:border-primary focus:outline-none"
+          >
+            <option value="centralno">{{ heatingLabel('centralno') }}</option>
+            <option value="gas">{{ heatingLabel('gas') }}</option>
+            <option value="elektricno">{{ heatingLabel('elektricno') }}</option>
+            <option value="cvrsta_goriva">{{ heatingLabel('cvrsta_goriva') }}</option>
+            <option value="podno">{{ heatingLabel('podno') }}</option>
+            <option value="etazno">{{ heatingLabel('etazno') }}</option>
+            <option value="toplotne_pumpe">{{ heatingLabel('toplotne_pumpe') }}</option>
+          </select>
+        </label>
+        <label class="text-sm font-semibold text-slate-900">
+          {{ t('listingForm.condition') }}
+          <select
+            v-model="form.condition"
+            class="mt-1 w-full rounded-xl border border-line px-3 py-3 text-sm focus:border-primary focus:outline-none"
+          >
+            <option value="novogradnja">{{ conditionLabel('novogradnja') }}</option>
+            <option value="stara_gradnja">{{ conditionLabel('stara_gradnja') }}</option>
+            <option value="izvorno_stanje">{{ conditionLabel('izvorno_stanje') }}</option>
+          </select>
+        </label>
+        <label class="text-sm font-semibold text-slate-900">
+          {{ t('listingForm.furnishing') }}
+          <select
+            v-model="form.furnishing"
+            class="mt-1 w-full rounded-xl border border-line px-3 py-3 text-sm focus:border-primary focus:outline-none"
+          >
+            <option value="namesten">{{ furnishingLabel('namesten') }}</option>
+            <option value="polunamesten">{{ furnishingLabel('polunamesten') }}</option>
+            <option value="nenamesten">{{ furnishingLabel('nenamesten') }}</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="grid grid-cols-2 gap-3">
+        <label class="flex items-center gap-3 rounded-xl border border-line px-3 py-3 text-sm font-semibold text-slate-900">
+          <input v-model="form.notLastFloor" type="checkbox" class="h-4 w-4 accent-primary" />
+          {{ t('listingForm.notLastFloor') }}
+        </label>
+        <label class="flex items-center gap-3 rounded-xl border border-line px-3 py-3 text-sm font-semibold text-slate-900">
+          <input v-model="form.notGroundFloor" type="checkbox" class="h-4 w-4 accent-primary" />
+          {{ t('listingForm.notGroundFloor') }}
+        </label>
       </div>
 
       <div class="space-y-2">
@@ -443,7 +571,7 @@ const publishNow = async () => {
             class="flex items-center gap-2 rounded-xl border border-line px-3 py-2 text-sm font-semibold text-slate-800"
           >
             <input v-model="form.facilities" :value="facility" type="checkbox" class="h-4 w-4 accent-primary" />
-            {{ amenityLabel(facility) }}
+            {{ contentLabel(facility) }}
           </label>
         </div>
       </div>

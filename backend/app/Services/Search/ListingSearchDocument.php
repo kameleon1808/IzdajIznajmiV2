@@ -3,6 +3,7 @@
 namespace App\Services\Search;
 
 use App\Models\Listing;
+use App\Support\ListingAmenityNormalizer;
 use Illuminate\Support\Str;
 
 class ListingSearchDocument
@@ -12,9 +13,10 @@ class ListingSearchDocument
      */
     public static function fromListing(Listing $listing): array
     {
-        $amenities = $listing->relationLoaded('facilities')
+        $amenitiesRaw = $listing->relationLoaded('facilities')
             ? $listing->facilities->pluck('name')->filter()->values()->all()
             : $listing->facilities()->pluck('name')->filter()->values()->all();
+        $amenities = ListingAmenityNormalizer::canonicalizeMany($amenitiesRaw);
 
         $owner = $listing->relationLoaded('owner') ? $listing->owner : null;
         $city = $listing->city ?? '';
@@ -29,7 +31,11 @@ class ListingSearchDocument
             'price_per_night' => $listing->price_per_night,
             'rooms' => $listing->rooms,
             'area' => $listing->area,
+            'floor' => $listing->floor,
             'category' => $listing->category,
+            'heating' => $listing->heating,
+            'condition' => $listing->condition,
+            'furnishing' => $listing->furnishing,
             'amenities' => $amenities,
             'amenities_normalized' => array_values(array_filter(array_map(fn ($item) => self::normalizeText((string) $item), $amenities))),
             'status' => $listing->status,
@@ -41,6 +47,8 @@ class ListingSearchDocument
             'rating_avg' => $listing->rating,
             'beds' => $listing->beds,
             'baths' => $listing->baths,
+            'not_last_floor' => (bool) $listing->not_last_floor,
+            'not_ground_floor' => (bool) $listing->not_ground_floor,
             'instant_book' => (bool) $listing->instant_book,
             'cover_image' => $listing->cover_image,
             'cover_image_url' => $listing->cover_image,
