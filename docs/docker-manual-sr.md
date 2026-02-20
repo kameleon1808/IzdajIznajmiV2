@@ -92,6 +92,7 @@ docker compose down -v
 ## Production compose (odvojeno od lokalnog razvoja)
 - Production fajl: `docker-compose.production.yml`
 - Env template: `.env.production.compose.example`
+- Faza Web Push + PWA (detalji implementacije + troubleshooting): `docs/changes/2026-02-20-web-push-pwa.md`
 - Priprema env:
 ```bash
 cp .env.production.compose.example .env.production.compose
