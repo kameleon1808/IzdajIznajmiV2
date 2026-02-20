@@ -57,10 +57,35 @@ export const useChatStore = defineStore('chat', {
         this.error = ''
       }
       try {
+        const previousMessages = this.messages[conversationId] ?? []
+        const previousLastMessage = previousMessages[previousMessages.length - 1]
         const data = await getMessages(conversationId)
         this.messages[conversationId] = data
+        const lastMessage = data[data.length - 1]
+        const lastMessageText = lastMessage?.text?.trim()
+          ? lastMessage.text
+          : lastMessage?.attachments?.length
+            ? 'Sent an attachment'
+            : ''
+
+        if (lastMessage) {
+          this.conversations = this.conversations.map((c) =>
+            c.id === conversationId ? { ...c, lastMessage: lastMessageText, time: lastMessage.time } : c,
+          )
+        }
+
         if (!silent) {
           await markConversationRead(conversationId)
+          this.conversations = this.conversations.map((c) =>
+            c.id === conversationId ? { ...c, unreadCount: 0 } : c,
+          )
+        } else if (
+          this.activeConversationId === conversationId &&
+          lastMessage &&
+          lastMessage.id !== previousLastMessage?.id &&
+          lastMessage.from === 'them'
+        ) {
+          markConversationRead(conversationId).catch(() => undefined)
           this.conversations = this.conversations.map((c) =>
             c.id === conversationId ? { ...c, unreadCount: 0 } : c,
           )

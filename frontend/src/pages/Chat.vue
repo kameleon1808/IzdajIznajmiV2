@@ -12,10 +12,6 @@ import { useLanguageStore } from '../stores/language'
 import Button from '../components/ui/Button.vue'
 import { getTypingStatus, getUserPresence, pingPresence, setTypingStatus } from '../services'
 import ErrorState from '../components/ui/ErrorState.vue'
-import { getEcho } from '../services/echo'
-import type { Message as ChatMessage } from '../types'
-
-type ReverbMessage = ChatMessage & { body?: string }
 
 const route = useRoute()
 const router = useRouter()
@@ -40,14 +36,10 @@ let typingPollTimer: number | null = null
 let presencePollTimer: number | null = null
 let presencePingTimer: number | null = null
 let typingStopTimer: number | null = null
-let attachmentPollTimer: number | null = null
-let attachmentPollAttempts = 0
+let messagePollTimer: number | null = null
 let lastTypingSentAt = 0
-let activeChannelName: string | null = null
 const BOTTOM_THRESHOLD_PX = 64
 const MESSAGES_BOTTOM_GAP_PX = 12
-
-const echo = getEcho()
 
 const conversationId = computed(() => route.params.id as string | undefined)
 const loading = computed(() => chatStore.loading || chatStore.resolving)
@@ -61,9 +53,6 @@ const messages = computed(() => {
   if (!activeId) return []
   return chatStore.messages[activeId] || []
 })
-const hasPendingThumbs = computed(() =>
-  messages.value.some((msg) => (msg.attachments ?? []).some((att) => att.kind === 'image' && !att.thumbUrl)),
-)
 const rateeId = computed(() => {
   if (!conversation.value?.participants) return null
   if (auth.hasRole('seeker')) return conversation.value.participants.landlordId
@@ -198,36 +187,6 @@ const startPresencePing = () => {
   }, 25000)
 }
 
-const startRealtime = (id?: string) => {
-  if (!echo) return
-  if (activeChannelName) {
-    echo.leave(activeChannelName)
-    activeChannelName = null
-  }
-  if (!id) return
-  const channelName = `conversation.${id}`
-  activeChannelName = channelName
-  echo.private(channelName).listen('.message.sent', (payload: { message: ReverbMessage }) => {
-    const message = payload?.message
-    if (!message?.conversationId) return
-    const authId = auth.user?.id ? String(auth.user.id) : ''
-    const senderId = message.senderId ? String(message.senderId) : ''
-    if (authId && senderId && authId === senderId) return
-    chatStore.receiveMessage({
-      ...message,
-      conversationId: String(message.conversationId),
-      from: authId && senderId && authId === senderId ? 'me' : 'them',
-      text: message.text ?? message.body ?? '',
-    })
-  })
-}
-
-const stopRealtime = () => {
-  if (!echo || !activeChannelName) return
-  echo.leave(activeChannelName)
-  activeChannelName = null
-}
-
 const updateViewportMetrics = () => {
   isDesktop.value = window.innerWidth >= 1024
   const viewport = window.visualViewport
@@ -276,28 +235,21 @@ const syncScrollToLatest = async (force = false) => {
   })
 }
 
-const stopAttachmentPolling = () => {
-  if (attachmentPollTimer) window.clearInterval(attachmentPollTimer)
-  attachmentPollTimer = null
-  attachmentPollAttempts = 0
-}
-
-const startAttachmentPolling = (id?: string) => {
-  stopAttachmentPolling()
-  if (!id || !hasPendingThumbs.value) return
+const startMessagePolling = (id?: string) => {
+  if (messagePollTimer) window.clearInterval(messagePollTimer)
+  if (!id) return
   const poll = async () => {
-    if (!conversation.value?.id || !hasPendingThumbs.value) {
-      stopAttachmentPolling()
+    if (!conversation.value?.id) {
       return
     }
-    attachmentPollAttempts += 1
-    await chatStore.fetchMessages(id, { silent: true })
-    if (attachmentPollAttempts >= 6) {
-      stopAttachmentPolling()
+    try {
+      await chatStore.fetchMessages(id, { silent: true })
+    } catch (e) {
+      // ignore transient polling failures
     }
   }
   poll()
-  attachmentPollTimer = window.setInterval(poll, 5000)
+  messagePollTimer = window.setInterval(poll, 3000)
 }
 
 onMounted(() => {
@@ -325,10 +277,9 @@ watch(
 watch(
   () => conversation.value?.id,
   (id) => {
+    startMessagePolling(id)
     startTypingPoll(id)
     startPresencePolling()
-    startAttachmentPolling(id)
-    startRealtime(id)
     isNearBottom.value = true
     syncScrollToLatest(true)
   },
@@ -355,17 +306,6 @@ watch(
   () => startPresencePolling(),
 )
 
-watch(
-  () => hasPendingThumbs.value,
-  (pending) => {
-    if (pending) {
-      startAttachmentPolling(conversation.value?.id)
-    } else {
-      stopAttachmentPolling()
-    }
-  },
-)
-
 onBeforeUnmount(() => {
   window.removeEventListener('resize', updateViewportMetrics)
   const viewport = window.visualViewport
@@ -376,9 +316,8 @@ onBeforeUnmount(() => {
   if (typingPollTimer) window.clearInterval(typingPollTimer)
   if (presencePollTimer) window.clearInterval(presencePollTimer)
   if (presencePingTimer) window.clearInterval(presencePingTimer)
+  if (messagePollTimer) window.clearInterval(messagePollTimer)
   if (typingStopTimer) window.clearTimeout(typingStopTimer)
-  stopAttachmentPolling()
-  stopRealtime()
   setTyping(false)
 })
 </script>
