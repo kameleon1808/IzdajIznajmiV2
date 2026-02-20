@@ -11,6 +11,7 @@ use App\Models\Facility;
 use App\Models\Listing;
 use App\Models\ListingImage;
 use App\Support\ListingAmenityNormalizer;
+use App\Support\MediaUrl;
 use App\Services\FraudSignalService;
 use App\Services\ListingAddressGuardService;
 use App\Services\ListingStatusService;
@@ -198,22 +199,27 @@ class LandlordListingController extends Controller
 
             $existing = $listing->images()->get();
             $keepInput = collect($data['keepImages'] ?? [])->map(function ($item) {
+                $normalizedUrl = MediaUrl::normalize($item['url'] ?? null);
+
                 return [
-                    'url' => $item['url'],
+                    'url' => $normalizedUrl,
                     'sort_order' => $item['sortOrder'] ?? 0,
                     'is_cover' => (bool) ($item['isCover'] ?? false),
                 ];
-            });
+            })->filter(fn ($item) => ! empty($item['url']))->values();
 
             if ($keepInput->isEmpty()) {
                 $keepInput = $existing->map(fn ($img) => [
-                    'url' => $img->url,
+                    'url' => MediaUrl::normalize($img->url),
                     'sort_order' => $img->sort_order,
                     'is_cover' => (bool) $img->is_cover,
                 ]);
             }
 
-            $removedUrls = collect($data['removeImageUrls'] ?? []);
+            $removedUrls = collect($data['removeImageUrls'] ?? [])
+                ->map(fn ($url) => MediaUrl::normalize(is_string($url) ? $url : null))
+                ->filter()
+                ->values();
             $keepInput = $keepInput->reject(fn ($item) => $removedUrls->contains($item['url']))->values();
 
             $newUploads = $this->storeUploadedImages($request->file('images', []), $listing, null, $keepInput->count());
@@ -376,17 +382,43 @@ class LandlordListingController extends Controller
     private function syncImages(Listing $listing, array $keepImages, array $newUploads): void
     {
         $existing = $listing->images()->get();
-        $keepUrls = collect($keepImages)->pluck('url');
-        $newUrls = collect($newUploads)->pluck('url');
+        $existingByUrl = $existing->mapWithKeys(function ($img) {
+            $normalized = MediaUrl::normalize($img->url);
+            if ($normalized === null || $normalized === '') {
+                return [];
+            }
+
+            return [$normalized => $img];
+        });
+        $keepUrls = collect($keepImages)
+            ->map(fn ($img) => MediaUrl::normalize($img['url'] ?? null))
+            ->filter()
+            ->values();
+        $newUrls = collect($newUploads)
+            ->map(fn ($upload) => MediaUrl::normalize($upload->url))
+            ->filter()
+            ->values();
 
         // delete removed (exclude freshly uploaded)
-        $existing->filter(fn ($img) => ! $keepUrls->contains($img->url) && ! $newUrls->contains($img->url))->each->delete();
+        $existing
+            ->filter(function ($img) use ($keepUrls, $newUrls) {
+                $normalized = MediaUrl::normalize($img->url);
+
+                return ! $keepUrls->contains($normalized) && ! $newUrls->contains($normalized);
+            })
+            ->each->delete();
 
         // update kept
         foreach ($keepImages as $img) {
-            $record = $existing->firstWhere('url', $img['url']);
+            $normalizedUrl = MediaUrl::normalize($img['url'] ?? null);
+            if (! $normalizedUrl) {
+                continue;
+            }
+
+            $record = $existingByUrl->get($normalizedUrl);
             if ($record) {
                 $record->update([
+                    'url' => $normalizedUrl,
                     'sort_order' => $img['sort_order'] ?? 0,
                     'is_cover' => $img['is_cover'] ?? false,
                 ]);
@@ -410,18 +442,29 @@ class LandlordListingController extends Controller
 
     private function deleteImages(Listing $listing, array $urls): void
     {
-        foreach ($urls as $url) {
-            $path = parse_url($url, PHP_URL_PATH);
-            if (! $path) {
-                continue;
-            }
-            $relative = ltrim(str_replace('/storage/', '', $path), '/');
-            if (! str_starts_with($relative, "listings/{$listing->id}/")) {
-                continue;
-            }
-            Storage::disk('public')->delete($relative);
+        $normalizedUrls = collect($urls)
+            ->map(fn ($url) => MediaUrl::normalize(is_string($url) ? $url : null))
+            ->filter()
+            ->unique()
+            ->values();
+
+        if ($normalizedUrls->isEmpty()) {
+            return;
         }
-        $listing->images()->whereIn('url', $urls)->delete();
+
+        $existing = $listing->images()->get();
+        $toDelete = $existing->filter(fn ($img) => $normalizedUrls->contains(MediaUrl::normalize($img->url)));
+
+        foreach ($toDelete as $image) {
+            $path = parse_url((string) MediaUrl::normalize($image->url), PHP_URL_PATH);
+            if ($path) {
+                $relative = ltrim(str_replace('/storage/', '', $path), '/');
+                if (str_starts_with($relative, "listings/{$listing->id}/")) {
+                    Storage::disk('public')->delete($relative);
+                }
+            }
+            $image->delete();
+        }
     }
 
     private function storeUploadedImages(array $files, Listing $listing, ?int $coverIndex = null, int $startOrder = 0): array
@@ -437,7 +480,7 @@ class LandlordListingController extends Controller
             $isCover = $coverIndex !== null ? $coverIndex === $index : false;
             $image = ListingImage::create([
                 'listing_id' => $listing->id,
-                'url' => $disk->url($path),
+                'url' => MediaUrl::publicStorage($path),
                 'sort_order' => $startOrder + $index,
                 'is_cover' => $isCover,
                 'processing_status' => 'pending',

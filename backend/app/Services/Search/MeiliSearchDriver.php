@@ -5,6 +5,7 @@ namespace App\Services\Search;
 use App\Models\Listing;
 use App\Services\ListingStatusService;
 use App\Support\ListingAmenityNormalizer;
+use App\Support\MediaUrl;
 use MeiliSearch\Client;
 use Meilisearch\Exceptions\ApiException;
 use Meilisearch\Search\SearchResult;
@@ -37,7 +38,7 @@ class MeiliSearchDriver implements SearchDriver
 
         $result = $this->executeSearch($index, $query, $options);
         $payload = $result instanceof SearchResult ? $result->toArray() : (array) $result;
-        $hits = $payload['hits'] ?? [];
+        $hits = array_map(fn ($hit) => $this->normalizeListingHit((array) $hit), $payload['hits'] ?? []);
         $total = $payload['estimatedTotalHits'] ?? $payload['nbHits'] ?? count($hits);
         $lastPage = $perPage > 0 ? (int) ceil($total / $perPage) : 1;
 
@@ -357,6 +358,27 @@ class MeiliSearchDriver implements SearchDriver
     private function hasValue(mixed $value): bool
     {
         return $value !== null && $value !== '';
+    }
+
+    /**
+     * @param  array<string, mixed>  $hit
+     * @return array<string, mixed>
+     */
+    private function normalizeListingHit(array $hit): array
+    {
+        if (array_key_exists('cover_image', $hit)) {
+            $hit['cover_image'] = MediaUrl::normalize(is_string($hit['cover_image']) ? $hit['cover_image'] : null);
+        }
+
+        if (array_key_exists('cover_image_url', $hit)) {
+            $hit['cover_image_url'] = MediaUrl::normalize(is_string($hit['cover_image_url']) ? $hit['cover_image_url'] : null);
+        }
+
+        if (array_key_exists('coverImage', $hit)) {
+            $hit['coverImage'] = MediaUrl::normalize(is_string($hit['coverImage']) ? $hit['coverImage'] : null);
+        }
+
+        return $hit;
     }
 
     private function escapeFilterValue(string $value): string

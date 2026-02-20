@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Models\Listing;
+use App\Support\MediaUrl;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -29,9 +30,9 @@ class ApplicationResource extends JsonResource
 
     private function formatListing(Listing $listing): array
     {
-        $cover = $listing->cover_image;
+        $cover = MediaUrl::normalize($listing->cover_image);
         $firstImage = $listing->relationLoaded('images')
-            ? $listing->images->sortBy('sort_order')->first()?->url
+            ? MediaUrl::normalize($listing->images->sortBy('sort_order')->first()?->url)
             : null;
 
         return [

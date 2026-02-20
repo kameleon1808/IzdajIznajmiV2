@@ -9,6 +9,7 @@ use App\Services\ListingSearchService;
 use App\Services\ListingStatusService;
 use App\Services\SavedSearchNormalizer;
 use App\Services\SearchFilterSnapshotService;
+use App\Support\MediaUrl;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -75,7 +76,7 @@ class ListingController extends Controller
                     'lat' => $item->lat,
                     'lng' => $item->lng,
                     'pricePerNight' => $item->price_per_night,
-                    'coverImage' => $item->cover_image,
+                    'coverImage' => MediaUrl::normalize($item->cover_image),
                     'city' => $item->city,
                     'distanceKm' => $item->distance_km !== null ? round((float) $item->distance_km, 2) : null,
                 ];

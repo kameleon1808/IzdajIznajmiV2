@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Support\MediaUrl;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -26,7 +27,9 @@ class ConversationResource extends JsonResource
             'listingId' => $this->listing_id,
             'listingTitle' => $listing?->title,
             'listingCity' => $listing?->city,
-            'listingCoverImage' => $listing?->cover_image ?? ($listing?->relationLoaded('images') ? $listing->images->sortBy('sort_order')->first()?->url : null),
+            'listingCoverImage' => MediaUrl::normalize(
+                $listing?->cover_image ?? ($listing?->relationLoaded('images') ? $listing->images->sortBy('sort_order')->first()?->url : null)
+            ),
             'userName' => $participant?->name ?? 'Guest',
             'avatarUrl' => null,
             'lastMessage' => $lastMessageText ?: 'Start chatting',

@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Services\BadgeService;
+use App\Support\MediaUrl;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Collection;
@@ -43,7 +44,7 @@ class ListingResource extends JsonResource
             'reviewsCount' => $this->reviews_count,
             'listing_rating_avg' => $this->listing_rating_avg !== null ? round((float) $this->listing_rating_avg, 1) : 0.0,
             'listing_rating_count' => (int) ($this->listing_rating_count ?? 0),
-            'coverImage' => $this->cover_image,
+            'coverImage' => MediaUrl::normalize($this->cover_image),
             'images' => $this->imagesSimple(),
             'imagesDetailed' => $this->imagesDetailed(),
             'description' => $this->description,
@@ -87,10 +88,16 @@ class ListingResource extends JsonResource
     private function imagesSimple(): Collection
     {
         if ($this->relationLoaded('images')) {
-            return $this->images->where('processing_status', 'done')->pluck('url');
+            return $this->images
+                ->where('processing_status', 'done')
+                ->pluck('url')
+                ->map(fn ($url) => MediaUrl::normalize($url));
         }
 
-        return $this->images()->where('processing_status', 'done')->pluck('url');
+        return $this->images()
+            ->where('processing_status', 'done')
+            ->pluck('url')
+            ->map(fn ($url) => MediaUrl::normalize($url));
     }
 
     private function imagesDetailed(): Collection
@@ -99,7 +106,7 @@ class ListingResource extends JsonResource
 
         return $relation->map(function ($img) {
             return [
-                'url' => $img->url,
+                'url' => MediaUrl::normalize($img->url),
                 'sortOrder' => $img->sort_order,
                 'isCover' => (bool) $img->is_cover,
                 'processingStatus' => $img->processing_status ?? 'done',

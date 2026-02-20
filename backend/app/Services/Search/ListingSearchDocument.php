@@ -4,6 +4,7 @@ namespace App\Services\Search;
 
 use App\Models\Listing;
 use App\Support\ListingAmenityNormalizer;
+use App\Support\MediaUrl;
 use Illuminate\Support\Str;
 
 class ListingSearchDocument
@@ -50,8 +51,8 @@ class ListingSearchDocument
             'not_last_floor' => (bool) $listing->not_last_floor,
             'not_ground_floor' => (bool) $listing->not_ground_floor,
             'instant_book' => (bool) $listing->instant_book,
-            'cover_image' => $listing->cover_image,
-            'cover_image_url' => $listing->cover_image,
+            'cover_image' => MediaUrl::normalize($listing->cover_image),
+            'cover_image_url' => MediaUrl::normalize($listing->cover_image),
             'created_at' => optional($listing->created_at)->toISOString(),
             'published_at' => optional($listing->published_at)->toISOString(),
             'price_bucket' => ListingSearchBuckets::priceBucketFor($listing->price_per_night),

@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use App\Models\ListingImage;
+use App\Support\MediaUrl;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -53,13 +54,14 @@ class ProcessListingImage implements ShouldQueue
                 $uuid = Str::uuid()->toString();
                 $finalPath = dirname($this->originalPath, 1).'/'.$uuid.'.webp';
                 $disk->put($finalPath, (string) $encoded);
+                $publicUrl = MediaUrl::publicStorage($finalPath);
                 $image->update([
-                    'url' => $disk->url($finalPath),
+                    'url' => $publicUrl,
                     'processing_status' => 'done',
                     'processing_error' => null,
                 ]);
                 if ($image->is_cover) {
-                    $image->listing()->update(['cover_image' => $disk->url($finalPath)]);
+                    $image->listing()->update(['cover_image' => $publicUrl]);
                 }
                 // optionally delete original
                 $disk->delete($this->originalPath);
@@ -68,8 +70,9 @@ class ProcessListingImage implements ShouldQueue
             }
         } catch (Throwable $e) {
             // fall back to original
+            $publicUrl = MediaUrl::publicStorage($this->originalPath);
             $image->update([
-                'url' => $disk->url($this->originalPath),
+                'url' => $publicUrl,
                 'processing_status' => 'done',
                 'processing_error' => $e->getMessage(),
             ]);
@@ -77,8 +80,9 @@ class ProcessListingImage implements ShouldQueue
             return;
         }
 
+        $publicUrl = MediaUrl::publicStorage($this->originalPath);
         $image->update([
-            'url' => $disk->url($this->originalPath),
+            'url' => $publicUrl,
             'processing_status' => 'done',
         ]);
     }
