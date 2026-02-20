@@ -87,6 +87,8 @@ docker compose down -v
 - Frontend: `http://localhost:5173`
 - Meili: `http://localhost:7700`
 
+
+
 ## Production compose (odvojeno od lokalnog razvoja)
 - Production fajl: `docker-compose.production.yml`
 - Env template: `.env.production.compose.example`
