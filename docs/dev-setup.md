@@ -72,6 +72,8 @@
 - Produkcija: umesto `schedule:work`, podesite cron da pokreće scheduler na svakih minut:
   - `* * * * * cd /path/to/backend && php artisan schedule:run >> /dev/null 2>&1`
 - Notifikacije: sistem za in-app notifikacije sa preferencama i digest podrškom. Tipovi: `application.created`, `application.status_changed`, `message.received`, `rating.received`, `report.update`, `admin.notice`, `digest.daily`, `digest.weekly`. Korisnici mogu da konfigurišu tipove i digest frekvenciju (none/daily/weekly) kroz `/settings/notifications`.
+  - Web Push (desktop + Android browser): podesite `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` u backend env.
+  - Push subscription API: `POST /api/v1/push/subscribe`, `POST /api/v1/push/unsubscribe`, `GET /api/v1/push/subscriptions`.
 - Saved searches API: `POST/GET/PUT/DELETE /api/v1/saved-searches`; deep-link format: `/search?savedSearchId={id}`.
 - Geokodiranje & geo pretraga:
   - Default koristi `FakeGeocoder` (determinističan lat/lng na osnovu adrese) — vidi `GEOCODER_DRIVER=fake`, `GEOCODER_CACHE_TTL`, `FAKE_GEOCODER_*` u `.env.example`.
@@ -95,6 +97,8 @@
 - Env primer (`frontend/.env.example`):
   - `VITE_API_BASE_URL=` (prazno koristi dev proxy ka backend-u)
   - `VITE_USE_MOCK_API=true` (default za bezbedan start)
+  - `VITE_ENABLE_WEB_PUSH=false` (uključite za lokalni SW/push test)
+  - `VITE_VAPID_PUBLIC_KEY=` (mora da odgovara backend VAPID public ključu)
 - Pokretanje: `npm install && cp .env.example .env && npm run dev`
 - Build: `npm run build` (zahteva Node 20.19+ ili 22.12+; dev server radi, ali CI i build treba pokretati na Node 20+)
 - Unit testovi: `npm run test`

@@ -52,6 +52,11 @@ services:
       SEARCH_DRIVER: meili
       MEILISEARCH_HOST: http://meilisearch:7700
       MEILISEARCH_KEY: ${MEILISEARCH_KEY:-change-me}
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:admin@example.com}
+      PUSH_NOTIFICATION_ICON: ${PUSH_NOTIFICATION_ICON:-/vite.svg}
+      PUSH_NOTIFICATION_BADGE: ${PUSH_NOTIFICATION_BADGE:-/vite.svg}
     depends_on:
       postgres:
         condition: service_healthy
@@ -89,6 +94,11 @@ services:
       SEARCH_DRIVER: meili
       MEILISEARCH_HOST: http://meilisearch:7700
       MEILISEARCH_KEY: ${MEILISEARCH_KEY:-change-me}
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:admin@example.com}
+      PUSH_NOTIFICATION_ICON: ${PUSH_NOTIFICATION_ICON:-/vite.svg}
+      PUSH_NOTIFICATION_BADGE: ${PUSH_NOTIFICATION_BADGE:-/vite.svg}
     depends_on:
       backend:
         condition: service_started
@@ -170,6 +180,8 @@ services:
       VITE_API_BASE_URL: ""
       VITE_USE_MOCK_API: "false"
       VITE_SEARCH_V2: ${VITE_SEARCH_V2:-true}
+      VITE_ENABLE_WEB_PUSH: ${VITE_ENABLE_WEB_PUSH:-false}
+      VITE_VAPID_PUBLIC_KEY: ${VITE_VAPID_PUBLIC_KEY:-}
       VITE_REVERB_APP_KEY: ${REVERB_APP_KEY:-local}
       VITE_REVERB_HOST: ""
       VITE_REVERB_PORT: "80"

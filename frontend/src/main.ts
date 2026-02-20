@@ -4,6 +4,7 @@ import App from './App.vue'
 import router from './router'
 import './assets/main.css'
 import { registerAuthHandlers } from './services/apiClient'
+import { registerPushServiceWorker } from './services/push'
 import { useAuthStore } from './stores/auth'
 
 const app = createApp(App)
@@ -16,5 +17,9 @@ const auth = useAuthStore(pinia)
 registerAuthHandlers({
   onUnauthorized: () => auth.handleUnauthorized(),
 })
+
+if (!auth.isMockMode) {
+  void registerPushServiceWorker()
+}
 
 app.mount('#app')

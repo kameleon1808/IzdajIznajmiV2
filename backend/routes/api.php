@@ -29,6 +29,7 @@ use App\Http\Controllers\ListingReportController;
 use App\Http\Controllers\MessageReportController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\NotificationPreferenceController;
+use App\Http\Controllers\PushSubscriptionController;
 use App\Http\Controllers\RatingController;
 use App\Http\Controllers\RatingReplyController;
 use App\Http\Controllers\RatingReportController;
@@ -161,6 +162,9 @@ $apiRoutes = function () use ($authRoutes) {
 
             Route::get('/notification-preferences', [NotificationPreferenceController::class, 'show']);
             Route::put('/notification-preferences', [NotificationPreferenceController::class, 'update']);
+            Route::get('/push/subscriptions', [PushSubscriptionController::class, 'index']);
+            Route::post('/push/subscribe', [PushSubscriptionController::class, 'subscribe'])->middleware('throttle:push_subscriptions');
+            Route::post('/push/unsubscribe', [PushSubscriptionController::class, 'unsubscribe'])->middleware('throttle:push_subscriptions');
 
             Route::get('/saved-searches', [SavedSearchController::class, 'index']);
             Route::post('/saved-searches', [SavedSearchController::class, 'store']);

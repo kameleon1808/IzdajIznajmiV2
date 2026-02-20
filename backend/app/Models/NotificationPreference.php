@@ -12,6 +12,7 @@ class NotificationPreference extends Model
         'type_settings',
         'digest_frequency',
         'digest_enabled',
+        'push_enabled',
         'last_digest_daily_at',
         'last_digest_weekly_at',
     ];
@@ -19,6 +20,7 @@ class NotificationPreference extends Model
     protected $casts = [
         'type_settings' => 'array',
         'digest_enabled' => 'boolean',
+        'push_enabled' => 'boolean',
         'last_digest_daily_at' => 'datetime',
         'last_digest_weekly_at' => 'datetime',
     ];

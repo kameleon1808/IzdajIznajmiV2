@@ -183,4 +183,9 @@ class User extends Authenticatable
     {
         return $this->hasOne(LandlordMetric::class, 'landlord_id');
     }
+
+    public function pushSubscriptions()
+    {
+        return $this->hasMany(PushSubscription::class);
+    }
 }

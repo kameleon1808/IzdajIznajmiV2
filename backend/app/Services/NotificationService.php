@@ -36,6 +36,7 @@ class NotificationService
                 'type_settings' => NotificationPreference::defaultTypeSettings(),
                 'digest_frequency' => NotificationPreference::DIGEST_NONE,
                 'digest_enabled' => false,
+                'push_enabled' => false,
             ]
         );
     }

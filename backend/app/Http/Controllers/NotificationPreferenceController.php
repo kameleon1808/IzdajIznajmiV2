@@ -19,6 +19,7 @@ class NotificationPreferenceController extends Controller
                 'type_settings' => NotificationPreference::defaultTypeSettings(),
                 'digest_frequency' => NotificationPreference::DIGEST_NONE,
                 'digest_enabled' => false,
+                'push_enabled' => false,
             ]
         );
 
@@ -42,6 +43,7 @@ class NotificationPreferenceController extends Controller
             'type_settings.*' => ['boolean'],
             'digest_frequency' => ['required', 'in:none,daily,weekly'],
             'digest_enabled' => ['required', 'boolean'],
+            'push_enabled' => ['sometimes', 'boolean'],
         ]);
 
         $preferences = NotificationPreference::firstOrCreate(
@@ -50,6 +52,7 @@ class NotificationPreferenceController extends Controller
                 'type_settings' => NotificationPreference::defaultTypeSettings(),
                 'digest_frequency' => NotificationPreference::DIGEST_NONE,
                 'digest_enabled' => false,
+                'push_enabled' => false,
             ]
         );
 
@@ -62,6 +65,9 @@ class NotificationPreferenceController extends Controller
 
         $preferences->digest_frequency = $data['digest_frequency'];
         $preferences->digest_enabled = $data['digest_enabled'];
+        if (array_key_exists('push_enabled', $data)) {
+            $preferences->push_enabled = $data['push_enabled'];
+        }
         $preferences->save();
 
         return response()->json($preferences->fresh());

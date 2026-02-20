@@ -17,6 +17,7 @@ interface NotificationPreferences {
   typeSettings: Record<string, boolean>
   digestFrequency: 'none' | 'daily' | 'weekly'
   digestEnabled: boolean
+  pushEnabled: boolean
 }
 
 export const useNotificationStore = defineStore('notifications', {
@@ -113,6 +114,7 @@ export const useNotificationStore = defineStore('notifications', {
           typeSettings: data.type_settings ?? {},
           digestFrequency: data.digest_frequency ?? 'none',
           digestEnabled: data.digest_enabled ?? false,
+          pushEnabled: data.push_enabled ?? false,
         }
         return this.preferences
       } catch (error) {
@@ -128,6 +130,11 @@ export const useNotificationStore = defineStore('notifications', {
           digest_frequency: prefs.digestFrequency ?? this.preferences?.digestFrequency ?? 'none',
           digest_enabled: prefs.digestEnabled ?? this.preferences?.digestEnabled ?? false,
         }
+        if (prefs.pushEnabled !== undefined) {
+          payload.push_enabled = prefs.pushEnabled
+        } else if (this.preferences?.pushEnabled !== undefined) {
+          payload.push_enabled = this.preferences.pushEnabled
+        }
         if (prefs.typeSettings) {
           payload.type_settings = prefs.typeSettings
         }
@@ -136,6 +143,7 @@ export const useNotificationStore = defineStore('notifications', {
           typeSettings: data.type_settings ?? {},
           digestFrequency: data.digest_frequency ?? 'none',
           digestEnabled: data.digest_enabled ?? false,
+          pushEnabled: data.push_enabled ?? false,
         }
         return this.preferences
       } catch (error) {

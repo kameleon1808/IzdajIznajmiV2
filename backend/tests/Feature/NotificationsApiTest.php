@@ -5,6 +5,8 @@ namespace Tests\Feature;
 use App\Jobs\GeocodeListingJob;
 use App\Jobs\IndexListingJob;
 use App\Jobs\RemoveListingFromIndexJob;
+use App\Jobs\SendWebPushNotificationJob;
+use App\Models\PushSubscription;
 use App\Models\Listing;
 use App\Models\Notification;
 use App\Models\NotificationPreference;
@@ -300,5 +302,65 @@ class NotificationsApiTest extends TestCase
                 ->where('type', Notification::TYPE_MESSAGE_RECEIVED)
                 ->count()
         );
+    }
+
+    public function test_dispatch_notification_job_enqueues_web_push_when_enabled(): void
+    {
+        Queue::fake([SendWebPushNotificationJob::class]);
+
+        $user = User::factory()->create();
+        NotificationPreference::create([
+            'user_id' => $user->id,
+            'type_settings' => NotificationPreference::defaultTypeSettings(),
+            'digest_frequency' => NotificationPreference::DIGEST_NONE,
+            'digest_enabled' => false,
+            'push_enabled' => true,
+        ]);
+        PushSubscription::create([
+            'user_id' => $user->id,
+            'endpoint' => 'https://example.test/subscription-enqueue',
+            'p256dh' => 'p-key',
+            'auth' => 'a-key',
+            'is_enabled' => true,
+        ]);
+
+        \App\Jobs\DispatchNotificationJob::dispatchSync(
+            $user->id,
+            Notification::TYPE_MESSAGE_RECEIVED,
+            'New message',
+            'Body'
+        );
+
+        Queue::assertPushed(SendWebPushNotificationJob::class, 1);
+    }
+
+    public function test_dispatch_notification_job_skips_web_push_when_disabled(): void
+    {
+        Queue::fake([SendWebPushNotificationJob::class]);
+
+        $user = User::factory()->create();
+        NotificationPreference::create([
+            'user_id' => $user->id,
+            'type_settings' => NotificationPreference::defaultTypeSettings(),
+            'digest_frequency' => NotificationPreference::DIGEST_NONE,
+            'digest_enabled' => false,
+            'push_enabled' => false,
+        ]);
+        PushSubscription::create([
+            'user_id' => $user->id,
+            'endpoint' => 'https://example.test/subscription-no-enqueue',
+            'p256dh' => 'p-key',
+            'auth' => 'a-key',
+            'is_enabled' => true,
+        ]);
+
+        \App\Jobs\DispatchNotificationJob::dispatchSync(
+            $user->id,
+            Notification::TYPE_MESSAGE_RECEIVED,
+            'New message',
+            'Body'
+        );
+
+        Queue::assertNotPushed(SendWebPushNotificationJob::class);
     }
 }

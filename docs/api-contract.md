@@ -106,6 +106,30 @@ Base URL: `/api/v1` (auth also available under `/api/auth/*` during the transiti
   - Notifications bell polling: unread count every ~15s (+ refresh on tab focus/visibility change).
   - Messages API returns newest-first limited to last 200 (frontend then orders ascending for rendering).
 
+## Web Push (PWA)
+- `POST /api/v1/push/subscribe`
+  - Body:
+    ```json
+    {
+      "endpoint": "https://fcm.googleapis.com/fcm/send/...",
+      "keys": { "p256dh": "...", "auth": "..." },
+      "deviceLabel": "Chrome on Android"
+    }
+    ```
+  - Effect: upserts device subscription, sets `notification_preferences.push_enabled=true`.
+- `POST /api/v1/push/unsubscribe`
+  - Body: `{ "endpoint": "..." }`
+  - Effect: marks subscription disabled (`is_enabled=false`); when no enabled devices remain for user, `push_enabled=false`.
+- `GET /api/v1/push/subscriptions`
+  - Returns user-owned subscriptions/devices (enabled + disabled).
+- Dispatch behavior:
+  - In-app notifications are still created first.
+  - Push delivery is queued through `SendWebPushNotificationJob(notification_id)` only when:
+    - notification type is push-eligible (digest notifications are skipped),
+    - user has `push_enabled=true`,
+    - at least one enabled subscription exists.
+  - Expired endpoints (`404/410`) are auto-disabled.
+
 ## Filtering Notes
 - `facilities[]` filter currently matches ANY facility provided (can be tightened to ALL later if needed).
 

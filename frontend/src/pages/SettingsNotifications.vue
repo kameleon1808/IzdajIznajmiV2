@@ -6,6 +6,16 @@ import { useNotificationStore } from '../stores/notifications'
 import { useAuthStore } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
 import { useLanguageStore } from '../stores/language'
+import {
+  disablePushEndpoint,
+  fetchPushDevices,
+  getCurrentPushEndpoint,
+  getPushPermissionState,
+  isPushFeatureEnabled,
+  subscribeCurrentDevicePush,
+  unsubscribeCurrentDevicePush,
+  type PushDevice,
+} from '../services/push'
 import Button from '../components/ui/Button.vue'
 import ErrorState from '../components/ui/ErrorState.vue'
 
@@ -24,6 +34,15 @@ const typeSettings = ref<Record<string, boolean>>({})
 const digestFrequency = ref<'none' | 'daily' | 'weekly'>('none')
 const digestEnabled = ref(false)
 
+const pushLoading = ref(false)
+const pushBusy = ref(false)
+const pushError = ref('')
+const pushPermission = ref<'default' | 'granted' | 'denied' | 'unsupported'>('unsupported')
+const pushDevices = ref<PushDevice[]>([])
+const currentEndpoint = ref<string | null>(null)
+
+const pushFeatureEnabled = isPushFeatureEnabled()
+
 const typeLabels = computed<Record<string, string>>(() => ({
   'application.created': t('settings.notifications.types.applicationCreated'),
   'application.status_changed': t('settings.notifications.types.applicationStatus'),
@@ -41,6 +60,27 @@ const typeLabels = computed<Record<string, string>>(() => ({
   'transaction.move_in_confirmed': t('settings.notifications.types.moveInConfirmed'),
 }))
 
+const pushPermissionLabel = computed(() => {
+  if (pushPermission.value === 'granted') return t('settings.notifications.push.permission.granted')
+  if (pushPermission.value === 'denied') return t('settings.notifications.push.permission.denied')
+  if (pushPermission.value === 'default') return t('settings.notifications.push.permission.default')
+  return t('settings.notifications.push.permission.unsupported')
+})
+
+const sortedDevices = computed(() =>
+  [...pushDevices.value].sort((a, b) => {
+    const timeA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0
+    const timeB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0
+    return timeB - timeA
+  }),
+)
+
+const currentDeviceIsEnabled = computed(
+  () => !!currentEndpoint.value && pushDevices.value.some((device) => device.endpoint === currentEndpoint.value && device.isEnabled),
+)
+
+const hasEnabledDevices = computed(() => pushDevices.value.some((device) => device.isEnabled))
+
 const isDirty = computed(() => {
   if (!notificationStore.preferences) return false
   const prefs = notificationStore.preferences
@@ -50,6 +90,28 @@ const isDirty = computed(() => {
     digestEnabled.value !== prefs.digestEnabled
   )
 })
+
+const loadPushState = async () => {
+  pushPermission.value = getPushPermissionState()
+  pushError.value = ''
+
+  if (!authStore.isAuthenticated || authStore.isMockMode || !pushFeatureEnabled) {
+    pushDevices.value = []
+    currentEndpoint.value = null
+    return
+  }
+
+  pushLoading.value = true
+  try {
+    const [endpoint, devices] = await Promise.all([getCurrentPushEndpoint(), fetchPushDevices()])
+    currentEndpoint.value = endpoint
+    pushDevices.value = devices
+  } catch (error) {
+    pushError.value = (error as Error).message || t('settings.notifications.push.loadFailed')
+  } finally {
+    pushLoading.value = false
+  }
+}
 
 onMounted(async () => {
   if (authStore.isAuthenticated && !authStore.isMockMode) {
@@ -68,6 +130,8 @@ onMounted(async () => {
       loading.value = false
     }
   }
+
+  await loadPushState()
 })
 
 const toggleType = (type: string) => {
@@ -105,6 +169,66 @@ const retryLoad = async () => {
   } finally {
     loading.value = false
   }
+}
+
+const enablePush = async () => {
+  pushBusy.value = true
+  pushError.value = ''
+  try {
+    await subscribeCurrentDevicePush()
+    toastStore.push({ title: t('common.success'), message: t('settings.notifications.push.enabled'), type: 'success' })
+    await loadPushState()
+  } catch (error) {
+    const message = (error as Error).message || t('settings.notifications.push.enableFailed')
+    pushError.value = message
+    toastStore.push({ title: t('common.error'), message, type: 'error' })
+  } finally {
+    pushBusy.value = false
+  }
+}
+
+const disableCurrentPush = async () => {
+  pushBusy.value = true
+  pushError.value = ''
+  try {
+    const endpoint = await unsubscribeCurrentDevicePush()
+    if (!endpoint && currentEndpoint.value) {
+      await disablePushEndpoint(currentEndpoint.value)
+    }
+    toastStore.push({ title: t('common.success'), message: t('settings.notifications.push.disabled'), type: 'success' })
+    await loadPushState()
+  } catch (error) {
+    const message = (error as Error).message || t('settings.notifications.push.disableFailed')
+    pushError.value = message
+    toastStore.push({ title: t('common.error'), message, type: 'error' })
+  } finally {
+    pushBusy.value = false
+  }
+}
+
+const disableDevice = async (endpoint: string) => {
+  pushBusy.value = true
+  pushError.value = ''
+  try {
+    if (endpoint === currentEndpoint.value) {
+      await disableCurrentPush()
+      return
+    }
+    await disablePushEndpoint(endpoint)
+    toastStore.push({ title: t('common.success'), message: t('settings.notifications.push.deviceDisabled'), type: 'success' })
+    await loadPushState()
+  } catch (error) {
+    const message = (error as Error).message || t('settings.notifications.push.disableFailed')
+    pushError.value = message
+    toastStore.push({ title: t('common.error'), message, type: 'error' })
+  } finally {
+    pushBusy.value = false
+  }
+}
+
+const formatDeviceTime = (value: string | null) => {
+  if (!value) return t('common.unknown')
+  return new Date(value).toLocaleString()
 }
 </script>
 
@@ -189,6 +313,63 @@ const retryLoad = async () => {
             ></span>
           </button>
         </label>
+      </div>
+
+      <div class="space-y-3 rounded-2xl bg-white p-4 shadow-soft border border-white/60">
+        <div class="flex items-center justify-between gap-3">
+          <div>
+            <h2 class="text-base font-semibold text-slate-900">{{ t('settings.notifications.push.title') }}</h2>
+            <p class="text-xs text-muted mt-1">{{ t('settings.notifications.push.subtitle') }}</p>
+          </div>
+          <span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-700">{{ pushPermissionLabel }}</span>
+        </div>
+
+        <p v-if="!pushFeatureEnabled" class="text-xs text-amber-700">
+          {{ t('settings.notifications.push.configDisabled') }}
+        </p>
+        <p v-if="pushError" class="text-xs text-rose-700">{{ pushError }}</p>
+
+        <div class="flex flex-wrap gap-2">
+          <Button
+            size="sm"
+            :disabled="pushBusy || !pushFeatureEnabled || pushPermission === 'denied'"
+            @click="enablePush"
+          >
+            {{ currentDeviceIsEnabled ? t('settings.notifications.push.reEnable') : t('settings.notifications.push.enable') }}
+          </Button>
+          <Button
+            size="sm"
+            variant="secondary"
+            :disabled="pushBusy || !currentDeviceIsEnabled"
+            @click="disableCurrentPush"
+          >
+            {{ t('settings.notifications.push.disableCurrent') }}
+          </Button>
+        </div>
+
+        <div v-if="pushLoading" class="text-sm text-muted">{{ t('common.loading') }}</div>
+        <div v-else-if="!hasEnabledDevices" class="text-sm text-muted">{{ t('settings.notifications.push.noDevices') }}</div>
+        <div v-else class="space-y-2">
+          <div
+            v-for="device in sortedDevices"
+            :key="device.id"
+            class="rounded-xl border border-slate-200 p-3"
+            :class="device.endpoint === currentEndpoint ? 'bg-primary/5 border-primary/30' : ''"
+          >
+            <div class="flex items-start justify-between gap-3">
+              <div>
+                <p class="text-sm font-semibold text-slate-900">
+                  {{ device.deviceLabel || t('settings.notifications.push.unknownDevice') }}
+                  <span v-if="device.endpoint === currentEndpoint" class="text-xs font-medium text-primary">{{ t('settings.notifications.push.currentDevice') }}</span>
+                </p>
+                <p class="text-xs text-muted mt-0.5">{{ formatDeviceTime(device.updatedAt) }}</p>
+              </div>
+              <Button size="sm" variant="secondary" :disabled="pushBusy || !device.isEnabled" @click="disableDevice(device.endpoint)">
+                {{ t('settings.notifications.push.disableDevice') }}
+              </Button>
+            </div>
+          </div>
+        </div>
       </div>
 
       <Button block size="lg" :variant="isDirty ? 'primary' : 'secondary'" :disabled="!isDirty || saving" @click="save">

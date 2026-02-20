@@ -237,5 +237,11 @@ class AppServiceProvider extends ServiceProvider
 
             return Limit::perMinute(5)->by($key);
         });
+
+        RateLimiter::for('push_subscriptions', function (Request $request) {
+            $key = sprintf('push_subscriptions:%s:%s', $request->user()?->id ?? 'guest', $request->ip());
+
+            return Limit::perMinute(20)->by($key);
+        });
     }
 }
