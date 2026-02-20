@@ -669,10 +669,46 @@ export const getConversationById = async (conversationId: string): Promise<Conve
   return mapConversation(data.data ?? data)
 }
 
+const normalizeEtag = (value: unknown): string | null => {
+  if (typeof value !== 'string') return null
+  const etag = value.trim()
+  return etag.length ? etag : null
+}
+
 export const getMessages = async (conversationId: string): Promise<Message[]> => {
   const { data } = await apiClient.get(`/conversations/${conversationId}/messages`)
   const list = (data.data ?? data) as any[]
   return list.map(mapMessage)
+}
+
+export const pollMessages = async (
+  conversationId: string,
+  options?: { sinceId?: string | number; after?: string; etag?: string | null },
+): Promise<{ messages: Message[]; notModified: boolean; etag: string | null }> => {
+  const params: Record<string, string | number> = {}
+  if (options?.sinceId !== undefined && options?.sinceId !== null && String(options.sinceId).length > 0) {
+    params.since_id = options.sinceId
+  } else if (options?.after) {
+    params.after = options.after
+  }
+
+  const { data, status, headers } = await apiClient.get(`/conversations/${conversationId}/messages`, {
+    params,
+    headers: options?.etag ? { 'If-None-Match': options.etag } : undefined,
+    validateStatus: (responseStatus) => (responseStatus >= 200 && responseStatus < 300) || responseStatus === 304,
+  })
+
+  const etag = normalizeEtag((headers as Record<string, unknown> | undefined)?.etag)
+  if (status === 304) {
+    return { messages: [], notModified: true, etag }
+  }
+
+  const list = (data.data ?? data) as any[]
+  return {
+    messages: list.map(mapMessage),
+    notModified: false,
+    etag,
+  }
 }
 
 export const getMessagesForListing = async (listingId: string): Promise<Message[]> => {
@@ -756,6 +792,22 @@ export const getUserPresence = async (
     online: Boolean(data.online),
     expiresIn: Number(data.expiresIn ?? 0),
   }
+}
+
+export const getUsersPresence = async (
+  userIds: string[],
+): Promise<Array<{ userId: string; online: boolean; expiresIn: number }>> => {
+  if (!userIds.length) return []
+  const { data } = await apiClient.get('/presence/users', {
+    params: { ids: userIds },
+  })
+  const list = (data.data ?? data) as any[]
+
+  return list.map((item) => ({
+    userId: String(item.userId ?? ''),
+    online: Boolean(item.online),
+    expiresIn: Number(item.expiresIn ?? 0),
+  }))
 }
 
 export const markConversationRead = async (conversationId: string): Promise<void> => {

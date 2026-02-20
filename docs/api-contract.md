@@ -85,6 +85,8 @@ Base URL: `/api/v1` (auth also available under `/api/auth/*` during the transiti
 ## Messaging
 - `GET /api/v1/conversations` -> `Conversation[]`
 - `GET /api/v1/conversations/:id/messages` -> `Message[]`
+  - supports incremental fetch: `since_id` (preferred) or `after` (timestamp)
+  - supports conditional GET via `ETag` / `If-None-Match` (`304 Not Modified`)
 - `POST /api/v1/conversations/:id/messages` (multipart) -> `Message`
   - fields: `body?`, `attachments[]?` (max 5)
   - allowed: images `jpg/jpeg/png/webp`, documents `pdf`, max 10MB/file
@@ -95,9 +97,12 @@ Base URL: `/api/v1` (auth also available under `/api/auth/*` during the transiti
 - `GET /api/v1/conversations/:id/typing` (returns typing users + TTL)
 - `POST /api/v1/presence/ping`
 - `GET /api/v1/users/:id/presence` (online status)
+- `GET /api/v1/presence/users?ids[]=...` (batch online status)
+- `GET /api/v1/notifications/unread-count` supports conditional GET via `ETag` / `If-None-Match`
 - Notes:
   - Originals are stored privately and served only via authorized `/chat/attachments/*` endpoints.
-  - Suggested polling: messages every ~3s, typing every ~4s, presence ping every 20-30s, presence check every ~30s.
+  - Suggested polling: messages start at ~3s and back off exponentially when idle (reset on activity), typing every ~4s, presence ping every 20-30s, presence check every ~30s.
+  - Chat and notifications polling pauses when tab is hidden and resumes on focus/visibility change.
   - Notifications bell polling: unread count every ~15s (+ refresh on tab focus/visibility change).
   - Messages API returns newest-first limited to last 200 (frontend then orders ascending for rendering).
 

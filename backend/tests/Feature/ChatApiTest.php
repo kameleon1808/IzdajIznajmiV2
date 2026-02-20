@@ -157,6 +157,87 @@ class ChatApiTest extends TestCase
         $allowed->assertCreated();
     }
 
+    public function test_messages_endpoint_supports_incremental_fetch_with_since_id(): void
+    {
+        $seeker = User::factory()->create(['role' => 'seeker']);
+        $landlord = User::factory()->create(['role' => 'landlord']);
+        $listing = $this->createListing($landlord);
+
+        $conversation = Conversation::create([
+            'tenant_id' => $seeker->id,
+            'landlord_id' => $landlord->id,
+            'listing_id' => $listing->id,
+        ]);
+
+        $first = Message::create([
+            'conversation_id' => $conversation->id,
+            'sender_id' => $landlord->id,
+            'body' => 'Older message',
+        ]);
+        Message::create([
+            'conversation_id' => $conversation->id,
+            'sender_id' => $landlord->id,
+            'body' => 'Newer message 1',
+        ]);
+        Message::create([
+            'conversation_id' => $conversation->id,
+            'sender_id' => $landlord->id,
+            'body' => 'Newer message 2',
+        ]);
+
+        $this->actingAs($seeker);
+        $response = $this->getJson("/api/v1/conversations/{$conversation->id}/messages?since_id={$first->id}");
+        $response->assertOk();
+
+        $payload = $response->json('data') ?? $response->json() ?? [];
+        $this->assertCount(2, $payload);
+        $this->assertSame('Newer message 1', $payload[0]['body'] ?? null);
+        $this->assertSame('Newer message 2', $payload[1]['body'] ?? null);
+    }
+
+    public function test_messages_endpoint_returns_304_for_matching_etag_and_since_id(): void
+    {
+        $seeker = User::factory()->create(['role' => 'seeker']);
+        $landlord = User::factory()->create(['role' => 'landlord']);
+        $listing = $this->createListing($landlord);
+
+        $conversation = Conversation::create([
+            'tenant_id' => $seeker->id,
+            'landlord_id' => $landlord->id,
+            'listing_id' => $listing->id,
+        ]);
+
+        $baseline = Message::create([
+            'conversation_id' => $conversation->id,
+            'sender_id' => $landlord->id,
+            'body' => 'Baseline',
+        ]);
+
+        $this->actingAs($seeker);
+        $first = $this->getJson("/api/v1/conversations/{$conversation->id}/messages?since_id={$baseline->id}");
+        $first->assertOk();
+        $etag = $first->headers->get('ETag');
+        $this->assertNotEmpty($etag);
+
+        $this->withHeaders(['If-None-Match' => $etag])
+            ->getJson("/api/v1/conversations/{$conversation->id}/messages?since_id={$baseline->id}")
+            ->assertStatus(304);
+
+        Message::create([
+            'conversation_id' => $conversation->id,
+            'sender_id' => $landlord->id,
+            'body' => 'After 304',
+        ]);
+
+        $updated = $this->withHeaders(['If-None-Match' => $etag])
+            ->getJson("/api/v1/conversations/{$conversation->id}/messages?since_id={$baseline->id}");
+        $updated->assertOk();
+
+        $payload = $updated->json('data') ?? $updated->json() ?? [];
+        $this->assertCount(1, $payload);
+        $this->assertSame('After 304', $payload[0]['body'] ?? null);
+    }
+
     public function test_read_markers_update_unread_count(): void
     {
         $seeker = User::factory()->create(['role' => 'seeker']);

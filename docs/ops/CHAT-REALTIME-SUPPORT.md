@@ -17,11 +17,14 @@ Dokument za support i dalji razvoj chat/realtime funkcionalnosti.
 - Chat poruke:
   - `POST /api/v1/conversations/{conversation}/messages`
   - `GET /api/v1/conversations/{conversation}/messages`
+    - podrzava `since_id` ili `after` za incremental fetch
+    - podrzava `ETag` / `If-None-Match` (`304`)
 - Typing/presence:
   - `POST /api/v1/conversations/{conversation}/typing`
   - `GET /api/v1/conversations/{conversation}/typing`
   - `POST /api/v1/presence/ping`
   - `GET /api/v1/users/{user}/presence`
+  - `GET /api/v1/presence/users?ids[]=...` (batch presence)
 - Attachment-i:
   - `GET /api/v1/chat/attachments/{attachment}`
   - `GET /api/v1/chat/attachments/{attachment}/thumb`
@@ -32,7 +35,9 @@ Dokument za support i dalji razvoj chat/realtime funkcionalnosti.
 ## Frontend: polling intervali
 - Chat thread poruke:
   - `frontend/src/pages/Chat.vue`
-  - Polling poruka na ~3s kada je thread otvoren.
+  - Polling poruka pocinje na ~3s i exponential backoff ide do ~30s kada nema aktivnosti.
+  - Backoff se resetuje na aktivnost (nova poruka / korisnicka aktivnost).
+  - Polling se pauzira kada je tab hidden i nastavlja na focus/visibilitychange.
 - Typing:
   - Polling statusa na ~4s.
   - Slanje `is_typing=true/false` pri kucanju/stop/blur/send.
@@ -42,6 +47,8 @@ Dokument za support i dalji razvoj chat/realtime funkcionalnosti.
 - Notifications:
   - `frontend/src/components/notifications/NotificationBell.vue`
   - Polling `unread-count` na ~15s.
+  - Endpoint koristi `ETag` / `If-None-Match` (`304`) kada nema promene.
+  - Polling se pauzira kada je tab hidden.
   - Refresh na tab focus/visibilitychange.
   - Otvaranje dropdown-a radi fresh fetch liste.
 

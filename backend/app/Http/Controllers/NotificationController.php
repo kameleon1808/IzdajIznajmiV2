@@ -67,6 +67,15 @@ class NotificationController extends Controller
             ->where('is_read', false)
             ->count();
 
-        return response()->json(['count' => $count]);
+        $etag = sha1(implode('|', ['notifications-unread', $user->id, $count]));
+
+        $response = response()
+            ->json(['count' => $count])
+            ->setEtag($etag)
+            ->header('Cache-Control', 'private, must-revalidate');
+
+        $response->isNotModified($request);
+
+        return $response;
     }
 }

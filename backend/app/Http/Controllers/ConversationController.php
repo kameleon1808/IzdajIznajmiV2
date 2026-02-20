@@ -17,9 +17,12 @@ use App\Services\ChatSpamGuardService;
 use App\Services\FraudSignalService;
 use App\Services\ListingStatusService;
 use App\Services\StructuredLogger;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -94,7 +97,13 @@ class ConversationController extends Controller
         $user = $this->requireSeeker($request, $listing);
         $conversation = $this->findOrCreateListingConversation($listing, $user);
 
-        $messages = $conversation->messages()->with('attachments')->latest()->limit(200)->get()->sortBy('created_at')->values();
+        $messages = $conversation->messages()
+            ->with('attachments')
+            ->latest()
+            ->limit(200)
+            ->get()
+            ->sortBy([['created_at', 'asc'], ['id', 'asc']])
+            ->values();
         $conversation->markReadFor($user);
 
         return response()->json(MessageResource::collection($messages));
@@ -118,10 +127,81 @@ class ConversationController extends Controller
     public function messages(Request $request, Conversation $conversation): JsonResponse
     {
         $user = $this->participantOrAbort($request, $conversation);
-        $messages = $conversation->messages()->with('attachments')->latest()->limit(200)->get()->sortBy('created_at')->values();
-        $conversation->markReadFor($user);
+        $validated = $request->validate([
+            'since_id' => ['nullable', 'integer', 'min:0'],
+            'after' => ['nullable', 'date'],
+        ]);
 
-        return response()->json(MessageResource::collection($messages));
+        $sinceId = (int) ($validated['since_id'] ?? 0);
+        $after = isset($validated['after']) ? Carbon::parse($validated['after']) : null;
+
+        $summaryQuery = $conversation->messages();
+        $this->applyIncrementalMessagesFilter($summaryQuery, $sinceId, $after);
+        $summary = (clone $summaryQuery)
+            ->selectRaw('COUNT(*) as aggregate_count, COALESCE(MAX(id), 0) as max_id')
+            ->first();
+        $count = (int) ($summary?->aggregate_count ?? 0);
+        $maxId = (int) ($summary?->max_id ?? 0);
+        $etag = $this->messagesCollectionEtag($conversation->id, $sinceId, $after, $count, $maxId);
+
+        $notModified = response()
+            ->json([])
+            ->setEtag($etag)
+            ->header('Cache-Control', 'private, must-revalidate');
+        if ($notModified->isNotModified($request)) {
+            return $notModified;
+        }
+
+        $messagesQuery = $conversation->messages()->with('attachments');
+        $this->applyIncrementalMessagesFilter($messagesQuery, $sinceId, $after);
+        $messages = $messagesQuery
+            ->latest()
+            ->limit(200)
+            ->get()
+            ->sortBy([['created_at', 'asc'], ['id', 'asc']])
+            ->values();
+
+        $hasIncrementalFilter = $sinceId > 0 || $after !== null;
+        $hasIncomingMessages = $messages->contains(fn (Message $message) => (int) $message->sender_id !== (int) $user->id);
+
+        if (! $hasIncrementalFilter || $hasIncomingMessages) {
+            $conversation->markReadFor($user);
+        }
+
+        return response()
+            ->json(MessageResource::collection($messages))
+            ->setEtag($etag)
+            ->header('Cache-Control', 'private, must-revalidate');
+    }
+
+    private function applyIncrementalMessagesFilter(Builder|HasMany $query, int $sinceId, ?Carbon $after): void
+    {
+        if ($sinceId > 0) {
+            $query->where('id', '>', $sinceId);
+
+            return;
+        }
+
+        if ($after) {
+            $query->where('created_at', '>', $after);
+        }
+    }
+
+    private function messagesCollectionEtag(
+        int $conversationId,
+        int $sinceId,
+        ?Carbon $after,
+        int $count,
+        int $maxId
+    ): string {
+        return sha1(implode('|', [
+            'messages',
+            $conversationId,
+            $sinceId,
+            $after?->toISOString() ?? '',
+            $count,
+            $maxId,
+        ]));
     }
 
     public function show(Request $request, Conversation $conversation): JsonResponse

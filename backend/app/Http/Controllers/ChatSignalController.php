@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Cache;
 
 class ChatSignalController extends Controller
@@ -90,32 +91,38 @@ class ChatSignalController extends Controller
         $viewer = $request->user();
         abort_unless($viewer, 401, 'Unauthenticated');
 
-        if ($viewer->id !== $user->id && ! $this->userHasRole($viewer, 'admin')) {
-            $shared = Conversation::query()
-                ->where(function ($query) use ($viewer, $user) {
-                    $query->where('tenant_id', $viewer->id)->where('landlord_id', $user->id);
-                })
-                ->orWhere(function ($query) use ($viewer, $user) {
-                    $query->where('tenant_id', $user->id)->where('landlord_id', $viewer->id);
-                })
-                ->exists();
-
-            abort_unless($shared, 403, 'Forbidden');
+        if ($viewer->id !== $user->id && ! $this->userHasRole($viewer, 'admin') && ! $this->hasSharedConversation($viewer->id, $user->id)) {
+            abort(403, 'Forbidden');
         }
 
-        $value = Cache::get($this->presenceKey($user->id));
-        $online = (bool) $value;
-        $expiresIn = 0;
+        return response()->json($this->buildPresencePayload($user->id));
+    }
 
-        if ($value && isset($value['expires_at'])) {
-            $expiresAt = Carbon::parse($value['expires_at']);
-            $expiresIn = max(0, Carbon::now()->diffInSeconds($expiresAt, false));
+    public function presenceBatch(Request $request): JsonResponse
+    {
+        $viewer = $request->user();
+        abort_unless($viewer, 401, 'Unauthenticated');
+
+        $validated = $request->validate([
+            'ids' => ['required', 'array', 'min:1', 'max:100'],
+            'ids.*' => ['integer', 'distinct', 'min:1'],
+        ]);
+
+        $requestedIds = collect($validated['ids'] ?? [])
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+
+        if ($this->userHasRole($viewer, 'admin')) {
+            return response()->json([
+                'data' => $requestedIds->map(fn (int $id) => $this->buildPresencePayload($id))->values(),
+            ]);
         }
+
+        $allowedIds = $this->resolveAllowedPresenceIds($viewer->id, $requestedIds);
 
         return response()->json([
-            'userId' => $user->id,
-            'online' => $online,
-            'expiresIn' => $expiresIn,
+            'data' => $allowedIds->map(fn (int $id) => $this->buildPresencePayload($id))->values(),
         ]);
     }
 
@@ -127,6 +134,66 @@ class ChatSignalController extends Controller
     private function presenceKey(int $userId): string
     {
         return sprintf('presence:%s', $userId);
+    }
+
+    private function buildPresencePayload(int $userId): array
+    {
+        $value = Cache::get($this->presenceKey($userId));
+        $online = (bool) $value;
+        $expiresIn = 0;
+
+        if ($value && isset($value['expires_at'])) {
+            $expiresAt = Carbon::parse($value['expires_at']);
+            $expiresIn = max(0, Carbon::now()->diffInSeconds($expiresAt, false));
+        }
+
+        return [
+            'userId' => $userId,
+            'online' => $online,
+            'expiresIn' => $expiresIn,
+        ];
+    }
+
+    private function resolveAllowedPresenceIds(int $viewerId, Collection $requestedIds): Collection
+    {
+        $requested = $requestedIds->all();
+        if ($requested === []) {
+            return collect();
+        }
+
+        $allowedIds = collect();
+        if (in_array($viewerId, $requested, true)) {
+            $allowedIds->push($viewerId);
+        }
+
+        $landlordIds = Conversation::query()
+            ->where('tenant_id', $viewerId)
+            ->whereIn('landlord_id', $requested)
+            ->pluck('landlord_id');
+
+        $tenantIds = Conversation::query()
+            ->where('landlord_id', $viewerId)
+            ->whereIn('tenant_id', $requested)
+            ->pluck('tenant_id');
+
+        return $allowedIds
+            ->merge($landlordIds)
+            ->merge($tenantIds)
+            ->map(fn ($id) => (int) $id)
+            ->unique()
+            ->values();
+    }
+
+    private function hasSharedConversation(int $viewerId, int $targetUserId): bool
+    {
+        return Conversation::query()
+            ->where(function ($query) use ($viewerId, $targetUserId) {
+                $query->where('tenant_id', $viewerId)->where('landlord_id', $targetUserId);
+            })
+            ->orWhere(function ($query) use ($viewerId, $targetUserId) {
+                $query->where('tenant_id', $targetUserId)->where('landlord_id', $viewerId);
+            })
+            ->exists();
     }
 
     private function participantOrAbort(Request $request, Conversation $conversation): User

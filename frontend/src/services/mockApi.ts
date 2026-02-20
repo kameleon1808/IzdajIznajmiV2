@@ -1286,6 +1286,32 @@ export async function getMessages(conversationId: string): Promise<Message[]> {
   return simulate(messages[conversationId] ?? [])
 }
 
+export async function pollMessages(
+  conversationId: string,
+  options?: { sinceId?: string | number; after?: string; etag?: string | null },
+): Promise<{ messages: Message[]; notModified: boolean; etag: string | null }> {
+  await delay()
+  const thread = messages[conversationId] ?? []
+  let filtered = thread
+  const sinceId = options?.sinceId ? String(options.sinceId) : null
+
+  if (sinceId) {
+    const index = thread.findIndex((item) => item.id === sinceId)
+    filtered = index >= 0 ? thread.slice(index + 1) : thread
+  }
+
+  const etag = `"mock-messages:${conversationId}:${sinceId ?? ''}:${filtered.length}:${filtered[filtered.length - 1]?.id ?? 'none'}"`
+  if (options?.etag && options.etag === etag) {
+    return { messages: [], notModified: true, etag }
+  }
+
+  return {
+    messages: JSON.parse(JSON.stringify(filtered)),
+    notModified: false,
+    etag,
+  }
+}
+
 export async function getConversationForListing(listingId: string, _seekerId?: string): Promise<Conversation> {
   let conversation = conversations.find((c) => c.listingId === listingId)
   if (!conversation) {
@@ -1952,6 +1978,13 @@ export async function getUserPresence(
 ): Promise<{ userId: string; online: boolean; expiresIn: number }> {
   await delay()
   return { userId, online: true, expiresIn: 60 }
+}
+
+export async function getUsersPresence(
+  userIds: string[],
+): Promise<Array<{ userId: string; online: boolean; expiresIn: number }>> {
+  await delay()
+  return userIds.map((userId) => ({ userId, online: true, expiresIn: 60 }))
 }
 
 const toMockDoc = (file: File | null, docType: KycDocument['docType']): KycDocument | null => {

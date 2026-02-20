@@ -128,6 +128,7 @@ $apiRoutes = function () use ($authRoutes) {
             Route::get('/chat/attachments/{attachment}/thumb', [ChatAttachmentController::class, 'thumb'])->name('chat.attachments.thumb');
 
             Route::post('/presence/ping', [ChatSignalController::class, 'presencePing']);
+            Route::get('/presence/users', [ChatSignalController::class, 'presenceBatch']);
             Route::get('/users/{user}/presence', [ChatSignalController::class, 'presenceStatus']);
 
             Route::post('/listings/{listing}/ratings', [RatingController::class, 'store']);

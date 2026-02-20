@@ -3,9 +3,9 @@ import {
   getConversationById,
   getConversationForListing,
   getConversations,
-  getMessages,
   getOrCreateConversationForApplication,
   markConversationRead,
+  pollMessages,
   sendMessageToConversation,
   sendMessageToListing,
 } from '../services'
@@ -15,6 +15,7 @@ export const useChatStore = defineStore('chat', {
   state: () => ({
     conversations: [] as Conversation[],
     messages: {} as Record<string, Message[]>,
+    messageEtags: {} as Record<string, string | null>,
     loading: false,
     resolving: false,
     error: '',
@@ -50,16 +51,39 @@ export const useChatStore = defineStore('chat', {
         this.loading = false
       }
     },
-    async fetchMessages(conversationId: string, options?: { silent?: boolean }) {
+    async fetchMessages(
+      conversationId: string,
+      options?: { silent?: boolean; incremental?: boolean },
+    ): Promise<{ newMessages: number; notModified: boolean; failed: boolean }> {
       const silent = options?.silent ?? false
+      const incremental = options?.incremental ?? false
       if (!silent) {
         this.loading = true
         this.error = ''
       }
       try {
         const previousMessages = this.messages[conversationId] ?? []
-        const previousLastMessage = previousMessages[previousMessages.length - 1]
-        const data = await getMessages(conversationId)
+        const previousIds = new Set(previousMessages.map((item) => item.id))
+        const sinceId =
+          incremental && previousMessages.length ? previousMessages[previousMessages.length - 1]?.id : undefined
+        const result = await pollMessages(conversationId, {
+          sinceId,
+          etag: this.messageEtags[conversationId] ?? null,
+        })
+
+        if (result.etag) {
+          this.messageEtags[conversationId] = result.etag
+        }
+
+        if (result.notModified) {
+          return { newMessages: 0, notModified: true, failed: false }
+        }
+
+        const incrementalMessages =
+          incremental && sinceId
+            ? result.messages.filter((item: Message) => !previousIds.has(item.id))
+            : result.messages
+        const data = incremental && sinceId ? [...previousMessages, ...incrementalMessages] : result.messages
         this.messages[conversationId] = data
         const lastMessage = data[data.length - 1]
         const lastMessageText = lastMessage?.text?.trim()
@@ -67,6 +91,10 @@ export const useChatStore = defineStore('chat', {
           : lastMessage?.attachments?.length
             ? 'Sent an attachment'
             : ''
+        const newMessagesCount =
+          incremental && sinceId
+            ? incrementalMessages.length
+            : data.reduce((count: number, item: Message) => count + (previousIds.has(item.id) ? 0 : 1), 0)
 
         if (lastMessage) {
           this.conversations = this.conversations.map((c) =>
@@ -81,8 +109,8 @@ export const useChatStore = defineStore('chat', {
           )
         } else if (
           this.activeConversationId === conversationId &&
+          newMessagesCount > 0 &&
           lastMessage &&
-          lastMessage.id !== previousLastMessage?.id &&
           lastMessage.from === 'them'
         ) {
           markConversationRead(conversationId).catch(() => undefined)
@@ -90,11 +118,15 @@ export const useChatStore = defineStore('chat', {
             c.id === conversationId ? { ...c, unreadCount: 0 } : c,
           )
         }
+
+        return { newMessages: newMessagesCount, notModified: false, failed: false }
       } catch (error) {
         if (!silent) {
           this.error = (error as Error).message || 'Failed to load chat.'
           this.messages[conversationId] = []
         }
+
+        return { newMessages: 0, notModified: false, failed: true }
       } finally {
         if (!silent) {
           this.loading = false
@@ -175,6 +207,7 @@ export const useChatStore = defineStore('chat', {
         const message = await sendMessageToConversation(conversationId, text, attachments, onProgress)
         const thread = this.messages[conversationId] ?? []
         this.messages[conversationId] = [...thread, message]
+        this.messageEtags[conversationId] = null
         const lastMessage = message.text?.trim()
           ? message.text
           : message.attachments?.length
@@ -201,6 +234,7 @@ export const useChatStore = defineStore('chat', {
         const conversation = await this.fetchConversationForListing(listingId)
         const thread = this.messages[conversation.id] ?? []
         this.messages[conversation.id] = [...thread, message]
+        this.messageEtags[conversation.id] = null
         return { conversation, message }
       } catch (error) {
         this.error = (error as Error).message || 'Failed to send message.'
@@ -216,6 +250,7 @@ export const useChatStore = defineStore('chat', {
       }
 
       this.messages[conversationId] = [...thread, message]
+      this.messageEtags[conversationId] = null
 
       const lastMessage = message.text?.trim()
         ? message.text

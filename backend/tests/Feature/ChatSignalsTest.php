@@ -75,4 +75,32 @@ class ChatSignalsTest extends TestCase
             ->assertOk()
             ->assertJsonPath('online', true);
     }
+
+    public function test_presence_batch_returns_only_allowed_users(): void
+    {
+        config(['cache.default' => 'array']);
+
+        $seeker = User::factory()->create(['role' => 'seeker']);
+        $landlord = User::factory()->create(['role' => 'landlord']);
+        $otherLandlord = User::factory()->create(['role' => 'landlord']);
+        $listing = $this->createListing($landlord);
+
+        Conversation::create([
+            'tenant_id' => $seeker->id,
+            'landlord_id' => $landlord->id,
+            'listing_id' => $listing->id,
+        ]);
+
+        $this->actingAs($landlord);
+        $this->postJson('/api/v1/presence/ping')->assertOk();
+
+        $this->actingAs($seeker);
+        $response = $this->getJson("/api/v1/presence/users?ids[]={$landlord->id}&ids[]={$otherLandlord->id}");
+        $response->assertOk();
+
+        $payload = $response->json('data') ?? [];
+        $this->assertCount(1, $payload);
+        $this->assertSame($landlord->id, $payload[0]['userId']);
+        $this->assertTrue((bool) $payload[0]['online']);
+    }
 }

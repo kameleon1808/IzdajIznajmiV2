@@ -10,8 +10,9 @@ import { useAuthStore } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
 import { useLanguageStore } from '../stores/language'
 import Button from '../components/ui/Button.vue'
-import { getTypingStatus, getUserPresence, pingPresence, setTypingStatus } from '../services'
+import { getTypingStatus, getUsersPresence, pingPresence, setTypingStatus } from '../services'
 import ErrorState from '../components/ui/ErrorState.vue'
+import { PollingBackoff } from '../utils/pollingBackoff'
 
 const route = useRoute()
 const router = useRouter()
@@ -36,10 +37,16 @@ let typingPollTimer: number | null = null
 let presencePollTimer: number | null = null
 let presencePingTimer: number | null = null
 let typingStopTimer: number | null = null
-let messagePollTimer: number | null = null
+let messagePollTimeout: number | null = null
+let messagePollInFlight = false
 let lastTypingSentAt = 0
 const BOTTOM_THRESHOLD_PX = 64
 const MESSAGES_BOTTOM_GAP_PX = 12
+const MESSAGE_POLL_MIN_MS = 3000
+const MESSAGE_POLL_MAX_MS = 30000
+const messagePollBackoff = new PollingBackoff(MESSAGE_POLL_MIN_MS, MESSAGE_POLL_MAX_MS)
+
+const isDocumentVisible = () => document.visibilityState === 'visible'
 
 const conversationId = computed(() => route.params.id as string | undefined)
 const loading = computed(() => chatStore.loading || chatStore.resolving)
@@ -105,6 +112,8 @@ const send = async () => {
     await chatStore.sendMessage(conversation.value.id, message.value, attachments.value, (progress) => {
       uploadProgress.value = progress
     })
+    messagePollBackoff.recordActivity()
+    startMessagePolling(conversation.value.id, false)
     message.value = ''
     attachments.value = []
     await setTyping(false)
@@ -148,7 +157,7 @@ watch(
 
 const startTypingPoll = (id?: string) => {
   if (typingPollTimer) window.clearInterval(typingPollTimer)
-  if (!id) return
+  if (!id || !isDocumentVisible()) return
   const fetchTyping = async () => {
     try {
       const data = await getTypingStatus(id)
@@ -163,11 +172,14 @@ const startTypingPoll = (id?: string) => {
 
 const startPresencePolling = () => {
   if (presencePollTimer) window.clearInterval(presencePollTimer)
-  if (!otherUserId.value) return
+  if (!otherUserId.value || !isDocumentVisible()) return
   const refresh = async () => {
     try {
-      const data = await getUserPresence(String(otherUserId.value))
-      otherOnline.value = data.online
+      const userId = String(otherUserId.value)
+      const data = await getUsersPresence([userId])
+      otherOnline.value = Boolean(
+        data.find((item: { userId: string; online: boolean; expiresIn: number }) => item.userId === userId)?.online,
+      )
     } catch (e) {
       otherOnline.value = false
     }
@@ -178,13 +190,18 @@ const startPresencePolling = () => {
 
 const startPresencePing = () => {
   if (presencePingTimer) window.clearInterval(presencePingTimer)
-  presencePingTimer = window.setInterval(async () => {
+  if (!isDocumentVisible()) return
+
+  const ping = async () => {
     try {
       await pingPresence()
     } catch (e) {
       // ignore ping failures
     }
-  }, 25000)
+  }
+
+  ping()
+  presencePingTimer = window.setInterval(ping, 25000)
 }
 
 const updateViewportMetrics = () => {
@@ -235,21 +252,70 @@ const syncScrollToLatest = async (force = false) => {
   })
 }
 
-const startMessagePolling = (id?: string) => {
-  if (messagePollTimer) window.clearInterval(messagePollTimer)
-  if (!id) return
-  const poll = async () => {
-    if (!conversation.value?.id) {
-      return
-    }
-    try {
-      await chatStore.fetchMessages(id, { silent: true })
-    } catch (e) {
-      // ignore transient polling failures
-    }
+const clearMessagePollTimeout = () => {
+  if (messagePollTimeout) {
+    window.clearTimeout(messagePollTimeout)
+    messagePollTimeout = null
   }
-  poll()
-  messagePollTimer = window.setInterval(poll, 3000)
+}
+
+const scheduleMessagePoll = (id: string, delayMs = messagePollBackoff.current()) => {
+  clearMessagePollTimeout()
+  if (!isDocumentVisible() || conversation.value?.id !== id) return
+  messagePollTimeout = window.setTimeout(() => {
+    pollMessages(id)
+  }, delayMs)
+}
+
+const pollMessages = async (id: string) => {
+  if (messagePollInFlight || !isDocumentVisible() || conversation.value?.id !== id) {
+    return
+  }
+
+  messagePollInFlight = true
+  try {
+    const result = await chatStore.fetchMessages(id, { silent: true, incremental: true })
+    if (!result.failed && result.newMessages > 0) {
+      messagePollBackoff.recordActivity()
+    } else {
+      messagePollBackoff.recordIdle()
+    }
+  } finally {
+    messagePollInFlight = false
+    scheduleMessagePoll(id)
+  }
+}
+
+const startMessagePolling = (id?: string, immediate = true) => {
+  clearMessagePollTimeout()
+  messagePollInFlight = false
+  if (!id || !isDocumentVisible()) return
+
+  messagePollBackoff.recordActivity()
+  if (immediate) {
+    pollMessages(id)
+    return
+  }
+  scheduleMessagePoll(id)
+}
+
+const stopRealtimePolling = () => {
+  if (typingPollTimer) window.clearInterval(typingPollTimer)
+  if (presencePollTimer) window.clearInterval(presencePollTimer)
+  if (presencePingTimer) window.clearInterval(presencePingTimer)
+  clearMessagePollTimeout()
+}
+
+const handleVisibilityOrFocus = () => {
+  if (!isDocumentVisible()) {
+    stopRealtimePolling()
+    return
+  }
+
+  startMessagePolling(conversation.value?.id)
+  startTypingPoll(conversation.value?.id)
+  startPresencePolling()
+  startPresencePing()
 }
 
 onMounted(() => {
@@ -264,8 +330,9 @@ onMounted(() => {
     chatStore.fetchConversations()
   }
   resolveConversation(conversationId.value)
-  pingPresence()
-  startPresencePing()
+  document.addEventListener('visibilitychange', handleVisibilityOrFocus)
+  window.addEventListener('focus', handleVisibilityOrFocus)
+  handleVisibilityOrFocus()
   syncScrollToLatest(true)
 })
 
@@ -280,6 +347,7 @@ watch(
     startMessagePolling(id)
     startTypingPoll(id)
     startPresencePolling()
+    startPresencePing()
     isNearBottom.value = true
     syncScrollToLatest(true)
   },
@@ -287,7 +355,11 @@ watch(
 
 watch(
   () => messages.value[messages.value.length - 1]?.id ?? '',
-  () => {
+  (nextId, prevId) => {
+    if (nextId && nextId !== prevId) {
+      messagePollBackoff.recordActivity()
+      startMessagePolling(conversation.value?.id, false)
+    }
     syncScrollToLatest()
   },
 )
@@ -313,10 +385,9 @@ onBeforeUnmount(() => {
     viewport.removeEventListener('resize', updateViewportMetrics)
     viewport.removeEventListener('scroll', updateViewportMetrics)
   }
-  if (typingPollTimer) window.clearInterval(typingPollTimer)
-  if (presencePollTimer) window.clearInterval(presencePollTimer)
-  if (presencePingTimer) window.clearInterval(presencePingTimer)
-  if (messagePollTimer) window.clearInterval(messagePollTimer)
+  stopRealtimePolling()
+  document.removeEventListener('visibilitychange', handleVisibilityOrFocus)
+  window.removeEventListener('focus', handleVisibilityOrFocus)
   if (typingStopTimer) window.clearTimeout(typingStopTimer)
   setTyping(false)
 })

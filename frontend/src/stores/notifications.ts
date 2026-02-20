@@ -23,6 +23,7 @@ export const useNotificationStore = defineStore('notifications', {
   state: () => ({
     notifications: [] as Notification[],
     unreadCount: 0,
+    unreadCountEtag: null as string | null,
     loading: false,
     error: '',
     preferences: null as NotificationPreferences | null,
@@ -34,7 +35,17 @@ export const useNotificationStore = defineStore('notifications', {
   actions: {
     async fetchUnreadCount() {
       try {
-        const { data } = await apiClient.get('/notifications/unread-count')
+        const { data, status, headers } = await apiClient.get('/notifications/unread-count', {
+          headers: this.unreadCountEtag ? { 'If-None-Match': this.unreadCountEtag } : undefined,
+          validateStatus: (responseStatus) => (responseStatus >= 200 && responseStatus < 300) || responseStatus === 304,
+        })
+        const etag = (headers as Record<string, unknown> | undefined)?.etag
+        if (typeof etag === 'string' && etag.trim().length) {
+          this.unreadCountEtag = etag.trim()
+        }
+        if (status === 304) {
+          return
+        }
         this.unreadCount = data.count ?? 0
       } catch (error) {
         console.error('Failed to fetch unread count:', error)
@@ -74,6 +85,7 @@ export const useNotificationStore = defineStore('notifications', {
           notification.readAt = new Date().toISOString()
           this.unreadCount = Math.max(0, this.unreadCount - 1)
         }
+        this.unreadCountEtag = null
       } catch (error) {
         console.error('Failed to mark notification as read:', error)
         throw error
@@ -87,6 +99,7 @@ export const useNotificationStore = defineStore('notifications', {
           n.readAt = new Date().toISOString()
         })
         this.unreadCount = 0
+        this.unreadCountEtag = null
       } catch (error) {
         console.error('Failed to mark all as read:', error)
         throw error

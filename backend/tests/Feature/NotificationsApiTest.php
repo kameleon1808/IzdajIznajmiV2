@@ -146,6 +146,36 @@ class NotificationsApiTest extends TestCase
         $response->assertOk()->assertJson(['count' => 1]);
     }
 
+    public function test_unread_count_returns_304_for_matching_etag(): void
+    {
+        $user = User::factory()->create();
+        $notification = Notification::create([
+            'user_id' => $user->id,
+            'type' => Notification::TYPE_APPLICATION_CREATED,
+            'title' => 'Unread',
+            'body' => 'Test',
+            'is_read' => false,
+        ]);
+
+        $this->actingAs($user);
+
+        $first = $this->getJson('/api/v1/notifications/unread-count');
+        $first->assertOk()->assertJson(['count' => 1]);
+        $etag = $first->headers->get('ETag');
+        $this->assertNotEmpty($etag);
+
+        $this->withHeaders(['If-None-Match' => $etag])
+            ->getJson('/api/v1/notifications/unread-count')
+            ->assertStatus(304);
+
+        $this->patchJson("/api/v1/notifications/{$notification->id}/read")
+            ->assertOk();
+
+        $updated = $this->withHeaders(['If-None-Match' => $etag])
+            ->getJson('/api/v1/notifications/unread-count');
+        $updated->assertOk()->assertJson(['count' => 0]);
+    }
+
     public function test_application_created_triggers_notification_to_landlord(): void
     {
         $seeker = User::factory()->create(['role' => 'seeker']);

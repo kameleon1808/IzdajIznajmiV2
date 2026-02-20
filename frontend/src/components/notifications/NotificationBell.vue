@@ -38,24 +38,39 @@ const refreshNotifications = async (includeList = false) => {
   }
 }
 
+const stopPolling = () => {
+  if (pollTimer) {
+    window.clearInterval(pollTimer)
+    pollTimer = null
+  }
+}
+
+const startPolling = () => {
+  if (pollTimer || document.visibilityState !== 'visible') return
+  pollTimer = window.setInterval(() => {
+    refreshNotifications(false)
+  }, 15000)
+}
+
 const handleVisibilityOrFocus = () => {
   if (document.visibilityState === 'visible') {
+    startPolling()
     refreshNotifications(showDropdown.value)
+  } else {
+    stopPolling()
   }
 }
 
 onMounted(async () => {
   if (!authStore.isAuthenticated || authStore.isMockMode) return
   await refreshNotifications(true)
-  pollTimer = window.setInterval(() => {
-    refreshNotifications(false)
-  }, 15000)
+  startPolling()
   document.addEventListener('visibilitychange', handleVisibilityOrFocus)
   window.addEventListener('focus', handleVisibilityOrFocus)
 })
 
 onBeforeUnmount(() => {
-  if (pollTimer) window.clearInterval(pollTimer)
+  stopPolling()
   document.removeEventListener('visibilitychange', handleVisibilityOrFocus)
   window.removeEventListener('focus', handleVisibilityOrFocus)
 })
