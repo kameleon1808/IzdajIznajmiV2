@@ -121,7 +121,7 @@ const router = createRouter({
       path: '/chat/:id',
       name: 'chat',
       component: Chat,
-      meta: { topBar: { type: 'chat' }, showTabs: false, contentClass: 'p-0 pb-20', roles: ['seeker', 'landlord', 'admin'] },
+      meta: { topBar: { type: 'chat' }, showTabs: false, contentClass: '!p-0 !pb-4', roles: ['seeker', 'landlord', 'admin'] },
     },
     {
       path: '/messages/:id',

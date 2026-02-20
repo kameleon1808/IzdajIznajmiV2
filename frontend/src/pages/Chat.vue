@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import ChatBubble from '../components/chat/ChatBubble.vue'
 import ChatInput from '../components/chat/ChatInput.vue'
@@ -30,6 +30,11 @@ const languageStore = useLanguageStore()
 const t = (key: Parameters<typeof languageStore.t>[0]) => languageStore.t(key)
 const typingUsers = ref<Array<{ id: string; name: string; expiresIn: number }>>([])
 const otherOnline = ref(false)
+const messagesViewport = ref<HTMLElement | null>(null)
+const isNearBottom = ref(true)
+const viewportHeight = ref(0)
+const isDesktop = ref(false)
+const composerHeight = ref(96)
 
 let typingPollTimer: number | null = null
 let presencePollTimer: number | null = null
@@ -39,6 +44,8 @@ let attachmentPollTimer: number | null = null
 let attachmentPollAttempts = 0
 let lastTypingSentAt = 0
 let activeChannelName: string | null = null
+const BOTTOM_THRESHOLD_PX = 64
+const MESSAGES_BOTTOM_GAP_PX = 12
 
 const echo = getEcho()
 
@@ -80,6 +87,7 @@ const resolveConversation = async (id?: string) => {
     chatStore.clearError()
     chatStore.setActiveConversation(id)
     await chatStore.openByConversationId(id)
+    await syncScrollToLatest(true)
   } catch (err) {
     toast.push({ title: t('chat.unavailable'), message: (err as Error).message, type: 'error' })
   }
@@ -220,6 +228,54 @@ const stopRealtime = () => {
   activeChannelName = null
 }
 
+const updateViewportMetrics = () => {
+  isDesktop.value = window.innerWidth >= 1024
+  const viewport = window.visualViewport
+  viewportHeight.value = Math.round(viewport?.height ?? window.innerHeight)
+}
+
+const chatContainerStyle = computed(() => {
+  if (isDesktop.value) return undefined
+  const height = viewportHeight.value || window.innerHeight
+  return { height: `${height}px`, minHeight: `${height}px` }
+})
+
+const messagesViewportStyle = computed(() => {
+  if (isDesktop.value) return { paddingBottom: '16px' }
+  const padding = Math.max(16, Math.round(composerHeight.value + MESSAGES_BOTTOM_GAP_PX))
+  return { paddingBottom: `${padding}px` }
+})
+
+const onComposerMetrics = (metrics: { height: number; keyboardOffset: number }) => {
+  composerHeight.value = metrics.height || composerHeight.value
+  if (isNearBottom.value) {
+    syncScrollToLatest(true)
+  }
+}
+
+const updateNearBottom = () => {
+  const el = messagesViewport.value
+  if (!el) return
+  const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight
+  isNearBottom.value = distanceFromBottom <= BOTTOM_THRESHOLD_PX
+}
+
+const scrollToBottom = (behavior: ScrollBehavior = 'auto') => {
+  const el = messagesViewport.value
+  if (!el) return
+  el.scrollTo({ top: el.scrollHeight, behavior })
+  isNearBottom.value = true
+}
+
+const syncScrollToLatest = async (force = false) => {
+  await nextTick()
+  requestAnimationFrame(() => {
+    if (force || isNearBottom.value) {
+      scrollToBottom('auto')
+    }
+  })
+}
+
 const stopAttachmentPolling = () => {
   if (attachmentPollTimer) window.clearInterval(attachmentPollTimer)
   attachmentPollTimer = null
@@ -245,12 +301,20 @@ const startAttachmentPolling = (id?: string) => {
 }
 
 onMounted(() => {
+  updateViewportMetrics()
+  window.addEventListener('resize', updateViewportMetrics)
+  const viewport = window.visualViewport
+  if (viewport) {
+    viewport.addEventListener('resize', updateViewportMetrics)
+    viewport.addEventListener('scroll', updateViewportMetrics)
+  }
   if (!chatStore.conversations.length) {
     chatStore.fetchConversations()
   }
   resolveConversation(conversationId.value)
   pingPresence()
   startPresencePing()
+  syncScrollToLatest(true)
 })
 
 watch(
@@ -265,6 +329,24 @@ watch(
     startPresencePolling()
     startAttachmentPolling(id)
     startRealtime(id)
+    isNearBottom.value = true
+    syncScrollToLatest(true)
+  },
+)
+
+watch(
+  () => messages.value[messages.value.length - 1]?.id ?? '',
+  () => {
+    syncScrollToLatest()
+  },
+)
+
+watch(
+  () => loading.value,
+  (isLoading) => {
+    if (!isLoading) {
+      syncScrollToLatest(true)
+    }
   },
 )
 
@@ -285,6 +367,12 @@ watch(
 )
 
 onBeforeUnmount(() => {
+  window.removeEventListener('resize', updateViewportMetrics)
+  const viewport = window.visualViewport
+  if (viewport) {
+    viewport.removeEventListener('resize', updateViewportMetrics)
+    viewport.removeEventListener('scroll', updateViewportMetrics)
+  }
   if (typingPollTimer) window.clearInterval(typingPollTimer)
   if (presencePollTimer) window.clearInterval(presencePollTimer)
   if (presencePingTimer) window.clearInterval(presencePingTimer)
@@ -296,65 +384,75 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="flex min-h-screen flex-col bg-surface">
+  <div
+    class="flex min-h-0 flex-col overflow-hidden bg-surface pt-24 lg:min-h-screen lg:overflow-visible lg:pt-0"
+    :style="chatContainerStyle"
+  >
     <div class="mx-4 mt-4" v-if="error">
       <ErrorState :message="error" :retry-label="t('chat.retry')" @retry="retryChat" />
     </div>
-    <div class="flex-1 space-y-3 px-4 pt-4 pb-28">
-      <ListSkeleton v-if="loading" :count="3" />
-      <template v-else>
-        <div v-if="conversation" class="rounded-2xl border border-line bg-white p-3 shadow-soft">
-          <div class="flex items-center justify-between gap-2">
-            <div>
-              <p class="text-sm font-semibold text-slate-900">{{ conversation.listingTitle || t('chat.thread') }}</p>
-              <p class="text-xs text-muted">
-                {{ conversation.userName }}
-                <span v-if="conversation.listingCity">· {{ conversation.listingCity }}</span>
-                <span
-                  v-if="otherOnline"
-                  class="ml-2 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700"
-                >
-                  <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
-                  {{ t('chat.online') }}
-                </span>
-              </p>
-              <p v-if="typingUsers.length" class="mt-1 text-[11px] text-primary">
-                {{ typingUsers[0]?.name || conversation.userName }} {{ t('chat.typing') }}
-              </p>
+    <div
+      ref="messagesViewport"
+      class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-4"
+      :style="messagesViewportStyle"
+      @scroll.passive="updateNearBottom"
+    >
+      <div class="flex min-h-full flex-col justify-end space-y-3">
+        <ListSkeleton v-if="loading" :count="3" />
+        <template v-else>
+          <div v-if="conversation" class="rounded-2xl border border-line bg-white p-3 shadow-soft">
+            <div class="flex items-center justify-between gap-2">
+              <div>
+                <p class="text-sm font-semibold text-slate-900">{{ conversation.listingTitle || t('chat.thread') }}</p>
+                <p class="text-xs text-muted">
+                  {{ conversation.userName }}
+                  <span v-if="conversation.listingCity">· {{ conversation.listingCity }}</span>
+                  <span
+                    v-if="otherOnline"
+                    class="ml-2 inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700"
+                  >
+                    <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
+                    {{ t('chat.online') }}
+                  </span>
+                </p>
+                <p v-if="typingUsers.length" class="mt-1 text-[11px] text-primary">
+                  {{ typingUsers[0]?.name || conversation.userName }} {{ t('chat.typing') }}
+                </p>
+              </div>
+              <Button
+                size="sm"
+                variant="secondary"
+                :disabled="!conversation.listingId"
+                @click="router.push(`/listing/${conversation.listingId}`)"
+              >
+                {{ t('chat.viewListing') }}
+              </Button>
             </div>
-            <Button
-              size="sm"
-              variant="secondary"
-              :disabled="!conversation.listingId"
-              @click="router.push(`/listing/${conversation.listingId}`)"
-            >
-              {{ t('chat.viewListing') }}
-            </Button>
           </div>
-        </div>
-        <ChatBubble
-          v-for="msg in messages"
-          :key="msg.id"
-          :from="msg.from"
-          :text="msg.text"
-          :attachments="msg.attachments"
-          :time="msg.time"
-        />
-        <EmptyState
-          v-if="!messages.length && !error && conversation"
-          :title="t('chat.noMessagesTitle')"
-          :subtitle="t('chat.noMessagesSubtitle')"
-        />
-        <EmptyState
-          v-else-if="!conversation && !error"
-          :title="t('chat.noConversationTitle')"
-          :subtitle="t('chat.noConversationSubtitle')"
-        >
-          <template #actions>
-            <Button variant="primary" @click="router.push('/messages')">{{ t('chat.backToMessages') }}</Button>
-          </template>
-        </EmptyState>
-      </template>
+          <ChatBubble
+            v-for="msg in messages"
+            :key="msg.id"
+            :from="msg.from"
+            :text="msg.text"
+            :attachments="msg.attachments"
+            :time="msg.time"
+          />
+          <EmptyState
+            v-if="!messages.length && !error && conversation"
+            :title="t('chat.noMessagesTitle')"
+            :subtitle="t('chat.noMessagesSubtitle')"
+          />
+          <EmptyState
+            v-else-if="!conversation && !error"
+            :title="t('chat.noConversationTitle')"
+            :subtitle="t('chat.noConversationSubtitle')"
+          >
+            <template #actions>
+              <Button variant="primary" @click="router.push('/messages')">{{ t('chat.backToMessages') }}</Button>
+            </template>
+          </EmptyState>
+        </template>
+      </div>
     </div>
     <ChatInput
       v-model="message"
@@ -362,6 +460,7 @@ onBeforeUnmount(() => {
       :disabled="!conversation"
       :uploading="uploading"
       :upload-progress="uploadProgress"
+      @metrics="onComposerMetrics"
       @send="send"
       @blur="setTyping(false)"
     />

@@ -59,8 +59,12 @@ const goProfile = () => {
 
 <template>
   <header
-    class="sticky top-0 z-30 px-4 pt-4 lg:pl-0 lg:pr-6"
     v-if="variant !== 'detail'"
+    :class="[
+      variant === 'chat'
+        ? 'fixed left-0 right-0 top-0 z-30 mx-auto max-w-md px-4 pt-[calc(1rem+env(safe-area-inset-top))] lg:sticky lg:left-auto lg:right-auto lg:max-w-none lg:px-0 lg:pt-4 lg:pr-6'
+        : 'sticky top-0 z-30 px-4 pt-4 lg:pl-0 lg:pr-6',
+    ]"
   >
     <div v-if="variant === 'home'" class="flex items-center justify-between rounded-2xl bg-surface-2 px-4 py-3 shadow-soft border border-border">
       <div class="flex items-center gap-3">
