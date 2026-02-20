@@ -32,4 +32,13 @@ class EventServiceProvider extends ServiceProvider
             SendReportUpdateNotification::class,
         ],
     ];
+
+    /**
+     * Disable auto-discovery because listeners are explicitly mapped above.
+     * Auto-discovery registers handle() methods again and causes duplicate handling.
+     */
+    public function shouldDiscoverEvents(): bool
+    {
+        return false;
+    }
 }

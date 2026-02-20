@@ -332,7 +332,7 @@ onBeforeUnmount(() => {
     </div>
     <div
       ref="messagesViewport"
-      class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-4"
+      class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-4 lg:overscroll-auto"
       :style="messagesViewportStyle"
       @scroll.passive="updateNearBottom"
     >

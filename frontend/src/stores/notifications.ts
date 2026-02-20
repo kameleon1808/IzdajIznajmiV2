@@ -52,7 +52,11 @@ export const useNotificationStore = defineStore('notifications', {
         } else {
           this.notifications = [...this.notifications, ...(data.data ?? [])]
         }
-        this.unreadCount = data.data?.filter((n: Notification) => !n.isRead).length ?? this.unreadCount
+        const payloadUnreadCount =
+          data.unread_count ?? data.unreadCount ?? data.meta?.unread_count ?? data.meta?.unreadCount ?? null
+        if (typeof payloadUnreadCount === 'number') {
+          this.unreadCount = payloadUnreadCount
+        }
         return data
       } catch (error) {
         this.error = (error as Error).message || 'Failed to load notifications.'

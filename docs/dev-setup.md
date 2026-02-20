@@ -53,6 +53,14 @@
   - `chat_attachments` 10/10min po user/thread (upload attach-ova)
   - `applications` 10/h po user/IP (slanje prijava)
   - `listings_search` 60/min IP, `geocode_suggest` 40/min IP; landlord/viewing write limiti ostaju kao ranije
+- Realtime napomena (chat + notifications):
+  - Chat i bell notifikacije koriste polling (ne zavise od WebSocket konekcije).
+  - Typing/presence rade preko cache signala i periodickih API poziva.
+  - Event discovery je ugasen (`withEvents(discover: false)`) da se izbegne duplo okidanje listener-a i dupliranje notifikacija.
+  - Ako menjate event/listener wiring, pokrenite:
+    - `php artisan event:clear`
+    - `php artisan optimize:clear`
+  - Runbook: `docs/ops/CHAT-REALTIME-SUPPORT.md`
 - Observability: struktuisani JSON logovi u `storage/logs/structured-YYYY-MM-DD.log` preko `App\Services\StructuredLogger`.
   - Bitne akcije (listing create/update/publish, prijave, poruke, ocene, prijave ocena) loguju `action`, `user_id`, `listing_id`, `ip`, `user_agent`, bez sadržaja poruka.
   - Svaki API odgovor nosi `X-Request-Id`; JSON error payload uključuje `request_id` radi korelacije sa logovima.

@@ -165,11 +165,12 @@ Troubleshooting:
 - Deployment guide, env templates, and ops scripts live in `docs/deploy/DEPLOYMENT.md`.
 - Ready-to-run scripts: `ops/deploy.sh` (idempotent deploy), `ops/rollback.sh`.
 - Ops runbooks: `docs/ops/BACKUPS.md`, `docs/ops/QUEUE-OPS.md`, `docs/ops/LOAD-TESTING.md`, `docs/ops/PERFORMANCE.md`.
+- Chat/realtime support runbook: `docs/ops/CHAT-REALTIME-SUPPORT.md`.
 - GitHub Actions deploy workflows: `.github/workflows/deploy-staging.yml` and `deploy-production.yml` (SSH-based).
 
 ## Roadmap
 - Production deploy (containers/CI, env hardening, object storage/CDN for media).
-- Realtime chat (WebSockets) and delivery receipts; push/email notifications.
+- Optional upgrade path: WebSockets for chat/notifications (current production flow uses polling-based realtime).
 - Payments and booking confirmation flow (Stripe/PayPal), availability calendar.
 - Geo search with real maps and location biasing; richer filters (amenities, policies).
 - Observability (logs/metrics/traces) and admin dashboards.

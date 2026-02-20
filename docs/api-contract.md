@@ -97,8 +97,9 @@ Base URL: `/api/v1` (auth also available under `/api/auth/*` during the transiti
 - `GET /api/v1/users/:id/presence` (online status)
 - Notes:
   - Originals are stored privately and served only via authorized `/chat/attachments/*` endpoints.
-  - Suggested polling: typing every ~4s, presence ping every 20-30s, presence check every ~30s.
-  - Unread/online are placeholders for now; messages are returned newest-first limited to last 50.
+  - Suggested polling: messages every ~3s, typing every ~4s, presence ping every 20-30s, presence check every ~30s.
+  - Notifications bell polling: unread count every ~15s (+ refresh on tab focus/visibility change).
+  - Messages API returns newest-first limited to last 200 (frontend then orders ascending for rendering).
 
 ## Filtering Notes
 - `facilities[]` filter currently matches ANY facility provided (can be tightened to ALL later if needed).

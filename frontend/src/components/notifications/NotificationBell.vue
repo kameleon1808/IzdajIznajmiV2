@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { Bell } from 'lucide-vue-next'
 import { useNotificationStore } from '../../stores/notifications'
@@ -12,6 +12,8 @@ const authStore = useAuthStore()
 const languageStore = useLanguageStore()
 const t = (key: Parameters<typeof languageStore.t>[0]) => languageStore.t(key)
 const showDropdown = ref(false)
+let pollTimer: number | null = null
+let refreshInFlight = false
 
 const unreadCount = computed(() => notificationStore.unreadCount)
 const displayCount = computed(() => (unreadCount.value > 99 ? '99+' : unreadCount.value.toString()))
@@ -23,15 +25,46 @@ const latestNotifications = computed(() => {
   return [...unread, ...read].slice(0, 5)
 })
 
-onMounted(async () => {
-  if (authStore.isAuthenticated && !authStore.isMockMode) {
+const refreshNotifications = async (includeList = false) => {
+  if (!authStore.isAuthenticated || authStore.isMockMode || refreshInFlight) return
+  refreshInFlight = true
+  try {
     await notificationStore.fetchUnreadCount()
-    await notificationStore.fetchNotifications('all', 1)
+    if (includeList || showDropdown.value) {
+      await notificationStore.fetchNotifications('all', 1)
+    }
+  } finally {
+    refreshInFlight = false
   }
+}
+
+const handleVisibilityOrFocus = () => {
+  if (document.visibilityState === 'visible') {
+    refreshNotifications(showDropdown.value)
+  }
+}
+
+onMounted(async () => {
+  if (!authStore.isAuthenticated || authStore.isMockMode) return
+  await refreshNotifications(true)
+  pollTimer = window.setInterval(() => {
+    refreshNotifications(false)
+  }, 15000)
+  document.addEventListener('visibilitychange', handleVisibilityOrFocus)
+  window.addEventListener('focus', handleVisibilityOrFocus)
 })
 
-const toggleDropdown = () => {
+onBeforeUnmount(() => {
+  if (pollTimer) window.clearInterval(pollTimer)
+  document.removeEventListener('visibilitychange', handleVisibilityOrFocus)
+  window.removeEventListener('focus', handleVisibilityOrFocus)
+})
+
+const toggleDropdown = async () => {
   showDropdown.value = !showDropdown.value
+  if (showDropdown.value) {
+    await refreshNotifications(true)
+  }
 }
 
 const handleNotificationClick = async (notification: any) => {

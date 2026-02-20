@@ -2,12 +2,17 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\GeocodeListingJob;
+use App\Jobs\IndexListingJob;
+use App\Jobs\RemoveListingFromIndexJob;
 use App\Models\Listing;
 use App\Models\Notification;
 use App\Models\NotificationPreference;
+use App\Models\Conversation;
 use App\Models\User;
 use App\Services\ListingStatusService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
 class NotificationsApiTest extends TestCase
@@ -222,5 +227,48 @@ class NotificationsApiTest extends TestCase
             'digest_frequency' => 'daily',
             'digest_enabled' => true,
         ]);
+    }
+
+    public function test_single_message_creates_single_message_notification(): void
+    {
+        Queue::fake([
+            GeocodeListingJob::class,
+            IndexListingJob::class,
+            RemoveListingFromIndexJob::class,
+        ]);
+
+        $seeker = User::factory()->create(['role' => 'seeker']);
+        $landlord = User::factory()->create(['role' => 'landlord']);
+        $listing = Listing::factory()->create([
+            'owner_id' => $landlord->id,
+            'status' => ListingStatusService::STATUS_ACTIVE,
+        ]);
+
+        $conversation = Conversation::create([
+            'listing_id' => $listing->id,
+            'tenant_id' => $seeker->id,
+            'landlord_id' => $landlord->id,
+        ]);
+
+        NotificationPreference::updateOrCreate(
+            ['user_id' => $landlord->id],
+            [
+                'type_settings' => [Notification::TYPE_MESSAGE_RECEIVED => true],
+                'digest_frequency' => NotificationPreference::DIGEST_NONE,
+                'digest_enabled' => false,
+            ]
+        );
+
+        $this->actingAs($seeker);
+        $this->postJson("/api/v1/conversations/{$conversation->id}/messages", [
+            'message' => 'Hello landlord',
+        ])->assertCreated();
+
+        $this->assertSame(
+            1,
+            Notification::where('user_id', $landlord->id)
+                ->where('type', Notification::TYPE_MESSAGE_RECEIVED)
+                ->count()
+        );
     }
 }

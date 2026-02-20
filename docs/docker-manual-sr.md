@@ -144,7 +144,12 @@ docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compo
 - Kada menjas `.env`, `config/*`, rute ili middleware:
 ```bash
 docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml exec backend php artisan optimize:clear
+docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml exec backend php artisan event:clear
 docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml up -d --force-recreate backend queue scheduler reverb
+```
+- Kada menjas event/listener wiring (npr. notifikacije, chat events), proveri registracije:
+```bash
+docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml exec backend php artisan event:list
 ```
 - Kada menjas migracije:
 ```bash
