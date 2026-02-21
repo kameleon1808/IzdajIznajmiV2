@@ -28,7 +28,6 @@ class UserResource extends JsonResource
             'roles' => $this->whenLoaded('roles', fn () => $this->getRoleNames()),
             'addressBook' => $this->address_book,
             'emailVerified' => (bool) $this->email_verified,
-            'phoneVerified' => (bool) $this->phone_verified,
             'addressVerified' => (bool) $this->address_verified,
             'isSuspicious' => (bool) $this->is_suspicious,
             'mfaEnabled' => (bool) $this->mfa_enabled,

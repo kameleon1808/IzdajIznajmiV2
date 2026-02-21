@@ -243,13 +243,6 @@ const goToEditProfile = () => {
               {{ t('publicProfile.email') }}
             </span>
           </Badge>
-          <Badge :variant="profile.verifications.phone ? 'accepted' : 'cancelled'">
-            <span class="inline-flex items-center gap-1">
-              <ShieldCheck v-if="profile.verifications.phone" class="h-4 w-4" />
-              <ShieldX v-else class="h-4 w-4" />
-              {{ t('publicProfile.phone') }}
-            </span>
-          </Badge>
           <Badge :variant="profile.verifications.address ? 'accepted' : 'cancelled'">
             <span class="inline-flex items-center gap-1">
               <ShieldCheck v-if="profile.verifications.address" class="h-4 w-4" />

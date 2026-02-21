@@ -2,8 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Mail\VerificationCodeMail;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
@@ -18,6 +20,7 @@ class VerificationApiTest extends TestCase
             'email_verified' => false,
         ]);
 
+        Mail::fake();
         $this->bootstrapCsrf();
 
         $response = $this->actingAs($user)
@@ -26,6 +29,9 @@ class VerificationApiTest extends TestCase
         $response->assertOk()->assertJsonPath('message', 'Verification code sent');
         $code = $response->json('devCode');
         $this->assertNotEmpty($code);
+        Mail::assertSent(VerificationCodeMail::class, function (VerificationCodeMail $mail) use ($user, $code) {
+            return $mail->hasTo($user->email) && $mail->code === $code;
+        });
 
         $this->postJson('/api/v1/me/verification/email/confirm', ['code' => $code])
             ->assertOk()
@@ -34,46 +40,6 @@ class VerificationApiTest extends TestCase
         $this->assertDatabaseHas('users', [
             'id' => $user->id,
             'email_verified' => true,
-        ]);
-    }
-
-    public function test_phone_verification_requires_phone_number(): void
-    {
-        $user = User::factory()->create([
-            'phone' => null,
-            'phone_verified' => false,
-        ]);
-
-        $this->bootstrapCsrf();
-
-        $this->actingAs($user)
-            ->postJson('/api/v1/me/verification/phone/request')
-            ->assertStatus(422);
-    }
-
-    public function test_user_can_verify_phone_with_code(): void
-    {
-        $user = User::factory()->create([
-            'phone' => '+38591111222',
-            'phone_verified' => false,
-        ]);
-
-        $this->bootstrapCsrf();
-
-        $response = $this->actingAs($user)
-            ->postJson('/api/v1/me/verification/phone/request');
-
-        $response->assertOk();
-        $code = $response->json('devCode');
-        $this->assertNotEmpty($code);
-
-        $this->postJson('/api/v1/me/verification/phone/confirm', ['code' => $code])
-            ->assertOk()
-            ->assertJsonPath('user.phoneVerified', true);
-
-        $this->assertDatabaseHas('users', [
-            'id' => $user->id,
-            'phone_verified' => true,
         ]);
     }
 

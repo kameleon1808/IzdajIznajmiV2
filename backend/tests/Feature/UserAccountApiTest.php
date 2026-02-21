@@ -46,11 +46,10 @@ class UserAccountApiTest extends TestCase
         ])->assertStatus(422);
     }
 
-    public function test_phone_change_resets_phone_verification(): void
+    public function test_phone_change_updates_phone_number(): void
     {
         $user = User::factory()->create([
             'phone' => '+38591111222',
-            'phone_verified' => true,
         ]);
 
         $this->bootstrapCsrf();
@@ -63,7 +62,6 @@ class UserAccountApiTest extends TestCase
         $this->assertDatabaseHas('users', [
             'id' => $user->id,
             'phone' => '+38591111223',
-            'phone_verified' => false,
         ]);
     }
 

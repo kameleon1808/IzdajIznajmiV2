@@ -46,7 +46,6 @@ class PublicUserResource extends JsonResource
             'badges' => app(BadgeService::class)->badgesFor($this->resource, $this->landlordMetric),
             'verifications' => [
                 'email' => (bool) $this->email_verified,
-                'phone' => (bool) $this->phone_verified,
                 'address' => (bool) $this->address_verified,
             ],
             'verification' => [

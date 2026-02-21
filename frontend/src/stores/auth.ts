@@ -16,7 +16,6 @@ interface User {
   role: Role
   roles: Role[]
   emailVerified?: boolean
-  phoneVerified?: boolean
   addressVerified?: boolean
   mfaEnabled?: boolean
   mfaConfirmedAt?: string | null
@@ -92,7 +91,6 @@ export const useAuthStore = defineStore('auth', {
         role: primary,
         roles: normalizedRoles,
         emailVerified: Boolean(user?.emailVerified ?? user?.email_verified ?? false),
-        phoneVerified: Boolean(user?.phoneVerified ?? user?.phone_verified ?? false),
         addressVerified: Boolean(user?.addressVerified ?? user?.address_verified ?? false),
         mfaEnabled: Boolean(user?.mfaEnabled ?? user?.mfa_enabled ?? false),
         mfaConfirmedAt: user?.mfaConfirmedAt ?? user?.mfa_confirmed_at ?? null,
@@ -297,7 +295,6 @@ export const useAuthStore = defineStore('auth', {
         email: `${role}@example.com`,
         phone: role === 'landlord' ? '+38591111222' : null,
         emailVerified: false,
-        phoneVerified: false,
         addressVerified: false,
         dateOfBirth: null,
         gender: null,

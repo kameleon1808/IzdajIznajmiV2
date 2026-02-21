@@ -107,7 +107,7 @@ class RatingsApiTest extends TestCase
 
     public function test_verified_user_can_rate_after_chat(): void
     {
-        $seeker = User::factory()->create(['role' => 'seeker', 'email_verified' => true, 'phone_verified' => true, 'address_verified' => true]);
+        $seeker = User::factory()->create(['role' => 'seeker', 'email_verified' => true, 'address_verified' => true]);
         $landlord = User::factory()->create(['role' => 'landlord']);
         $listing = $this->createListing($landlord);
         $this->createConversationWithMessages($listing, $seeker, $landlord);
@@ -124,7 +124,7 @@ class RatingsApiTest extends TestCase
 
     public function test_cannot_rate_twice_same_pair(): void
     {
-        $seeker = User::factory()->create(['role' => 'seeker', 'email_verified' => true, 'phone_verified' => true, 'address_verified' => true]);
+        $seeker = User::factory()->create(['role' => 'seeker', 'email_verified' => true, 'address_verified' => true]);
         $landlord = User::factory()->create(['role' => 'landlord']);
         $listing = $this->createListing($landlord);
         $this->createConversationWithMessages($listing, $seeker, $landlord);
@@ -137,7 +137,7 @@ class RatingsApiTest extends TestCase
 
     public function test_rate_limit_five_per_day(): void
     {
-        $seeker = User::factory()->create(['role' => 'seeker', 'email_verified' => true, 'phone_verified' => true, 'address_verified' => true]);
+        $seeker = User::factory()->create(['role' => 'seeker', 'email_verified' => true, 'address_verified' => true]);
         $landlord = User::factory()->create(['role' => 'landlord']);
 
         $this->actingAs($seeker);
@@ -163,7 +163,7 @@ class RatingsApiTest extends TestCase
 
     public function test_seeker_cannot_rate_before_transaction_completion(): void
     {
-        $seeker = User::factory()->create(['role' => 'seeker', 'email_verified' => true, 'phone_verified' => true, 'address_verified' => true]);
+        $seeker = User::factory()->create(['role' => 'seeker', 'email_verified' => true, 'address_verified' => true]);
         $landlord = User::factory()->create(['role' => 'landlord']);
         $listing = $this->createListing($landlord);
         $this->createConversationWithMessages($listing, $seeker, $landlord);
@@ -175,7 +175,7 @@ class RatingsApiTest extends TestCase
 
     public function test_landlord_can_rate_seeker_after_completion(): void
     {
-        $landlord = User::factory()->create(['role' => 'landlord', 'email_verified' => true, 'phone_verified' => true, 'address_verified' => true]);
+        $landlord = User::factory()->create(['role' => 'landlord', 'email_verified' => true, 'address_verified' => true]);
         $seeker = User::factory()->create(['role' => 'seeker']);
         $listing = $this->createListing($landlord);
         $this->createConversationWithMessages($listing, $seeker, $landlord);
@@ -189,7 +189,7 @@ class RatingsApiTest extends TestCase
 
     public function test_landlord_cannot_rate_before_completion(): void
     {
-        $landlord = User::factory()->create(['role' => 'landlord', 'email_verified' => true, 'phone_verified' => true, 'address_verified' => true]);
+        $landlord = User::factory()->create(['role' => 'landlord', 'email_verified' => true, 'address_verified' => true]);
         $seeker = User::factory()->create(['role' => 'seeker']);
         $listing = $this->createListing($landlord);
         $this->createConversationWithMessages($listing, $seeker, $landlord);
@@ -201,7 +201,7 @@ class RatingsApiTest extends TestCase
 
     public function test_seeker_can_rate_listing_after_completion(): void
     {
-        $seeker = User::factory()->create(['role' => 'seeker', 'email_verified' => true, 'phone_verified' => true, 'address_verified' => true]);
+        $seeker = User::factory()->create(['role' => 'seeker', 'email_verified' => true, 'address_verified' => true]);
         $landlord = User::factory()->create(['role' => 'landlord']);
         $listing = $this->createListing($landlord);
         $this->createCompletedTransaction($listing, $seeker, $landlord);
@@ -216,7 +216,7 @@ class RatingsApiTest extends TestCase
 
     public function test_cannot_rate_listing_before_completion(): void
     {
-        $seeker = User::factory()->create(['role' => 'seeker', 'email_verified' => true, 'phone_verified' => true, 'address_verified' => true]);
+        $seeker = User::factory()->create(['role' => 'seeker', 'email_verified' => true, 'address_verified' => true]);
         $landlord = User::factory()->create(['role' => 'landlord']);
         $listing = $this->createListing($landlord);
 
@@ -226,7 +226,7 @@ class RatingsApiTest extends TestCase
 
     public function test_cannot_rate_listing_twice(): void
     {
-        $seeker = User::factory()->create(['role' => 'seeker', 'email_verified' => true, 'phone_verified' => true, 'address_verified' => true]);
+        $seeker = User::factory()->create(['role' => 'seeker', 'email_verified' => true, 'address_verified' => true]);
         $landlord = User::factory()->create(['role' => 'landlord']);
         $listing = $this->createListing($landlord);
         $this->createCompletedTransaction($listing, $seeker, $landlord);
@@ -238,7 +238,7 @@ class RatingsApiTest extends TestCase
 
     public function test_report_listing_rating_once(): void
     {
-        $seeker = User::factory()->create(['role' => 'seeker', 'email_verified' => true, 'phone_verified' => true, 'address_verified' => true]);
+        $seeker = User::factory()->create(['role' => 'seeker', 'email_verified' => true, 'address_verified' => true]);
         $landlord = User::factory()->create(['role' => 'landlord']);
         $listing = $this->createListing($landlord);
         $this->createCompletedTransaction($listing, $seeker, $landlord);
@@ -261,7 +261,7 @@ class RatingsApiTest extends TestCase
 
     public function test_report_rating_once(): void
     {
-        $seeker = User::factory()->create(['role' => 'seeker', 'email_verified' => true, 'phone_verified' => true, 'address_verified' => true]);
+        $seeker = User::factory()->create(['role' => 'seeker', 'email_verified' => true, 'address_verified' => true]);
         $landlord = User::factory()->create(['role' => 'landlord']);
         $listing = $this->createListing($landlord);
         $this->createConversationWithMessages($listing, $seeker, $landlord);
@@ -342,7 +342,7 @@ class RatingsApiTest extends TestCase
     {
         $admin = User::factory()->create(['role' => 'admin']);
         $admin->assignRole('admin');
-        $seeker = User::factory()->create(['role' => 'seeker', 'email_verified' => true, 'phone_verified' => true, 'address_verified' => true]);
+        $seeker = User::factory()->create(['role' => 'seeker', 'email_verified' => true, 'address_verified' => true]);
         $landlord = User::factory()->create(['role' => 'landlord']);
         $listing = $this->createListing($landlord);
         $rating = Rating::create([

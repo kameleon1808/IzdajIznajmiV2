@@ -39,7 +39,7 @@ class RatingService
         }
 
         if (! $this->isVerified($rater)) {
-            throw new HttpResponseException(response()->json(['message' => 'Verify your email, phone, and address to rate'], 422));
+            throw new HttpResponseException(response()->json(['message' => 'Verify your email and address to rate'], 422));
         }
 
         if ($this->hasExistingRating($rater->id, $listing->id, $rateeId)) {
@@ -83,7 +83,7 @@ class RatingService
 
     private function isVerified(User $user): bool
     {
-        return (bool) $user->email_verified && (bool) $user->phone_verified && (bool) $user->address_verified;
+        return (bool) $user->email_verified && (bool) $user->address_verified;
     }
 
     private function isSeeker(User $user): bool
