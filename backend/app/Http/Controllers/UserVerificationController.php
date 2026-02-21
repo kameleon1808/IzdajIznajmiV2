@@ -5,13 +5,14 @@ namespace App\Http\Controllers;
 use App\Http\Resources\UserResource;
 use App\Models\User;
 use App\Models\UserVerificationCode;
-use App\Services\NotificationService;
+use App\Services\Verification\EmailVerificationCodeSender;
+use App\Services\Verification\Exceptions\VerificationDeliveryException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class UserVerificationController extends Controller
 {
-    public function __construct(private readonly NotificationService $notifications) {}
+    public function __construct(private readonly EmailVerificationCodeSender $emailSender) {}
 
     public function requestEmail(Request $request): JsonResponse
     {
@@ -36,64 +37,35 @@ class UserVerificationController extends Controller
         return $this->confirmCode($request, $user, UserVerificationCode::CHANNEL_EMAIL);
     }
 
-    public function requestPhone(Request $request): JsonResponse
-    {
-        $user = $this->requireUser($request);
-
-        if (! $user->phone) {
-            return response()->json(['message' => 'Phone number is missing'], 422);
-        }
-
-        if ($user->phone_verified) {
-            return response()->json(['message' => 'Phone already verified'], 409);
-        }
-
-        return $this->issueCode($user, UserVerificationCode::CHANNEL_PHONE);
-    }
-
-    public function confirmPhone(Request $request): JsonResponse
-    {
-        $user = $this->requireUser($request);
-        if (! $user->phone) {
-            return response()->json(['message' => 'Phone number is missing'], 422);
-        }
-
-        return $this->confirmCode($request, $user, UserVerificationCode::CHANNEL_PHONE);
-    }
-
     private function issueCode(User $user, string $channel): JsonResponse
     {
         $code = $this->generateCode();
         $hash = $this->hashCode($code);
-        $expiresAt = now()->addMinutes(10);
+        $expiresAt = now()->addMinutes((int) config('verification.code_ttl_minutes', 10));
 
         UserVerificationCode::where('user_id', $user->id)
             ->where('channel', $channel)
             ->whereNull('consumed_at')
             ->delete();
 
-        UserVerificationCode::create([
+        $verificationCode = UserVerificationCode::create([
             'user_id' => $user->id,
             'channel' => $channel,
             'code_hash' => $hash,
             'expires_at' => $expiresAt,
         ]);
 
-        $destination = $channel === UserVerificationCode::CHANNEL_EMAIL
-            ? $this->maskEmail($user->email ?? '')
-            : $this->maskPhone($user->phone ?? '');
+        try {
+            $this->dispatchCode($user, $channel, $code);
+        } catch (VerificationDeliveryException $e) {
+            $verificationCode->delete();
 
-        $title = $channel === UserVerificationCode::CHANNEL_EMAIL
-            ? 'Email verification code'
-            : 'Phone verification code';
-        $body = sprintf('Your verification code is %s. It expires in 10 minutes.', $code);
+            return response()->json([
+                'message' => $e->getMessage(),
+            ], 503);
+        }
 
-        $this->notifications->createNotification($user, $this->notificationType($channel), [
-            'title' => $title,
-            'body' => $body,
-            'data' => ['channel' => $channel, 'expires_at' => $expiresAt->toISOString()],
-            'url' => '/profile/verification',
-        ]);
+        $destination = $this->maskEmail($user->email ?? '');
 
         $response = [
             'message' => 'Verification code sent',
@@ -133,16 +105,10 @@ class UserVerificationController extends Controller
 
         $record->update(['consumed_at' => now()]);
 
-        if ($channel === UserVerificationCode::CHANNEL_EMAIL) {
-            $user->forceFill([
-                'email_verified' => true,
-                'email_verified_at' => now(),
-            ])->save();
-        } else {
-            $user->update([
-                'phone_verified' => true,
-            ]);
-        }
+        $user->forceFill([
+            'email_verified' => true,
+            'email_verified_at' => now(),
+        ])->save();
 
         return response()->json(['user' => new UserResource($user->fresh('roles'))]);
     }
@@ -172,11 +138,13 @@ class UserVerificationController extends Controller
         return hash('sha256', $code);
     }
 
-    private function notificationType(string $channel): string
+    private function dispatchCode(User $user, string $channel, string $code): void
     {
-        return $channel === UserVerificationCode::CHANNEL_EMAIL
-            ? 'verification.email'
-            : 'verification.phone';
+        if ($channel !== UserVerificationCode::CHANNEL_EMAIL) {
+            throw new VerificationDeliveryException('Unsupported verification channel.');
+        }
+
+        $this->emailSender->send($user, $code);
     }
 
     private function maskEmail(string $email): string
@@ -189,17 +157,5 @@ class UserVerificationController extends Controller
         $maskedName = strlen($name) <= 2 ? str_repeat('*', strlen($name)) : substr($name, 0, 2).str_repeat('*', max(strlen($name) - 2, 0));
 
         return $maskedName.'@'.$domain;
-    }
-
-    private function maskPhone(string $phone): string
-    {
-        $digits = preg_replace('/\D+/', '', $phone);
-        if (! $digits) {
-            return $phone;
-        }
-        $suffix = substr($digits, -2);
-        $masked = str_repeat('*', max(strlen($digits) - 2, 0)).$suffix;
-
-        return $masked;
     }
 }

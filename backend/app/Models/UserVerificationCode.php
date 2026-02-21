@@ -9,8 +9,6 @@ class UserVerificationCode extends Model
 {
     public const CHANNEL_EMAIL = 'email';
 
-    public const CHANNEL_PHONE = 'phone';
-
     protected $fillable = [
         'user_id',
         'channel',

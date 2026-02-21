@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
-import { FileText, Home, IdCard, ShieldCheck, ShieldX, UserCircle, Mail, Phone } from 'lucide-vue-next'
+import { FileText, Home, IdCard, ShieldCheck, ShieldX, UserCircle, Mail } from 'lucide-vue-next'
 import Badge from '../components/ui/Badge.vue'
 import Button from '../components/ui/Button.vue'
 import Input from '../components/ui/Input.vue'
@@ -9,10 +8,8 @@ import ErrorBanner from '../components/ui/ErrorBanner.vue'
 import ListSkeleton from '../components/ui/ListSkeleton.vue'
 import {
   confirmEmailVerification,
-  confirmPhoneVerification,
   getMyKycSubmission,
   requestEmailVerification,
-  requestPhoneVerification,
   submitKycSubmission,
   withdrawKycSubmission,
 } from '../services'
@@ -21,7 +18,6 @@ import { useToastStore } from '../stores/toast'
 import { useLanguageStore } from '../stores/language'
 import type { KycSubmission } from '../types'
 
-const router = useRouter()
 const auth = useAuthStore()
 const toast = useToastStore()
 const languageStore = useLanguageStore()
@@ -37,8 +33,6 @@ const kycTitle = computed(() => t(`kyc.title.${kycRoleKey.value}` as Parameters<
 const kycSubtitle = computed(() => t(`kyc.subtitle.${kycRoleKey.value}` as Parameters<typeof languageStore.t>[0]))
 const kycVerifiedTitle = computed(() => t(`kyc.verifiedTitle.${kycRoleKey.value}` as Parameters<typeof languageStore.t>[0]))
 const emailVerified = computed(() => Boolean(auth.user.emailVerified))
-const phoneVerified = computed(() => Boolean(auth.user.phoneVerified))
-const hasPhone = computed(() => Boolean(auth.user.phone))
 
 const loading = ref(true)
 const error = ref('')
@@ -52,13 +46,9 @@ const idBack = ref<File | null>(null)
 const selfie = ref<File | null>(null)
 const proof = ref<File | null>(null)
 const emailCode = ref('')
-const phoneCode = ref('')
 const emailSending = ref(false)
-const phoneSending = ref(false)
 const emailVerifying = ref(false)
-const phoneVerifying = ref(false)
 const emailDevCode = ref('')
-const phoneDevCode = ref('')
 
 const status = computed(() => submission.value?.status ?? 'none')
 
@@ -212,45 +202,6 @@ const confirmEmailCode = async () => {
     emailVerifying.value = false
   }
 }
-
-const sendPhoneCode = async () => {
-  if (!hasPhone.value) {
-    router.push('/settings/profile')
-    return
-  }
-  if (phoneVerified.value) return
-  phoneSending.value = true
-  try {
-    const response = await requestPhoneVerification()
-    phoneDevCode.value = response.devCode ?? ''
-    if (response.devCode) {
-      phoneCode.value = response.devCode
-    }
-    toast.push({ title: t('verification.phoneSentTitle'), message: t('verification.phoneSentMessage'), type: 'success' })
-  } catch (err) {
-    toast.push({ title: t('verification.phoneSendFailed'), message: (err as Error).message, type: 'error' })
-  } finally {
-    phoneSending.value = false
-  }
-}
-
-const confirmPhoneCode = async () => {
-  if (!phoneCode.value) return
-  phoneVerifying.value = true
-  try {
-    const response = await confirmPhoneVerification({ code: phoneCode.value })
-    if (response?.user) {
-      auth.setUser(response.user)
-    }
-    phoneCode.value = ''
-    phoneDevCode.value = ''
-    toast.push({ title: t('verification.phoneVerifiedTitle'), type: 'success' })
-  } catch (err) {
-    toast.push({ title: t('verification.phoneVerifyFailed'), message: (err as Error).message, type: 'error' })
-  } finally {
-    phoneVerifying.value = false
-  }
-}
 </script>
 
 <template>
@@ -281,41 +232,6 @@ const confirmPhoneCode = async () => {
         </div>
         <p class="text-xs text-muted">{{ t('verification.codeHint') }}</p>
         <p v-if="emailDevCode" class="text-xs text-amber-700">{{ t('verification.devCode') }}: {{ emailDevCode }}</p>
-      </div>
-    </div>
-
-    <div class="rounded-2xl bg-white p-4 shadow-soft border border-white/60 space-y-3">
-      <div class="flex items-start justify-between gap-3">
-        <div>
-          <div class="flex items-center gap-2 text-sm font-semibold text-slate-900">
-            <Phone class="h-5 w-5 text-primary" />
-            {{ t('verification.phoneTitle') }}
-          </div>
-          <p class="text-sm text-muted">{{ auth.user.phone || t('verification.phoneMissing') }}</p>
-        </div>
-        <Badge :variant="phoneVerified ? 'accepted' : 'cancelled'">
-          {{ phoneVerified ? t('verification.verified') : t('verification.notVerified') }}
-        </Badge>
-      </div>
-      <p v-if="phoneVerified" class="text-sm text-emerald-700">{{ t('verification.phoneVerifiedHint') }}</p>
-      <div v-else class="space-y-2">
-        <p v-if="!hasPhone" class="text-sm text-muted">{{ t('verification.phoneMissingHint') }}</p>
-        <Button v-if="!hasPhone" variant="secondary" @click="router.push('/settings/profile')">
-          {{ t('verification.addPhone') }}
-        </Button>
-        <div v-else class="space-y-2">
-          <Button variant="secondary" :disabled="phoneSending" @click="sendPhoneCode">
-            {{ phoneSending ? t('verification.sending') : t('verification.sendCode') }}
-          </Button>
-          <div class="flex flex-col gap-2 sm:flex-row">
-            <Input v-model="phoneCode" :placeholder="t('verification.codePlaceholder')" />
-            <Button variant="primary" :disabled="!phoneCode || phoneVerifying" @click="confirmPhoneCode">
-              {{ phoneVerifying ? t('verification.verifying') : t('verification.verify') }}
-            </Button>
-          </div>
-          <p class="text-xs text-muted">{{ t('verification.codeHint') }}</p>
-          <p v-if="phoneDevCode" class="text-xs text-amber-700">{{ t('verification.devCode') }}: {{ phoneDevCode }}</p>
-        </div>
       </div>
     </div>
 

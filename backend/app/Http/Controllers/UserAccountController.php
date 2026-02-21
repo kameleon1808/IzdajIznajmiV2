@@ -55,9 +55,6 @@ class UserAccountController extends Controller
         }
         if (array_key_exists('phone', $data)) {
             $updates['phone'] = $data['phone'];
-            if ($data['phone'] !== $user->phone) {
-                $updates['phone_verified'] = false;
-            }
         }
         if (array_key_exists('address_book', $data)) {
             $updates['address_book'] = $data['address_book'];

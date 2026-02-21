@@ -1430,7 +1430,7 @@ export async function getPublicProfile(userId: string): Promise<PublicProfile> {
     role,
     fullName: `${role === 'seeker' ? 'Seeker' : 'Landlord'} ${userId}`,
     joinedAt: new Date().toISOString(),
-    verifications: { email: true, phone: false, address: false },
+    verifications: { email: true, address: false },
     verification: { status: 'approved', verifiedAt: new Date().toISOString() },
     ratingStats: { average: 0, total: 0, breakdown: {} },
     canRateLandlord: true,
@@ -1455,12 +1455,11 @@ let mockAccount = {
   role: 'seeker',
   roles: ['seeker'],
   emailVerified: false,
-  phoneVerified: false,
   addressVerified: false,
   addressBook: null as Record<string, any> | null,
 }
 
-let mockVerificationCodes: { email?: string; phone?: string } = {}
+let mockVerificationCodes: { email?: string } = {}
 
 const generateMockCode = () => String(Math.floor(100000 + Math.random() * 900000))
 
@@ -1484,7 +1483,6 @@ export async function updateMyProfile(payload: {
     residentialAddress: payload.residentialAddress ?? mockAccount.residentialAddress,
     employmentStatus: payload.employmentStatus ?? mockAccount.employmentStatus,
     phone: nextPhone,
-    phoneVerified: nextPhone === mockAccount.phone ? mockAccount.phoneVerified : false,
     addressBook: payload.addressBook ?? mockAccount.addressBook,
   }
   return JSON.parse(JSON.stringify(mockAccount))
@@ -1510,32 +1508,6 @@ export async function confirmEmailVerification(payload: { code: string }) {
   }
   mockAccount.emailVerified = true
   mockVerificationCodes.email = undefined
-  return { user: JSON.parse(JSON.stringify(mockAccount)) }
-}
-
-export async function requestPhoneVerification() {
-  await delay()
-  if (!mockAccount.phone) {
-    throw new Error('Phone number is missing')
-  }
-  if (mockAccount.phoneVerified) {
-    throw new Error('Phone already verified')
-  }
-  const code = generateMockCode()
-  mockVerificationCodes.phone = code
-  return { message: 'Verification code sent', devCode: code, destination: mockAccount.phone }
-}
-
-export async function confirmPhoneVerification(payload: { code: string }) {
-  await delay()
-  if (!mockVerificationCodes.phone) {
-    throw new Error('Verification code not found')
-  }
-  if (payload.code !== mockVerificationCodes.phone) {
-    throw new Error('Invalid verification code')
-  }
-  mockAccount.phoneVerified = true
-  mockVerificationCodes.phone = undefined
   return { user: JSON.parse(JSON.stringify(mockAccount)) }
 }
 

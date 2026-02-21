@@ -97,7 +97,6 @@
 | PROF-01 | Prijavljen korisnik | 1) PATCH /api/v1/me/profile (full_name, phone, address_book) | 200 OK, user ažuriran | edit profil |
 | PROF-02 | Prijavljen korisnik | 1) PATCH /api/v1/me/password (current_password, new_password, confirmation) | 200 OK, lozinka ažurirana | change password |
 | VER-01 | Prijavljen korisnik, email nije verifikovan | 1) POST /api/v1/me/verification/email/request 2) POST /api/v1/me/verification/email/confirm (code) | email_verified=true | email |
-| VER-02 | Prijavljen korisnik, telefon nije verifikovan | 1) POST /api/v1/me/verification/phone/request 2) POST /api/v1/me/verification/phone/confirm (code) | phone_verified=true | phone |
 
 ### KYC verifikacija
 | ID | Precondition | Koraci | Očekivano | Napomena |

@@ -827,7 +827,6 @@ const mapProfile = (data: any): PublicProfile => ({
   badges: data.badges ?? [],
   verifications: {
     email: Boolean(data.verifications?.email),
-    phone: Boolean(data.verifications?.phone),
     address: Boolean(data.verifications?.address),
   },
   verification: data.verification
@@ -939,16 +938,6 @@ export const requestEmailVerification = async (): Promise<{ message: string; dev
 
 export const confirmEmailVerification = async (payload: { code: string }) => {
   const { data } = await apiClient.post('/me/verification/email/confirm', { code: payload.code })
-  return data
-}
-
-export const requestPhoneVerification = async (): Promise<{ message: string; devCode?: string; destination?: string }> => {
-  const { data } = await apiClient.post('/me/verification/phone/request')
-  return data
-}
-
-export const confirmPhoneVerification = async (payload: { code: string }) => {
-  const { data } = await apiClient.post('/me/verification/phone/confirm', { code: payload.code })
   return data
 }
 

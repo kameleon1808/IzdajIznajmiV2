@@ -193,10 +193,6 @@ $apiRoutes = function () use ($authRoutes) {
                 ->middleware('throttle:verification_request');
             Route::post('/me/verification/email/confirm', [UserVerificationController::class, 'confirmEmail'])
                 ->middleware('throttle:verification_confirm');
-            Route::post('/me/verification/phone/request', [UserVerificationController::class, 'requestPhone'])
-                ->middleware('throttle:verification_request');
-            Route::post('/me/verification/phone/confirm', [UserVerificationController::class, 'confirmPhone'])
-                ->middleware('throttle:verification_confirm');
 
             Route::post('/kyc/submissions', [KycSubmissionController::class, 'store']);
             Route::get('/kyc/submissions/me', [KycSubmissionController::class, 'me']);

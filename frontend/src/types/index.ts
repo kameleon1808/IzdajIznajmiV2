@@ -190,7 +190,6 @@ export interface PublicProfile {
   badges?: string[]
   verifications: {
     email: boolean
-    phone: boolean
     address: boolean
   }
   verification?: {
