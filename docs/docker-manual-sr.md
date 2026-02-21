@@ -127,6 +127,24 @@ docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compo
 docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml down
 ```
 
+## Production env prioritet (.env.production vs .env)
+- Ako je `APP_ENV=production`, Laravel ce ucitati `backend/.env.production` (ako fajl postoji).
+- To znaci da vrednosti iz `backend/.env` mogu biti ignorisane za production runtime.
+- Prakticno pravilo:
+  - local/dev: koristi `backend/.env`
+  - production compose: odrzavaj i `backend/.env.production`
+
+Brza provera sta backend stvarno vidi:
+```bash
+docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml exec backend php artisan tinker --execute="dump(config('mail.default')); dump(config('mail.mailers.smtp.host')); dump(config('mail.mailers.smtp.port'));"
+```
+
+Ako mail i dalje pokazuje `log/127.0.0.1/2525`:
+```bash
+docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml exec backend php artisan optimize:clear
+docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml up -d --force-recreate backend queue scheduler reverb
+```
+
 ## VAZNO: kako se vide izmene
 - Production test stack koristi bind mount za `./backend` i `./frontend`, pa izmene koje napravis lokalno ulaze i u running production test kontejnere.
 - To znaci da izmene mogu biti vidljive i na `localhost` (dev) i na production test URL-u, jer dele isti source kod na disku.
