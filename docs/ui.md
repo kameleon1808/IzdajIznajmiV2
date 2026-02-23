@@ -34,7 +34,7 @@
 ### Seeker and landlord user space
 - `/favorites` Favorites
 - `/saved-searches` Saved searches
-- `/bookings` Booking/applications/viewings hub
+- `/bookings` Booking/applications/viewings hub (includes reservation details modal)
 - `/applications` Applications tab shortcut
 - `/landlord/applications` Landlord applications shortcut
 - `/viewings` Viewings tab shortcut
@@ -79,7 +79,8 @@
 
 ## Core Frontend Data Shapes (simplified)
 - `Listing`: `{ id, title, city, country, address?, lat?, lng?, pricePerMonth, rating, reviewsCount, coverImage, images?, description?, beds, baths, category, instantBook?, facilities?, ownerId?, status? }`
-- `Application`: `{ id, listing, participants { seekerId, landlordId }, message?, status ('submitted'|'accepted'|'rejected'|'withdrawn'), createdAt }`
+- `Booking`: `{ id, listingId, listingTitle, status ('booked'|'history'), startDate?, endDate?, datesRange, pricePerMonth, calculatedPrice?, currency? }`
+- `Application`: `{ id, listing, participants { seekerId, landlordId, seekerName?, landlordName? }, message?, status ('submitted'|'accepted'|'rejected'|'withdrawn'), startDate?, endDate?, createdAt?, updatedAt?, withdrawnAt?, currency?, calculatedPrice? }`
 - `ViewingSlot`: `{ id, listingId, startsAt, endsAt, capacity, isActive, pattern?, daysOfWeek?, timeFrom?, timeTo? }`
 - `ViewingRequest`: `{ id, status ('requested'|'confirmed'|'rejected'|'cancelled'), cancelledBy?, slot?, listing?, participants, createdAt }`
 - `Conversation`: `{ id, listingId?, counterpart, unreadCount, lastMessage, updatedAt }`

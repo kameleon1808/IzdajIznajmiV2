@@ -21,7 +21,9 @@ curl -b cookies.txt "http://localhost:8000/api/v1/listings?category=villa&priceM
 curl -b cookies.txt -c cookies.txt -X POST http://localhost:8000/api/v1/listings/1/apply \
   -H "Content-Type: application/json" \
   -H "X-XSRF-TOKEN: $XSRF" \
-  -d '{"message":"I am interested. Can we discuss terms?"}'
+  -d '{"message":"I am interested. Can we discuss terms?","startDate":"2026-03-10","endDate":"2026-04-10"}'
+
+# Note: reservation window must be at least one month.
 
 # 5) Seeker applications
 curl -b cookies.txt http://localhost:8000/api/v1/seeker/applications

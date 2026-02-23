@@ -117,13 +117,14 @@ This document defines backend and frontend manual test coverage for development/
 ### Applications (listing inquiry flow)
 | ID | Precondition | Steps | Expected result | Notes |
 | --- | --- | --- | --- | --- |
-| APP-01 | Seeker session, listing is active | 1) `POST /api/v1/listings/{listing}/apply` with message | `201`, status `submitted` | create |
+| APP-01 | Seeker session, listing is active | 1) `POST /api/v1/listings/{listing}/apply` with `startDate`, `endDate` (>= 1 month) and optional message | `201`, status `submitted` | create |
 | APP-02 | APP-01 exists | 1) Repeat apply on same listing | `422`, duplicate blocked | dedupe |
 | APP-03 | Seeker session | 1) `GET /api/v1/seeker/applications` | `200`, only seeker-owned applications | seeker view |
 | APP-04 | Landlord session | 1) `GET /api/v1/landlord/applications` | `200`, incoming applications | landlord view |
 | APP-05 | Landlord session | 1) `PATCH /api/v1/applications/{id}` `status=accepted` | `200`, status `accepted` | accept |
 | APP-06 | Seeker session, own submitted application | 1) `PATCH /api/v1/applications/{id}` `status=withdrawn` | `200`, status `withdrawn` | withdraw |
 | APP-07 | Unauthorized role/ownership | 1) Update application status without permission | `403` | policy |
+| APP-08 | Seeker session, listing is active | 1) Apply with reservation window shorter than one month | `422`, validation error for minimum reservation period | min window |
 
 ### Viewing slots and requests
 | ID | Precondition | Steps | Expected result | Notes |
@@ -147,6 +148,7 @@ This document defines backend and frontend manual test coverage for development/
 | FE-01 | Frontend dev server, mock store | 1) Login (mock role switch) 2) Navigate to `/favorites` as guest | Redirect to `/`, "Access denied" toast | route guard |
 | FE-02 | Role switch to landlord | 1) `/profile` -> switch to Landlord 2) "My Listings" link opens `/landlord/listings` | Works and displays listing cards | navigation |
 | FE-03 | Slow/failure simulation | 1) Simulate slow network 2) Open `/search` and `/map` 3) Verify skeleton/empty/error states | Expected UI states visible | UX |
+| FE-04 | Seeker or landlord with existing applications | 1) Open `/bookings?tab=reservations&section=requests` 2) Click `Details` | Modal shows reservation period, created/updated/withdrawn timestamps, calculated price, and participant full names | reservations details |
 
 ## C) API cURL Notes
 Base URL: `http://localhost:8000`
@@ -171,7 +173,7 @@ See `docs/api-examples.md` for complete cURL sequences.
 1. `POST /api/v1/auth/login` as tenant -> authenticated session established.
 2. `GET /api/v1/listings` -> `200`, returns data array.
 3. `GET /api/v1/listings/{id}` -> `200`, includes images/facilities.
-4. `POST /api/v1/listings/{id}/apply` as seeker -> `201 submitted`.
+4. `POST /api/v1/listings/{id}/apply` as seeker with valid monthly reservation window -> `201 submitted`.
 5. `GET /api/v1/seeker/applications` -> includes newly created application.
 6. `PATCH /api/v1/applications/{id}` as landlord -> `status=accepted`, `200`.
 7. `GET /api/v1/landlord/listings` as landlord -> `200`, only owner listings.

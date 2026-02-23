@@ -41,5 +41,6 @@ Use `docs/releases/` for all release/change logs.
 - UI reference images: `docs/ui-reference/README.md`
 
 ## Notes
-- `docs/notes/` is for dated implementation notes.
-- Prefer updating long-lived runbooks over adding one-off notes when possible.
+- `docs/notes/` is reserved for local personal notes and is git-ignored.
+- Do not commit product/system documentation into `docs/notes/`.
+- Prefer updating long-lived runbooks over adding one-off notes.

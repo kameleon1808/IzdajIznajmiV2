@@ -61,10 +61,24 @@ Legacy auth aliases under `/api/auth/*` still exist during transition.
 
 ## Applications (listing inquiry flow)
 - `POST /api/v1/listings/{listing}/apply`
+  - Request body:
+    - `message` (optional, string, max 2000)
+    - `startDate` (required, date, `>= today`)
+    - `endDate` (required, date, `> startDate`, minimum reservation window: 1 month)
+  - Reservation pricing model is monthly (`pricePerMonth`) with `EUR` currency.
 - `GET /api/v1/seeker/applications`
 - `GET /api/v1/landlord/applications` (`listing_id` optional)
 - `PATCH /api/v1/applications/{application}`
   - Statuses: `submitted | accepted | rejected | withdrawn`
+  - When status changes to `withdrawn`, backend stores `withdrawnAt`.
+
+Application response payload (key fields):
+- `id`, `status`, `message`
+- `startDate`, `endDate`
+- `createdAt`, `updatedAt`, `withdrawnAt`
+- `currency` (`EUR`), `calculatedPrice`
+- `listing { id, title, city, pricePerMonth, coverImage, status }`
+- `participants { seekerId, landlordId, seekerName, landlordName }`
 
 ## Viewing appointments (separate from applications)
 ### Slots

@@ -83,6 +83,7 @@ Guest restrictions:
 - Use map-focused discovery mode
 - Use search autosuggest to speed up filtering
 - Open full listing detail pages
+- Listing prices are presented as monthly prices in EUR (`€`).
 
 ### 5.2 Recommendations
 - See personalized recommendations based on your activity
@@ -101,12 +102,19 @@ Guest restrictions:
 ### 5.5 Applications
 - Apply to active listings
 - Add an optional message for landlord
+- Select reservation window (`startDate` + `endDate`)
+- Reservation window must be at least one month
 - Track application status:
   - submitted
   - accepted
   - rejected
   - withdrawn
 - View your own applications list
+- See reservation metadata in application details:
+  - created/updated timestamps
+  - withdrawn timestamp (when withdrawn)
+  - monthly price and calculated total price
+  - participant names (seeker/landlord)
 
 ### 5.6 Messaging (chat)
 - Open conversation list
