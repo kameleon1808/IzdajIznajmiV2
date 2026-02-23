@@ -7,11 +7,11 @@ import { useAuthStore } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
 import { useLanguageStore } from '../stores/language'
 import {
+  getPushAvailability,
   disablePushEndpoint,
   fetchPushDevices,
   getCurrentPushEndpoint,
   getPushPermissionState,
-  isPushFeatureEnabled,
   subscribeCurrentDevicePush,
   unsubscribeCurrentDevicePush,
   type PushDevice,
@@ -41,7 +41,18 @@ const pushPermission = ref<'default' | 'granted' | 'denied' | 'unsupported'>('un
 const pushDevices = ref<PushDevice[]>([])
 const currentEndpoint = ref<string | null>(null)
 
-const pushFeatureEnabled = isPushFeatureEnabled()
+const pushAvailability = ref(getPushAvailability())
+const pushFeatureEnabled = computed(() => pushAvailability.value.code === 'ok')
+const pushUnavailableReasonKey = computed<Parameters<typeof t>[0] | ''>(() => {
+  const code = pushAvailability.value.code
+  if (code === 'insecure_context') return 'settings.notifications.push.hint.secureContext'
+  if (code === 'ios_home_screen_required') return 'settings.notifications.push.hint.iosHomeScreen'
+  if (code === 'missing_vapid_key') return 'settings.notifications.push.hint.missingVapidKey'
+  if (code === 'service_worker_unsupported' || code === 'notification_unsupported' || code === 'push_unsupported') {
+    return 'settings.notifications.push.hint.browserUnsupported'
+  }
+  return ''
+})
 
 const typeLabels = computed<Record<string, string>>(() => ({
   'application.created': t('settings.notifications.types.applicationCreated'),
@@ -92,10 +103,11 @@ const isDirty = computed(() => {
 })
 
 const loadPushState = async () => {
+  pushAvailability.value = getPushAvailability()
   pushPermission.value = getPushPermissionState()
   pushError.value = ''
 
-  if (!authStore.isAuthenticated || authStore.isMockMode || !pushFeatureEnabled) {
+  if (!authStore.isAuthenticated || authStore.isMockMode) {
     pushDevices.value = []
     currentEndpoint.value = null
     return
@@ -103,7 +115,11 @@ const loadPushState = async () => {
 
   pushLoading.value = true
   try {
-    const [endpoint, devices] = await Promise.all([getCurrentPushEndpoint(), fetchPushDevices()])
+    const endpointPromise =
+      pushPermission.value === 'unsupported'
+        ? Promise.resolve(null)
+        : getCurrentPushEndpoint().catch(() => null)
+    const [endpoint, devices] = await Promise.all([endpointPromise, fetchPushDevices()])
     currentEndpoint.value = endpoint
     pushDevices.value = devices
   } catch (error) {
@@ -324,8 +340,11 @@ const formatDeviceTime = (value: string | null) => {
           <span class="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-700">{{ pushPermissionLabel }}</span>
         </div>
 
-        <p v-if="!pushFeatureEnabled" class="text-xs text-amber-700">
+        <p v-if="pushAvailability.code === 'disabled_by_config'" class="text-xs text-amber-700">
           {{ t('settings.notifications.push.configDisabled') }}
+        </p>
+        <p v-else-if="pushUnavailableReasonKey" class="text-xs text-amber-700">
+          {{ t(pushUnavailableReasonKey) }}
         </p>
         <p v-if="pushError" class="text-xs text-rose-700">{{ pushError }}</p>
 

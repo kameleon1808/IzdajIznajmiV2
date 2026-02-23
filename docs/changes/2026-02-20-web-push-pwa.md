@@ -190,8 +190,15 @@ Proveri redom:
 - `config('push.vapid')` nije null
 - nema `push_vapid_not_configured` u logu
 - Brave: opcija `Use Google services for push messaging` ukljucena
+- aplikacija je otvorena preko `https://` (push ne radi na `http://`)
+- iPhone/iPad: push radi samo za instaliranu web aplikaciju (Add to Home Screen), ne u obicnom browser tabu
 
-### 6.4 Kada public tunnel vraca 502
+### 6.4 Browser/uredjaj napomene
+- Android: testirano za Chromium familiju (`Chrome`, `Brave`, `Edge`, `Samsung Internet`), potrebno je da browser push servisi nisu blokirani.
+- iPhone/iPad (iOS/iPadOS 16.4+): podrzano je za instaliranu PWA (Home Screen). Ako korisnik otvori sajt direktno u browser tabu, Push API nije dostupan.
+- Ako je ranije kreirana subscription sa starim VAPID kljucem, frontend sada radi automatski resubscribe sa aktuelnim kljucem.
+
+### 6.5 Kada public tunnel vraca 502
 - proveri gateway log:
 ```bash
 $DC logs --tail=200 gateway
@@ -224,3 +231,32 @@ Infra/Ops:
 ## 8) Napomena o lokalnim env fajlovima
 `frontend/.env` je lokalni runtime fajl i ne treba da bude verzionisan.
 Dodat je u root `.gitignore` kao `frontend/.env`.
+
+## 9) Stabilizacija (2026-02-23)
+
+### 9.1 Frontend push kompatibilnost
+Izmene:
+- `frontend/src/services/push.ts`
+- `frontend/src/pages/SettingsNotifications.vue`
+- `frontend/src/stores/language.ts`
+
+Uradjeno:
+- dodata granularna detekcija razloga zasto push nije dostupan (`disabled_by_config`, `insecure_context`, `ios_home_screen_required`, `missing_vapid_key`, browser API unsupported);
+- iOS/iPadOS uslov eksplicitno prepoznat: push je dostupan samo za instaliranu PWA (Home Screen);
+- SW registration tok stabilizovan preko `navigator.serviceWorker.ready`;
+- auto re-subscribe kada postoji stara subscription vezana za drugi VAPID public key;
+- bolja poruka za gresku `Registration failed - push service error`;
+- prosiren browser label (Brave, Samsung Internet, Opera, Edge, Firefox, Chrome, Safari);
+- Settings -> Notifications prikazuje konkretan hint korisniku umesto samo genericke `configDisabled` poruke.
+
+### 9.2 Uklanjanje nepotrebnog `/auth/me` 401 noise-a
+Izmena:
+- `frontend/src/stores/auth.ts`
+
+Uradjeno:
+- u `initialize()` dodat guard koji preskace `GET /api/v1/auth/me` kada je lokalni auth state vec `guest` bez aktivnog auth konteksta;
+- efekat: javne rute vise ne proizvode ocekivani (ali nepotreban) `401` u Network tabu.
+
+### 9.3 Verifikacija
+- `cd frontend && npx vue-tsc -b` prolazi.
+- `cd frontend && npm run build -- --outDir dist-check` prolazi.

@@ -12,12 +12,54 @@ export interface PushDevice {
 
 type PushPermission = NotificationPermission | 'unsupported'
 
-const enableInNonProd = (import.meta.env.VITE_ENABLE_WEB_PUSH ?? 'false') === 'true'
+export type PushAvailabilityCode =
+  | 'ok'
+  | 'disabled_by_config'
+  | 'insecure_context'
+  | 'ios_home_screen_required'
+  | 'notification_unsupported'
+  | 'service_worker_unsupported'
+  | 'push_unsupported'
+  | 'missing_vapid_key'
+
+export interface PushAvailability {
+  code: PushAvailabilityCode
+  supported: boolean
+}
+
+const rawPushFlag = import.meta.env.VITE_ENABLE_WEB_PUSH
 const vapidPublicKey = (import.meta.env.VITE_VAPID_PUBLIC_KEY ?? '').trim()
 
 let registrationPromise: Promise<ServiceWorkerRegistration | null> | null = null
 
-const bufferToBase64Url = (buffer: ArrayBuffer | null): string | null => {
+const isIosDevice = () => {
+  if (typeof navigator === 'undefined') return false
+  const ua = navigator.userAgent || ''
+  return /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+}
+
+const isStandaloneDisplayMode = () => {
+  if (typeof window === 'undefined') return false
+  const standalone = window.matchMedia?.('(display-mode: standalone)').matches ?? false
+  const iosStandalone = Boolean((navigator as Navigator & { standalone?: boolean }).standalone)
+  return standalone || iosStandalone
+}
+
+const isPushConfigEnabled = () => {
+  if (rawPushFlag === undefined) {
+    return Boolean(import.meta.env.PROD)
+  }
+  return rawPushFlag === 'true'
+}
+
+const toArrayBuffer = (value: ArrayBuffer | ArrayBufferView | null | undefined): ArrayBufferLike | null => {
+  if (!value) return null
+  if (value instanceof ArrayBuffer) return value
+  const view = value as ArrayBufferView
+  return view.buffer.slice(view.byteOffset, view.byteOffset + view.byteLength)
+}
+
+const bufferToBase64Url = (buffer: ArrayBufferLike | null): string | null => {
   if (!buffer) return null
   const bytes = new Uint8Array(buffer)
   let binary = ''
@@ -52,6 +94,9 @@ const defaultDeviceLabel = () => {
   const platform = (navigator.platform || '').trim()
   const browser = (() => {
     const ua = navigator.userAgent || ''
+    if (ua.includes('Brave/')) return 'Brave'
+    if (ua.includes('SamsungBrowser/')) return 'Samsung Internet'
+    if (ua.includes('OPR/')) return 'Opera'
     if (ua.includes('Edg/')) return 'Edge'
     if (ua.includes('Firefox/')) return 'Firefox'
     if (ua.includes('Chrome/')) return 'Chrome'
@@ -62,29 +107,83 @@ const defaultDeviceLabel = () => {
   return platform ? `${browser} on ${platform}` : browser
 }
 
-const isSupported = () =>
-  typeof window !== 'undefined' &&
-  'serviceWorker' in navigator &&
-  'PushManager' in window &&
-  'Notification' in window
+const getPushAvailabilityInternal = (): PushAvailability => {
+  if (typeof window === 'undefined') {
+    return { code: 'service_worker_unsupported', supported: false }
+  }
 
-export const isPushFeatureEnabled = () => isSupported() && (import.meta.env.PROD || enableInNonProd)
+  if (!isPushConfigEnabled()) {
+    return { code: 'disabled_by_config', supported: false }
+  }
+
+  if (!window.isSecureContext) {
+    return { code: 'insecure_context', supported: false }
+  }
+
+  if (!('Notification' in window)) {
+    return { code: 'notification_unsupported', supported: false }
+  }
+
+  if (!('serviceWorker' in navigator)) {
+    return { code: 'service_worker_unsupported', supported: false }
+  }
+
+  if (isIosDevice() && !isStandaloneDisplayMode()) {
+    return { code: 'ios_home_screen_required', supported: false }
+  }
+
+  if (!('PushManager' in window)) {
+    return { code: 'push_unsupported', supported: false }
+  }
+
+  if (!vapidPublicKey) {
+    return { code: 'missing_vapid_key', supported: false }
+  }
+
+  return { code: 'ok', supported: true }
+}
+
+const isApiSupported = () => {
+  const availability = getPushAvailabilityInternal()
+  return availability.code !== 'disabled_by_config'
+}
+
+const normalizeBase64Url = (value: string) => value.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+
+const hasMismatchedApplicationServerKey = (subscription: PushSubscription, expectedVapidKey: string) => {
+  const existingKey = bufferToBase64Url(
+    toArrayBuffer(
+      subscription.options?.applicationServerKey as unknown as ArrayBuffer | ArrayBufferView | null | undefined,
+    ),
+  )
+  if (!existingKey) return false
+  return normalizeBase64Url(existingKey) !== normalizeBase64Url(expectedVapidKey)
+}
+
+export const getPushAvailability = (): PushAvailability => getPushAvailabilityInternal()
+
+export const isPushFeatureEnabled = () => getPushAvailabilityInternal().code === 'ok'
 
 export const getPushPermissionState = (): PushPermission => {
-  if (!isSupported()) return 'unsupported'
+  if (!isApiSupported()) return 'unsupported'
   return Notification.permission
 }
 
 export const registerPushServiceWorker = async (): Promise<ServiceWorkerRegistration | null> => {
-  if (!isPushFeatureEnabled()) {
+  const availability = getPushAvailabilityInternal()
+  if (availability.code !== 'ok' && availability.code !== 'missing_vapid_key') {
     return null
   }
 
   if (!registrationPromise) {
     registrationPromise = navigator.serviceWorker
       .register('/sw.js')
-      .then((registration) => registration)
+      .then(async (registration) => {
+        await navigator.serviceWorker.ready.catch(() => registration)
+        return registration
+      })
       .catch((error) => {
+        registrationPromise = null
         console.error('Service worker registration failed', error)
         return null
       })
@@ -94,7 +193,7 @@ export const registerPushServiceWorker = async (): Promise<ServiceWorkerRegistra
 }
 
 const getRegistration = async () => {
-  if (!isSupported()) return null
+  if (!isApiSupported()) return null
   const direct = await navigator.serviceWorker.getRegistration('/sw.js')
   if (direct) return direct
   return navigator.serviceWorker.getRegistration()
@@ -125,13 +224,24 @@ export const getCurrentPushEndpoint = async (): Promise<string | null> => {
 }
 
 export const subscribeCurrentDevicePush = async (deviceLabel?: string): Promise<string> => {
-  if (!isPushFeatureEnabled()) {
-    throw new Error('Push notifications are disabled in this environment.')
+  const availability = getPushAvailabilityInternal()
+  if (availability.code !== 'ok') {
+    if (availability.code === 'missing_vapid_key') {
+      throw new Error('Missing VAPID public key configuration.')
+    }
+    if (availability.code === 'ios_home_screen_required') {
+      throw new Error('On iPhone, install this app to Home Screen first and then enable push.')
+    }
+    if (availability.code === 'insecure_context') {
+      throw new Error('Push requires HTTPS. Open the app on an https:// URL.')
+    }
+    if (availability.code === 'disabled_by_config') {
+      throw new Error('Push notifications are disabled in this environment.')
+    }
+    throw new Error('Push notifications are not supported in this browser environment.')
   }
 
-  if (!vapidPublicKey) {
-    throw new Error('Missing VAPID public key configuration.')
-  }
+  const vapidKeyBytes = base64UrlToUint8Array(vapidPublicKey)
 
   const registration = await registerPushServiceWorker()
   if (!registration) {
@@ -152,11 +262,26 @@ export const subscribeCurrentDevicePush = async (deviceLabel?: string): Promise<
   }
 
   let subscription = await registration.pushManager.getSubscription()
+  if (subscription && hasMismatchedApplicationServerKey(subscription, vapidPublicKey)) {
+    await subscription.unsubscribe().catch(() => undefined)
+    subscription = null
+  }
+
   if (!subscription) {
-    subscription = await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: base64UrlToUint8Array(vapidPublicKey) as unknown as BufferSource,
-    })
+    try {
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: vapidKeyBytes as unknown as BufferSource,
+      })
+    } catch (error) {
+      const raw = (error as Error)?.message ?? ''
+      if (raw.includes('Registration failed - push service error')) {
+        throw new Error(
+          'Browser push service rejected registration. Verify browser push services are enabled and try again.',
+        )
+      }
+      throw error
+    }
   }
 
   const payload = toSubscriptionPayload(subscription)
@@ -184,7 +309,7 @@ export const unsubscribeCurrentDevicePush = async (): Promise<string | null> => 
     }
   }
 
-  if (!endpoint && isPushFeatureEnabled()) {
+  if (!endpoint && isApiSupported()) {
     endpoint = await getCurrentPushEndpoint()
   }
 

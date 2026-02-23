@@ -135,6 +135,13 @@ export const useAuthStore = defineStore('auth', {
         this.initialized = true
         return
       }
+      // Avoid calling /auth/me for known guest sessions.
+      // This prevents expected 401 noise on public pages when user is not logged in.
+      if (this.user.role === 'guest' && !this.impersonating && !this.mfaRequired) {
+        this.isAuthenticated = false
+        this.initialized = true
+        return
+      }
       try {
         await this.fetchMe()
       } catch {
