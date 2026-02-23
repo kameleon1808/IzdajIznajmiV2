@@ -20,8 +20,8 @@ Test users (password: `password`):
 ## C) Quick Demo (5-10 min)
 1. Login as tenant `tena@demo.com` -> Home opens.
 2. On Home, review "Most Popular" and "Recommended" sections -> open one card.
-3. On listing detail, click "Send Inquiry", enter message/dates -> modal closes, request status is `pending`.
-4. Open "My Booking" -> "Requests" tab -> new request is visible.
+3. On listing detail, click "Send Inquiry", enter message/dates -> modal closes, application status is `submitted`.
+4. Open "My Booking" -> "Requests" tab -> new application is visible.
 5. Open "Messages", choose a conversation, send a message -> message bubble appears.
 6. Logout (Profile -> Logout) -> app returns to guest state.
 
@@ -47,7 +47,7 @@ Test users (password: `password`):
   - Map may be a static placeholder image in some environments.
   - Online status in chat can be placeholder in mock-only flows.
 
-### 2) Tenant flow - favorites and inquiry
+### 2) Tenant flow - favorites and application
 - User: Tenant (`tena@demo.com` recommended)
 - Steps:
   1. Login and confirm authenticated Home view.
@@ -55,27 +55,27 @@ Test users (password: `password`):
   3. Open "Favorites" ("My Favorite" tab) and verify saved listing appears.
   4. Open a listing detail page.
   5. Click "Send Inquiry", enter dates/guests/message, submit.
-  6. Open "My Booking" -> "Requests" and confirm request with status badge (`pending/accepted/rejected/cancelled`).
+  6. Open "My Booking" -> "Requests" and confirm application status badge (`submitted/accepted/rejected/withdrawn`).
   7. Open "Messages", enter a thread, send message and attach image or PDF.
   8. While the other side types, verify "is typing..." indicator.
   9. Verify online badge when the other participant is active.
   10. Logout from Profile.
 - Expected:
   - Favorites toggle immediately.
-  - Inquiry appears in Requests with correct status badge.
+  - Application appears in Requests with correct status badge.
   - Message and attachment are visible in chat bubble.
   - Typing indicator and online badge behave correctly.
 - PASS/FAIL:
-  - FAIL if inquiry is missing or chat cannot show newly sent messages.
+  - FAIL if application is missing or chat cannot show newly sent messages.
 
-### 3) Landlord flow - listings and booking requests
+### 3) Landlord flow - listings and applications
 - User: Landlord (`lana@demo.com` recommended)
 - Steps:
   1. Login and confirm landlord role context.
   2. Profile -> "My Listings" opens listing list with status badge.
   3. Click "+ New Listing", fill required fields, save.
   4. Open an existing listing in edit mode, change title or price, save.
-  5. Open "My Booking" -> "Requests", accept or reject a pending request.
+  5. Open "My Booking" -> "Requests", accept or reject a submitted application.
   6. Open "Messages" and verify conversation list and thread visibility.
   7. Logout.
 - Expected:
@@ -83,7 +83,7 @@ Test users (password: `password`):
   - Edited values are reflected after save.
   - Request status badge updates to accepted/rejected.
 - PASS/FAIL:
-  - FAIL if listing cannot be created/edited or request status does not update.
+  - FAIL if listing cannot be created/edited or application status does not update.
 - Note:
   - Some environments may use placeholder media upload flows.
 
@@ -105,9 +105,9 @@ Test users (password: `password`):
 - Login/Logout works for tenant and landlord.
 - Home/Search/Map load listing content and open listing details.
 - Favorites toggle works and favorites list updates.
-- "Send Inquiry" creates request visible under "My Booking" -> "Requests".
+- "Send Inquiry" creates an application visible under "My Booking" -> "Requests".
 - Landlord can create and edit listings.
-- Landlord can accept/reject pending requests.
+- Landlord can accept/reject submitted applications.
 - Messages list and chat support sending text and attachments.
 - Typing indicator and online badge work in chat.
 - Empty/error states are displayed instead of blank screens.

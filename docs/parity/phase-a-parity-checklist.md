@@ -33,7 +33,7 @@ Legend: ✅ = verified/implemented, ⚠️ = partial, ❌ = missing.
 - ⚠️ Seeds now include applications and listing-scoped conversations/messages plus landlord with active listings; ratings still missing. Credentials documented in frontend/backend READMEs.
 
 ## Frontend essentials
-- ✅ SPA pages: browse listings (`/`, `/search`, `/listing/:id`), landlord CRUD (`/landlord/listings/*`), favorites (local), applications list (`/bookings` tab), apply-from-detail button, listing-scoped chat (`/messages`, `/messages/:id`). Ratings UI still absent.
+- ✅ SPA pages: browse listings (`/`, `/search`, `/listing/:id`), landlord CRUD (`/landlord/listings/*`), favorites (local), applications list (`/bookings` tab), apply-from-detail button, listing-scoped chat (`/messages`, `/chat/:id`, with legacy `/messages/:id` redirect), ratings and reviews UI available on listing/profile flows.
 - ✅ Auth store uses Sanctum cookie flow (`/sanctum/csrf-cookie` + `/api/v1/auth/*`, withCredentials on), role guard uses backend roles; mock switch only in mock mode.
 
 ## Admin operations

@@ -106,13 +106,6 @@ This document defines backend and frontend manual test coverage for development/
 | PROF-02 | Authenticated user | 1) `PATCH /api/v1/me/password` (`current_password`, new password + confirmation) | `200`, password updated | change password |
 | VER-01 | Authenticated user, email not verified | 1) `POST /api/v1/me/verification/email/request` 2) `POST /api/v1/me/verification/email/confirm` (`code`) | `email_verified=true` | email verification |
 
-### Additional KYC verification coverage (tenant + landlord)
-| ID | Precondition | Steps | Expected result | Notes |
-| --- | --- | --- | --- | --- |
-| KYC-07 | Seeker session | 1) `POST /api/v1/kyc/submissions` with required files | `201`, status `pending` | seeker KYC |
-| KYC-08 | Landlord session | 1) `POST /api/v1/kyc/submissions` with required files | `201`, status `pending` | landlord KYC |
-| KYC-09 | Admin session, pending submission | 1) `PATCH /api/v1/admin/kyc/submissions/{id}/approve` | `200`, status `approved`, `address_verified=true` | approve |
-
 ### Saved searches and alerts
 | ID | Precondition | Steps | Expected result | Notes |
 | --- | --- | --- | --- | --- |
@@ -121,16 +114,25 @@ This document defines backend and frontend manual test coverage for development/
 | SS-03 | Seeker session + new matching active listing | 1) Run `php artisan saved-searches:match` 2) `GET /api/v1/notifications` | `200`, creates match + `listing.new_match` notification | matcher |
 | SS-04 | SS-03 done | 1) Run matcher again without new listings | No duplicate matches/notifications | idempotent |
 
-### Booking requests (inquiry)
+### Applications (listing inquiry flow)
 | ID | Precondition | Steps | Expected result | Notes |
 | --- | --- | --- | --- | --- |
-| BR-01 | Seeker session, listing owner is landlord | 1) `POST /api/v1/booking-requests` (`listingId`, `landlordId`, `guests`, `message`) | `201`, status `pending` | create |
-| BR-02 | Seeker session | 1) `GET /api/v1/booking-requests?role=seeker` | `200`, only own requests | seeker view |
-| BR-03 | Landlord session | 1) `GET /api/v1/booking-requests?role=landlord` | `200`, incoming requests | landlord view |
-| BR-04 | Landlord session | 1) `PATCH /api/v1/booking-requests/{id}` (`status=accepted`) | `200`, status `accepted` | accept |
-| BR-05 | Seeker session, request pending | 1) `PATCH /api/v1/booking-requests/{id}` (`status=cancelled`) | `200`, status `cancelled` | cancel |
-| BR-06 | Seeker session | 1) Attempt to set `status=accepted` | `403` | policy |
-| BR-07 | Admin session | 1) Patch any request to `status=rejected` | `200` | admin override |
+| APP-01 | Seeker session, listing is active | 1) `POST /api/v1/listings/{listing}/apply` with message | `201`, status `submitted` | create |
+| APP-02 | APP-01 exists | 1) Repeat apply on same listing | `422`, duplicate blocked | dedupe |
+| APP-03 | Seeker session | 1) `GET /api/v1/seeker/applications` | `200`, only seeker-owned applications | seeker view |
+| APP-04 | Landlord session | 1) `GET /api/v1/landlord/applications` | `200`, incoming applications | landlord view |
+| APP-05 | Landlord session | 1) `PATCH /api/v1/applications/{id}` `status=accepted` | `200`, status `accepted` | accept |
+| APP-06 | Seeker session, own submitted application | 1) `PATCH /api/v1/applications/{id}` `status=withdrawn` | `200`, status `withdrawn` | withdraw |
+| APP-07 | Unauthorized role/ownership | 1) Update application status without permission | `403` | policy |
+
+### Viewing slots and requests
+| ID | Precondition | Steps | Expected result | Notes |
+| --- | --- | --- | --- | --- |
+| VW-01 | Landlord session, active listing | 1) `POST /api/v1/listings/{listing}/viewing-slots` | `201`, slot created | create slot |
+| VW-02 | Seeker session, slot exists | 1) `POST /api/v1/viewing-slots/{slot}/request` | `201`, status `requested` | request viewing |
+| VW-03 | Landlord session, VW-02 exists | 1) `PATCH /api/v1/viewing-requests/{id}/confirm` | `200`, status `confirmed` | confirm |
+| VW-04 | Participant session, confirmed request | 1) `GET /api/v1/viewing-requests/{id}/ics` | `200`, `text/calendar` blob | calendar export |
+| VW-05 | Seeker or landlord session | 1) `PATCH /api/v1/viewing-requests/{id}/cancel` | `200`, status `cancelled` | cancel |
 
 ### Messaging skeleton
 | ID | Precondition | Steps | Expected result | Notes |
@@ -158,9 +160,10 @@ See `docs/api-examples.md` for complete cURL sequences.
 
 ## D) Negative Tests (401/403/422/404)
 - `401`: `GET /api/v1/landlord/listings` without session -> `{"message":"Unauthenticated."}`
-- `403`: seeker attempts `PATCH /api/v1/booking-requests/{id}` with `status=accepted`
+- `403`: seeker attempts `PATCH /api/v1/applications/{id}` with `status=accepted`
 - `403`: landlord B attempts `PUT /api/v1/landlord/listings/{listingA}`
-- `422`: `POST /api/v1/booking-requests` without `landlordId` or with `message < 5`
+- `422`: duplicate `POST /api/v1/listings/{listing}/apply`
+- `422`: `POST /api/v1/viewing-slots/{slot}/request` when capacity is full
 - `422`: `POST /api/v1/landlord/listings` with invalid category (example `cabin`)
 - `404`: `GET /api/v1/listings/99999`
 
@@ -168,9 +171,9 @@ See `docs/api-examples.md` for complete cURL sequences.
 1. `POST /api/v1/auth/login` as tenant -> authenticated session established.
 2. `GET /api/v1/listings` -> `200`, returns data array.
 3. `GET /api/v1/listings/{id}` -> `200`, includes images/facilities.
-4. `POST /api/v1/booking-requests` as tenant -> `201 pending`.
-5. `GET /api/v1/booking-requests?role=tenant` -> includes newly created request.
-6. `PATCH /api/v1/booking-requests/{id}` as landlord -> `status=accepted`, `200`.
+4. `POST /api/v1/listings/{id}/apply` as seeker -> `201 submitted`.
+5. `GET /api/v1/seeker/applications` -> includes newly created application.
+6. `PATCH /api/v1/applications/{id}` as landlord -> `status=accepted`, `200`.
 7. `GET /api/v1/landlord/listings` as landlord -> `200`, only owner listings.
 8. `PUT /api/v1/landlord/listings/{id}` as owner -> `200`.
 9. `GET /api/v1/conversations` as tenant -> `200` conversation list.

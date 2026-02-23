@@ -3,6 +3,7 @@
 This index helps new developers and support engineers quickly find the right documents.
 
 ## Start here
+- End-user feature guide by role: `docs/full-docs.md`
 - Local setup and dev workflow: `docs/dev-setup.md`
 - Deployment and rollback basics: `docs/deploy/DEPLOYMENT.md`
 - API surface: `docs/api-contract.md`

@@ -1,44 +1,88 @@
-# UI Tokens & Routes
+# UI Tokens and Route Map
 
 ## Color Tokens
-- `primary`: #2F80ED (cta, active chips, icons)
-- `primary.dark`: #1F63C9 (pressed state)
-- `primary.light`: #E8F1FF (backgrounds)
-- `surface`: #F7F9FC (page background)
-- `muted`: #6B7280 (secondary text)
-- `line`: #E5E7EB (subtle borders)
-- `card-shadow`: rgba(47, 128, 237, 0.08) spread for soft depth
+- `primary`: `#2F80ED` (CTA, active chips, icons)
+- `primary.dark`: `#1F63C9` (pressed state)
+- `primary.light`: `#E8F1FF` (light backgrounds)
+- `surface`: `#F7F9FC` (page background)
+- `muted`: `#6B7280` (secondary text)
+- `line`: `#E5E7EB` (subtle borders)
+- `card-shadow`: `rgba(47, 128, 237, 0.08)`
 
-## Spacing & Radius
-- Spacing scale: 4 / 8 / 12 / 16 / 20 / 24 px. Sections breathe with 16–24 px.
-- Corners: cards & inputs 18–20 px; pills full (`rounded-pill`); hero/map containers 24–28 px.
-- Shadows: `shadow-soft` (0 8px 24px rgba(0,0,0,0.06)), `shadow-card` (0 10px 30px rgba(47,128,237,0.08)).
-- Safe-area padding on bottom nav (`safe-bottom`) for devices with insets.
+## Spacing and Radius
+- Spacing scale: `4 / 8 / 12 / 16 / 20 / 24 px`
+- Card/input radius: `18-20 px`
+- Hero/map radius: `24-28 px`
+- Shadows:
+  - `shadow-soft`: `0 8px 24px rgba(0,0,0,0.06)`
+  - `shadow-card`: `0 10px 30px rgba(47,128,237,0.08)`
+- Bottom safe-area utility: `safe-bottom`
 
-## Routes
+## Route Map
+
+### Public/common
 - `/` Home
 - `/search` Search + filter sheet
 - `/map` Map view
-- `/listing/:id` ListingDetail
-- `/listing/:id/facilities` Facilities
-- `/listing/:id/reviews` Reviews
-- `/favorites` Favorites grid
-- `/bookings` My Booking tabs
-- `/messages` Messages list
-- `/messages/:id` Chat thread
-- `/profile` Profile & settings
-- `/settings/personal` Personal Info
-- `/settings/legal` Legal & Policies
-- `/settings/language` Language selector
-- `/landlord/listings` My Listings (landlord)
-- `/landlord/listings/new` Create Listing
-- `/landlord/listings/:id/edit` Edit Listing
+- `/listing/:id` Listing detail
+- `/listing/:id/facilities` Facilities list
+- `/listing/:id/reviews` Reviews list
+- `/users/:id` Public profile
+- `/login` Login
+- `/register` Register
 
-## Mock API Shapes
-- `Listing`: `{ id, title, address?, city, country, lat?, lng?, pricePerNight, rating, reviewsCount, coverImage, images?, description?, beds, baths, category ('villa'|'hotel'|'apartment'), isFavorite, instantBook?, facilities?, ownerId?, createdAt? }`
-- `Review`: `{ id, userName, avatarUrl, rating, text, date }`
-- `Booking`: `{ id, listingId, listingTitle, datesRange, guestsText, pricePerNight, rating, coverImage, status ('booked'|'history') }`
-- `BookingRequest`: `{ id, listingId, tenantId, landlordId, startDate?, endDate?, guests, message, status ('pending'|'accepted'|'rejected'|'cancelled'), createdAt }`
-- `Conversation`: `{ id, userName, avatarUrl, lastMessage, time, unreadCount, online }`
-- `Message`: `{ id, conversationId, from ('me'|'them'), text, time }`
-- `ListingFilters`: `{ category: 'all'|ListingCategory, guests, priceRange [min,max], instantBook, location, facilities[], rating }`
+### Seeker and landlord user space
+- `/favorites` Favorites
+- `/saved-searches` Saved searches
+- `/bookings` Booking/applications/viewings hub
+- `/applications` Applications tab shortcut
+- `/landlord/applications` Landlord applications shortcut
+- `/viewings` Viewings tab shortcut
+- `/messages` Conversation list
+- `/chat` Chat deep-link resolver
+- `/chat/:id` Chat thread
+- `/messages/:id` Legacy redirect to `/chat/:id`
+- `/transactions` Transaction list
+- `/transactions/:id` Transaction detail
+
+### Profile/settings
+- `/profile`
+- `/profile/verification`
+- `/settings/profile`
+- `/settings/personal`
+- `/settings/security`
+- `/settings/notifications`
+- `/settings/language`
+- `/settings/legal`
+- `/notifications`
+
+### Landlord listings
+- `/landlord/listings`
+- `/landlord/listings/new`
+- `/landlord/listings/:id/edit`
+
+### Admin
+- `/admin`
+- `/admin/moderation`
+- `/admin/moderation/reports/:id`
+- `/admin/ratings`
+- `/admin/kyc`
+- `/admin/transactions`
+- `/admin/transactions/:id`
+- `/admin/users`
+- `/admin/users/:id`
+
+## Route Guard Rules
+- Routes with `meta.roles` require auth and matching role.
+- Unauthorized users are redirected to `/login` with `returnUrl`.
+- Authenticated users without required role are redirected to `/` and shown "Access denied" toast.
+
+## Core Frontend Data Shapes (simplified)
+- `Listing`: `{ id, title, city, country, address?, lat?, lng?, pricePerNight, rating, reviewsCount, coverImage, images?, description?, beds, baths, category, instantBook?, facilities?, ownerId?, status? }`
+- `Application`: `{ id, listing, participants { seekerId, landlordId }, message?, status ('submitted'|'accepted'|'rejected'|'withdrawn'), createdAt }`
+- `ViewingSlot`: `{ id, listingId, startsAt, endsAt, capacity, isActive, pattern?, daysOfWeek?, timeFrom?, timeTo? }`
+- `ViewingRequest`: `{ id, status ('requested'|'confirmed'|'rejected'|'cancelled'), cancelledBy?, slot?, listing?, participants, createdAt }`
+- `Conversation`: `{ id, listingId?, counterpart, unreadCount, lastMessage, updatedAt }`
+- `Message`: `{ id, conversationId, from, text?, attachments?, createdAt }`
+- `Notification`: `{ id, type, title, body, readAt?, createdAt, deepLink? }`
+- `RentalTransaction`: `{ id, status, listing, participants, depositAmount?, rentAmount?, currency, contract?, payments[] }`
