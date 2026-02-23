@@ -1,115 +1,199 @@
-# Dev setup (frontend + backend)
+# Development Setup (Frontend + Backend)
+
+This guide is the primary onboarding reference for running the project locally and in Docker-based development environments.
 
 ## Prerequisites
-- Node.js 20+ (Vite 7 needs >=20.19; `.nvmrc` set to 20)
+- Node.js 20+ (Vite 7 requires >=20.19; `.nvmrc` is set to 20)
 - PHP 8.2+ (CI runs on 8.3)
-- Composer, npm
-- Docker Engine or Docker Desktop (see Docker sections below)
+- Composer and npm
+- Docker Engine or Docker Desktop (for Docker-based setups)
 
-## Docker dev (Windows / Docker Desktop)
-- Konfiguracija je u root `docker-compose.yml` i pokrece: backend (`artisan serve`), queue (`queue:work`), scheduler (`schedule:work`), frontend (`npm run dev`) i MeiliSearch.
-- Start (prvi put): `docker compose up --build`
-- Inicijalne migracije/seed: `docker compose run --rm backend php artisan migrate:fresh --seed`
-- Opcioni reindex (MeiliSearch): `docker compose run --rm backend php artisan search:listings:reindex --reset`
+## Quick Start (native)
+1. Backend:
+```bash
+cd backend
+composer install
+cp .env.example .env
+php artisan key:generate
+php artisan migrate:fresh --seed
+php artisan storage:link
+php artisan serve --host=0.0.0.0 --port=8000
+```
+2. Frontend:
+```bash
+cd frontend
+npm install
+cp .env.example .env
+npm run dev -- --host --port 5173
+```
+3. Background workers (new terminal in `backend/`):
+```bash
+php artisan queue:work
+php artisan schedule:work
+```
+
+## Docker Development (Windows / Docker Desktop)
+- Configuration is in root `docker-compose.yml`.
+- Services started: backend (`artisan serve`), queue (`queue:work`), scheduler (`schedule:work`), frontend (`npm run dev`), and MeiliSearch.
+
+Commands:
+- First start: `docker compose up --build`
+- Initial migrations and seed: `docker compose run --rm backend php artisan migrate:fresh --seed`
+- Optional Meili reindex: `docker compose run --rm backend php artisan search:listings:reindex --reset`
 - Stop: `docker compose down`
-- Portovi: API `http://localhost:8000`, Frontend `http://localhost:5173`, Meili `http://localhost:7700`.
-- Compose automatski kopira `backend/.env.example` u `backend/.env` ako `.env` ne postoji, generise `APP_KEY`, kreira SQLite file i radi `storage:link`.
 
-## Docker dev (Windows + WSL2 terminal)
-- Ovaj setup zadrzava Docker Desktop, ali omogucava pokretanje iz WSL terminala.
-- U Docker Desktop: Settings -> Resources -> WSL Integration -> ukljuci distro u kojem radis.
-- U WSL distro instaliraj Docker CLI (ne engine). Za Ubuntu/Debian: `sudo apt update && sudo apt install -y docker.io docker-compose-plugin`
-- Provera iz WSL: `docker version` (treba da vidi Docker Desktop engine).
-- Pokretanje iz WSL (u root folderu repo-a): `docker compose up --build`
-- Napomena: ne pokretati lokalni Docker Engine u WSL-u paralelno sa Docker Desktop-om; koristi samo Desktop engine.
+Ports:
+- API: `http://localhost:8000`
+- Frontend: `http://localhost:5173`
+- MeiliSearch: `http://localhost:7700`
 
-## Docker dev (Linux native)
-- Instaliraj Docker Engine + Compose plugin (distro paketi ili Docker repo).
-- Dodaj korisnika u `docker` grupu i reloguj se. Komande: `sudo usermod -aG docker $USER` i `newgrp docker`
-- Provera: `docker version` i `docker compose version`.
-- Pokretanje (u root folderu repo-a): `docker compose up --build`
+Compose bootstrap behavior:
+- Copies `backend/.env.example` to `backend/.env` if missing
+- Generates `APP_KEY`
+- Creates the SQLite file if needed
+- Runs `storage:link`
+
+## Docker Development (Windows + WSL2 terminal)
+- Keep Docker Desktop as the engine and run commands from WSL.
+- Docker Desktop -> Settings -> Resources -> WSL Integration: enable the distro.
+- In WSL distro, install Docker CLI (not a second engine). Example for Ubuntu/Debian:
+  - `sudo apt update && sudo apt install -y docker.io docker-compose-plugin`
+- Verify: `docker version` (must see Docker Desktop engine)
+- Start from repo root: `docker compose up --build`
+- Do not run a separate Linux Docker Engine in parallel with Docker Desktop.
+
+## Docker Development (Linux native)
+- Install Docker Engine + Compose plugin.
+- Add your user to the `docker` group and re-login:
+  - `sudo usermod -aG docker $USER`
+  - `newgrp docker`
+- Verify: `docker version` and `docker compose version`
+- Start from repo root: `docker compose up --build`
 
 ## Backend (Laravel API)
-- Lokacija: `/backend`
-- Port: `http://localhost:8000`
-- Pokretanje (primer): `composer install && cp .env.example .env && php artisan key:generate && php artisan migrate:fresh --seed && php artisan serve`
-- Auth: Sanctum SPA cookies (CSRF cookie + session) na `/api/v1/auth/*` uz privremene `/api/auth/*` alias-e; demo korisnici iz seedera (email + `password`).
-- CORS/Stateful (dev): `SANCTUM_STATEFUL_DOMAINS=localhost:5173,127.0.0.1:5173`, `SESSION_DOMAIN=localhost`, `FRONTEND_URLS=http://localhost:5173,http://127.0.0.1:5173`, `supports_credentials=true`.
-- Auditing/moderacija: migracije dodaju `audit_logs` i `reports` tabele; admin rute pod `/api/v1/admin/*` koriste `role:admin` middleware.
-- Za slike: postavite `APP_URL=http://localhost:8000` i pokrenite `php artisan storage:link` (potrebno za /storage URL-ove).
-- Image optimizacija (opciono, default uključeno): `IMAGE_OPTIMIZE=true`, `IMAGE_MAX_WIDTH=1600`, `IMAGE_WEBP_QUALITY=80`.
-- Chat attachments (privatni storage): `storage/app/private/chat/{conversation_id}`; tipovi `jpg/jpeg/png/webp/pdf`, max 10MB po fajlu (podesivo preko `CHAT_ATTACHMENT_*`).
-- Queue:
-  - `QUEUE_CONNECTION=database`
-  - Pokrenite worker: `php artisan queue:work`
-  - Migracije uključuju jobs tabelu (default).
-- Scheduler (auto-expire listings + notifications): `php artisan schedule:work` uključuje zadatke:
-  - `listings:expire` - dnevno prebacuje stare aktivne oglase u `expired` (02:00)
-  - `notifications:digest --frequency=daily` - dnevno digest notifikacije (09:00)
-  - `notifications:digest --frequency=weekly` - nedeljni digest notifikacije (ponedeljak 09:00)
-  - `saved-searches:match` - matcher za saved searches i in-app alert notifikacije (na 15 min)
-- Rate limit pregledi: ključni limiters u `AppServiceProvider`:
-  - `chat_messages` 30/min po user/thread (slanje poruka)
-  - `chat_attachments` 10/10min po user/thread (upload attach-ova)
-  - `applications` 10/h po user/IP (slanje prijava)
-  - `listings_search` 60/min IP, `geocode_suggest` 40/min IP; landlord/viewing write limiti ostaju kao ranije
-- Realtime napomena (chat + notifications):
-  - Chat i bell notifikacije koriste polling (ne zavise od WebSocket konekcije).
-  - Typing/presence rade preko cache signala i periodickih API poziva.
-  - Event discovery je ugasen (`withEvents(discover: false)`) da se izbegne duplo okidanje listener-a i dupliranje notifikacija.
-  - Ako menjate event/listener wiring, pokrenite:
-    - `php artisan event:clear`
-    - `php artisan optimize:clear`
-  - Runbook: `docs/ops/CHAT-REALTIME-SUPPORT.md`
-- Observability: struktuisani JSON logovi u `storage/logs/structured-YYYY-MM-DD.log` preko `App\Services\StructuredLogger`.
-  - Bitne akcije (listing create/update/publish, prijave, poruke, ocene, prijave ocena) loguju `action`, `user_id`, `listing_id`, `ip`, `user_agent`, bez sadržaja poruka.
-  - Svaki API odgovor nosi `X-Request-Id`; JSON error payload uključuje `request_id` radi korelacije sa logovima.
-  - Neobrađeni 5xx izuzetci i queue/job greške se loguju i opciono šalju u Sentry iza `SENTRY_ENABLED` + `SENTRY_DSN` (ako je SDK prisutan).
-  - Queue health endpoint: `GET /api/v1/health/queue` (status + failed_jobs count).
-- Saved-search matcher: `php artisan saved-searches:match` koristi cache mutex i obrađuje samo nove ACTIVE oglase od poslednjeg pokretanja.
-  - Koristi cache store `CACHE_LOCK_STORE` (default `CACHE_DRIVER`). Za rad zaključavanja mora biti `file`/`redis`/`database` — ne `array`.
-  - Notifikacije deep-linkuju na `/search?savedSearchId={id}` i poštuju frekvenciju `instant|daily|weekly`.
-- Produkcija: umesto `schedule:work`, podesite cron da pokreće scheduler na svakih minut:
-  - `* * * * * cd /path/to/backend && php artisan schedule:run >> /dev/null 2>&1`
-- Notifikacije: sistem za in-app notifikacije sa preferencama i digest podrškom. Tipovi: `application.created`, `application.status_changed`, `message.received`, `rating.received`, `report.update`, `admin.notice`, `digest.daily`, `digest.weekly`. Korisnici mogu da konfigurišu tipove i digest frekvenciju (none/daily/weekly) kroz `/settings/notifications`.
-  - Web Push (desktop + Android browser): podesite `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` u backend env.
-  - Push subscription API: `POST /api/v1/push/subscribe`, `POST /api/v1/push/unsubscribe`, `GET /api/v1/push/subscriptions`.
-- Saved searches API: `POST/GET/PUT/DELETE /api/v1/saved-searches`; deep-link format: `/search?savedSearchId={id}`.
-- Geokodiranje & geo pretraga:
-  - Default koristi `FakeGeocoder` (determinističan lat/lng na osnovu adrese) — vidi `GEOCODER_DRIVER=fake`, `GEOCODER_CACHE_TTL`, `FAKE_GEOCODER_*` u `.env.example`.
-  - Opcioni Nominatim adapter iza `GEOCODER_DRIVER=nominatim` sa `GEOCODER_NOMINATIM_URL`, `GEOCODER_NOMINATIM_EMAIL`, `GEOCODER_NOMINATIM_RATE_LIMIT_MS`.
-  - Autocomplete suggeri: `GET /api/v1/geocode/suggest?q=...&limit=...` koristi `GEOCODER_SUGGEST_DRIVER` (`fake` ili `nominatim`) i keš `GEOCODER_SUGGEST_CACHE_TTL` (minuti); rate limit key `geocode_suggest` (40/min IP).
-  - Geo parametri u pretrazi i deep linkovima: `centerLat`, `centerLng`, `radiusKm` (km, max `SEARCH_MAX_RADIUS_KM`, default 50). Map pin payload u map modu ograničen na `SEARCH_MAX_MAP_RESULTS` (default 300) uz `mapMode=true` query param.
-  - Backfill komanda za postojeće zapise: `php artisan listings:geocode --missing` (koristi queue sync).
-  - API: `/api/v1/geocode?q=...` (GET) za frontend centriranje mape; pretraga oglasa prihvata `centerLat`, `centerLng`, `radiusKm` (km) uz ostale filtere i vraća `distanceKm` kada je geo filter aktivan.
-  - Verifikacija lokacije: detalj oglasa ima "View on map" link + Leaflet preview sa pinom. Vlasnik/admin mogu da ukljuce "Adjust pin" (draggable marker) i sacuvaju rucne koordinate preko `PATCH /api/v1/listings/{id}/location`; reset na automatsko geokodiranje ide kroz `POST /api/v1/listings/{id}/location/reset`.
-  - Manual override pravilo: kada je `location_source=manual` geokoder preskace osvjezavanje dok se ne promeni adresa (sto automatski vraca `location_source` na `geocoded`) ili dok se ne pozove reset endpoint. U DEV modu ispod mape se ispisuju lat/lng radi debug-a.
-- Search v2 (MeiliSearch):
-  - Pokretanje lokalno (Docker): `docker run --rm -p 7700:7700 -e MEILI_MASTER_KEY=masterKey getmeili/meilisearch:v1.8`.
-  - Env: `SEARCH_DRIVER=meili`, `MEILISEARCH_HOST=http://localhost:7700`, `MEILISEARCH_KEY=masterKey`, `MEILISEARCH_INDEX=listings`.
-  - Reindex: `php artisan search:listings:reindex`.
-  - Clean rebuild (drop + reindex): `php artisan search:listings:reindex --reset`.
-  - Frontend flag: `VITE_SEARCH_V2=true` (koristi `/api/v1/search/listings` + `/api/v1/search/suggest`).
+- Location: `/backend`
+- Default local URL: `http://localhost:8000`
+- Auth flow: Sanctum SPA cookies (`/sanctum/csrf-cookie`, then `/api/v1/auth/*`)
+- Legacy aliases under `/api/auth/*` remain temporarily for compatibility.
+
+Important local config:
+- `SANCTUM_STATEFUL_DOMAINS=localhost:5173,127.0.0.1:5173`
+- `SESSION_DOMAIN=localhost`
+- `FRONTEND_URLS=http://localhost:5173,http://127.0.0.1:5173`
+- `supports_credentials=true` in CORS config
+
+Images and media:
+- Set `APP_URL=http://localhost:8000`
+- Run `php artisan storage:link`
+- Optional image optimization:
+  - `IMAGE_OPTIMIZE=true`
+  - `IMAGE_MAX_WIDTH=1600`
+  - `IMAGE_WEBP_QUALITY=80`
+
+Chat attachments:
+- Private path: `storage/app/private/chat/{conversation_id}`
+- Allowed types: `jpg`, `jpeg`, `png`, `webp`, `pdf`
+- Max file size: 10MB per file (configurable via `CHAT_ATTACHMENT_*` env)
+
+Queues and scheduler:
+- `QUEUE_CONNECTION=database`
+- Worker: `php artisan queue:work`
+- Dev scheduler worker: `php artisan schedule:work`
+- In production, prefer cron + `schedule:run` every minute.
+
+Scheduled jobs currently used:
+- `listings:expire` daily at 02:00
+- `notifications:digest --frequency=daily` daily at 09:00
+- `notifications:digest --frequency=weekly` Mondays at 09:00
+- `saved-searches:match` every 15 minutes
+
+Rate limiters (defined in `AppServiceProvider`):
+- `chat_messages`: 30/min per user/thread
+- `chat_attachments`: 10 uploads/10min per user/thread
+- `applications`: 10/hour per user/IP
+- `listings_search`: 60/min per IP
+- `geocode_suggest`: 40/min per IP
+
+Realtime behavior:
+- Chat and notification bell use polling (not mandatory WebSocket dependencies)
+- Typing/presence signals use cache + periodic API calls
+- Event discovery is disabled (`withEvents(discover: false)`) to prevent duplicate listener registration
+
+If you change events/listeners:
+```bash
+php artisan event:clear
+php artisan optimize:clear
+```
+
+Support runbook: `docs/ops/CHAT-REALTIME-SUPPORT.md`
+
+Observability:
+- Structured logs: `storage/logs/structured-YYYY-MM-DD.log`
+- API responses include `X-Request-Id`
+- Error payloads include `request_id` for backend log correlation
+- Queue health endpoint: `GET /api/v1/health/queue`
+
+Saved search matcher notes:
+- Command: `php artisan saved-searches:match`
+- Uses cache mutex and processes only new active listings since the last run
+- Locking requires `file`, `redis`, or `database` cache store (not `array`)
+
+Geocoding and geo search:
+- Default: `GEOCODER_DRIVER=fake`
+- Optional real adapter: `GEOCODER_DRIVER=nominatim`
+- Suggest API: `GET /api/v1/geocode/suggest?q=...&limit=...`
+- Search geo params: `centerLat`, `centerLng`, `radiusKm`
+- Backfill command: `php artisan listings:geocode --missing`
+- Manual pin endpoints:
+  - `PATCH /api/v1/listings/{id}/location`
+  - `POST /api/v1/listings/{id}/location/reset`
+
+Search v2 (MeiliSearch):
+- Local start:
+```bash
+docker run --rm -p 7700:7700 -e MEILI_MASTER_KEY=masterKey getmeili/meilisearch:v1.8
+```
+- Backend env:
+  - `SEARCH_DRIVER=meili`
+  - `MEILISEARCH_HOST=http://localhost:7700`
+  - `MEILISEARCH_KEY=masterKey`
+  - `MEILISEARCH_INDEX=listings`
+- Reindex:
+  - `php artisan search:listings:reindex`
+  - `php artisan search:listings:reindex --reset`
+- Frontend flag: `VITE_SEARCH_V2=true`
 
 ## Frontend (Vue 3 + Vite)
-- Lokacija: `/frontend`
-- Port: `http://localhost:5173`
-- Env primer (`frontend/.env.example`):
-  - `VITE_API_BASE_URL=` (prazno koristi dev proxy ka backend-u)
-  - `VITE_USE_MOCK_API=true` (default za bezbedan start)
-  - `VITE_ENABLE_WEB_PUSH=false` (uključite za lokalni SW/push test)
-  - `VITE_VAPID_PUBLIC_KEY=` (mora da odgovara backend VAPID public ključu)
-- Pokretanje: `npm install && cp .env.example .env && npm run dev`
-- Build: `npm run build` (zahteva Node 20.19+ ili 22.12+; dev server radi, ali CI i build treba pokretati na Node 20+)
-- Unit testovi: `npm run test`
-- E2E smoke (mock API): `npm run test:e2e` (prvo pokretanje: `npx playwright install --with-deps chromium`)
-- Admin UI: `/admin` (KPI), `/admin/moderation` (prijave), `/admin/ratings` (ocene). Impersonacija prikazuje žuti baner sa tasterom „Stop“.
+- Location: `/frontend`
+- Default local URL: `http://localhost:5173`
 
-## API modovi
-- Mock mod (`VITE_USE_MOCK_API=true`): koristi `services/mockApi.ts`, role switch na Profilu ostaje vidljiv.
-- Real API (`VITE_USE_MOCK_API=false`): koristi Laravel, zahteva login/register; route guard vraća na `/login` ako nema aktivne sesije (cookie auth).
+Env example (`frontend/.env.example`):
+- `VITE_API_BASE_URL=` (empty -> uses dev proxy)
+- `VITE_USE_MOCK_API=true` (safe default)
+- `VITE_ENABLE_WEB_PUSH=false` (enable for local push testing)
+- `VITE_VAPID_PUBLIC_KEY=` (must match backend VAPID public key)
 
-## Reference
-- API ugovor: `docs/api-contract.md`
-- Primer cURL zahteva: `docs/api-examples.md`
-- UI smernice: `docs/ui.md`, referentne slike u `docs/ui-reference/`
+Commands:
+- Start: `npm install && cp .env.example .env && npm run dev`
+- Build: `npm run build`
+- Unit tests: `npm run test`
+- E2E smoke: `npm run test:e2e`
+- First Playwright install: `npx playwright install --with-deps chromium`
+
+Admin pages:
+- `/admin`
+- `/admin/moderation`
+- `/admin/ratings`
+
+## API Modes
+- Mock mode (`VITE_USE_MOCK_API=true`): uses `services/mockApi.ts`; profile role switch is visible.
+- Real API (`VITE_USE_MOCK_API=false`): uses Laravel backend and cookie auth; route guards redirect to `/login` if session is missing.
+
+## Release Notes and References
+- API contract: `docs/api-contract.md`
+- cURL examples: `docs/api-examples.md`
+- UI guide: `docs/ui.md`
+- UI reference images: `docs/ui-reference/`
+- Chat release notes: `docs/releases/chat/chat-realtime-phase-g-and-hotfixes-2026-02-13.md`
+- Push/PWA release notes: `docs/releases/notifications/web-push-pwa-rollout-2026-02-20.md`
+- Verification release notes: `docs/releases/verification/email-only-verification-fix-2026-02-21.md`

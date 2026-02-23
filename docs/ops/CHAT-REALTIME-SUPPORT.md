@@ -1,111 +1,113 @@
-# Chat & Realtime Support Runbook
+# Chat and Realtime Support Runbook
 
-Dokument za support i dalji razvoj chat/realtime funkcionalnosti.
+Operational guide for support and continued development of chat/realtime functionality.
 
 ## Scope
-- Chat poruke i thread pravila.
-- Chat attachment-i (image/pdf, private storage).
-- Typing indikator i online presence (polling).
-- In-app notification badge/dropdown realtime osvezavanje (polling).
+- Chat messages and thread rules
+- Chat attachments (image/pdf in private storage)
+- Typing indicator and online presence (polling)
+- In-app notification badge/dropdown realtime refresh (polling)
 
-## Arhitektura (trenutno stanje)
-- Realtime je polling-based (nema obaveznih WebSocket zavisnosti za chat i notification UI).
-- Backend ostaje source of truth; frontend periodicno osvezava stanje.
-- Chat attachment originali su privatni i dostupni samo participant-ima konverzacije.
+## Architecture (current state)
+- Realtime UX is polling-based.
+- Chat and notification UI do not require WebSocket connectivity.
+- Backend remains the source of truth; frontend refreshes state periodically.
+- Chat attachment originals are private and only accessible to conversation participants.
 
-## Backend: kljucne tacke
-- Chat poruke:
+## Backend key points
+- Chat messages:
   - `POST /api/v1/conversations/{conversation}/messages`
   - `GET /api/v1/conversations/{conversation}/messages`
-    - podrzava `since_id` ili `after` za incremental fetch
-    - podrzava `ETag` / `If-None-Match` (`304`)
-- Typing/presence:
+  - Supports `since_id` or `after` for incremental fetch.
+  - Supports `ETag` / `If-None-Match` (`304` when unchanged).
+- Typing and presence:
   - `POST /api/v1/conversations/{conversation}/typing`
   - `GET /api/v1/conversations/{conversation}/typing`
   - `POST /api/v1/presence/ping`
   - `GET /api/v1/users/{user}/presence`
   - `GET /api/v1/presence/users?ids[]=...` (batch presence)
-- Attachment-i:
+- Attachments:
   - `GET /api/v1/chat/attachments/{attachment}`
   - `GET /api/v1/chat/attachments/{attachment}/thumb`
 - Rate limits:
-  - `chat_messages`: 30/min po user/thread
-  - `chat_attachments`: 10/10min po user/thread
+  - `chat_messages`: 30/min per user/thread
+  - `chat_attachments`: 10/10min per user/thread
 
-## Frontend: polling intervali
-- Chat thread poruke:
-  - `frontend/src/pages/Chat.vue`
-  - Polling poruka pocinje na ~3s i exponential backoff ide do ~30s kada nema aktivnosti.
-  - Backoff se resetuje na aktivnost (nova poruka / korisnicka aktivnost).
-  - Polling se pauzira kada je tab hidden i nastavlja na focus/visibilitychange.
+## Frontend polling intervals
+- Chat thread messages (`frontend/src/pages/Chat.vue`):
+  - Starts around 3s and applies exponential backoff up to around 30s when idle.
+  - Backoff resets on activity (new message or user interaction).
+  - Polling pauses when tab is hidden and resumes on focus/visibilitychange.
 - Typing:
-  - Polling statusa na ~4s.
-  - Slanje `is_typing=true/false` pri kucanju/stop/blur/send.
+  - Polls status every ~4s.
+  - Sends `is_typing=true/false` on typing/start/stop/blur/send.
 - Presence:
-  - Ping na ~25s.
-  - Provera online statusa druge strane na ~30s.
-- Notifications:
-  - `frontend/src/components/notifications/NotificationBell.vue`
-  - Polling `unread-count` na ~15s.
-  - Endpoint koristi `ETag` / `If-None-Match` (`304`) kada nema promene.
-  - Polling se pauzira kada je tab hidden.
-  - Refresh na tab focus/visibilitychange.
-  - Otvaranje dropdown-a radi fresh fetch liste.
+  - Sends ping every ~25s.
+  - Checks peer presence every ~30s.
+- Notifications (`frontend/src/components/notifications/NotificationBell.vue`):
+  - Polls unread count every ~15s.
+  - Uses `ETag` / `If-None-Match` (`304`) when unchanged.
+  - Polling pauses when tab is hidden.
+  - Refreshes on focus/visibilitychange.
+  - Opening dropdown triggers fresh list fetch.
 
-## Notifikacije: anti-duplication
-- Event auto-discovery je eksplicitno iskljucen:
+## Notification duplication prevention
+- Event auto-discovery is intentionally disabled:
   - `backend/bootstrap/app.php` -> `withEvents(discover: false)`
   - `backend/app/Providers/EventServiceProvider.php` -> `shouldDiscoverEvents(): false`
-- Razlog: bez ovoga isti listener moze biti registrovan 2x (`Class` + `Class@handle`) i kreirati duple notifikacije.
+- Reason: avoids duplicate listener registration (`Class` + `Class@handle`) and duplicate notifications.
 
-## Operativne komande (diagnostics)
-- Provera event registracija:
+## Operational diagnostics
+Verify event registrations:
 ```bash
 cd backend
 php artisan event:clear
 php artisan event:list
 ```
-- Ocekivanje: za `App\Events\MessageCreated` postoji jedan app listener (`SendMessageNotification`), ne duplikat.
-- Ciscenje app cache-a posle deploy-a:
+Expected:
+- `App\Events\MessageCreated` should have a single app listener (`SendMessageNotification`), not duplicates.
+
+After deploy/config changes:
 ```bash
 php artisan optimize:clear
 ```
 
-## Brzi troubleshooting
-1. Chat ne osvezava bez refresh-a:
-- Proveri da li frontend salje periodicni `GET /api/v1/conversations/{id}/messages`.
-- Proveri da li nema aktivne WebSocket-only zavisnosti za taj ekran.
+## Quick troubleshooting
+1. Chat does not refresh without page reload:
+- Confirm frontend is sending periodic `GET /api/v1/conversations/{id}/messages`.
+- Confirm this screen is not WebSocket-only.
 
-2. Typing/online ne rade:
-- Proveri `POST/GET typing` i `POST ping + GET presence` pozive u Network tabu.
-- Proveri cache backend-a (TTL kljucevi `typing:*` i `presence:*`).
+2. Typing or online indicators do not work:
+- Check `POST/GET typing` and `POST ping + GET presence` calls in browser network tab.
+- Check backend cache keys and TTL (`typing:*`, `presence:*`).
 
-3. Notification badge kasni:
-- Proveri `GET /api/v1/notifications/unread-count` periodicno (15s + focus refresh).
-- Proveri da `fetchNotifications` ne prepisuje `unreadCount` iz parcijalnog page payload-a.
+3. Notification badge is delayed:
+- Confirm periodic `GET /api/v1/notifications/unread-count` calls (~15s + focus refresh).
+- Confirm `fetchNotifications` does not overwrite `unreadCount` from partial page payload.
 
-4. Dvostruke notifikacije:
-- Pokreni `php artisan event:list`.
-- Ako se vidi `SendMessageNotification` i `SendMessageNotification@handle` zajedno, event discovery nije pravilno ugasen ili je stale cache.
-- Pokreni `php artisan event:clear` i `php artisan optimize:clear`, pa redeploy/restart backend procesa.
+4. Duplicate notifications:
+- Run `php artisan event:list`.
+- If both `SendMessageNotification` and `SendMessageNotification@handle` appear, event discovery is misconfigured or stale cache is present.
+- Run `php artisan event:clear` and `php artisan optimize:clear`, then redeploy/restart backend processes.
 
-## Realtime QA (manual)
-1. Otvori isti chat sa 2 korisnika u 2 taba/browsera.
-2. Posalji poruku sa A -> proveri da se kod B pojavi bez refresh-a.
-3. Kucaj u A -> proveri typing indikator kod B.
-4. Odrzi oba korisnika aktivnim -> proveri online badge.
-5. Posalji novu poruku -> proveri da notification badge poraste bez refresh-a.
-6. Potvrdi da je broj notifikacija 1 po poruci (bez dupliranja).
+## Manual realtime QA
+1. Open the same chat for two users in separate tabs/browsers.
+2. Send a message from user A and confirm user B receives it without refresh.
+3. Type in user A and confirm typing indicator for user B.
+4. Keep both users active and confirm online badge behavior.
+5. Send another message and confirm notification badge increments without refresh.
+6. Confirm exactly one notification per message (no duplicates).
 
-## Relevantni fajlovi
-- Backend:
-  - `backend/app/Http/Controllers/ConversationController.php`
-  - `backend/app/Http/Controllers/ChatSignalController.php`
-  - `backend/app/Listeners/SendMessageNotification.php`
-  - `backend/app/Providers/EventServiceProvider.php`
-  - `backend/bootstrap/app.php`
-- Frontend:
-  - `frontend/src/pages/Chat.vue`
-  - `frontend/src/components/notifications/NotificationBell.vue`
-  - `frontend/src/stores/notifications.ts`
-  - `frontend/src/stores/chat.ts`
+## Relevant files
+Backend:
+- `backend/app/Http/Controllers/ConversationController.php`
+- `backend/app/Http/Controllers/ChatSignalController.php`
+- `backend/app/Listeners/SendMessageNotification.php`
+- `backend/app/Providers/EventServiceProvider.php`
+- `backend/bootstrap/app.php`
+
+Frontend:
+- `frontend/src/pages/Chat.vue`
+- `frontend/src/components/notifications/NotificationBell.vue`
+- `frontend/src/stores/notifications.ts`
+- `frontend/src/stores/chat.ts`

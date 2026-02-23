@@ -1,6 +1,8 @@
-# Test plan (srpski) – IzdajIznajmiV2
+# Test Plan - IzdajIznajmiV2
 
-## A) Priprema okruženja / Setup
+This document defines backend and frontend manual test coverage for development/staging validation.
+
+## A) Environment Setup
 - Backend:
   ```bash
   cd backend
@@ -16,149 +18,160 @@
   npm install
   npm run dev -- --host --port 5173
   ```
-- Base URL / CORS: API `http://localhost:8000/api/v1`, SPA `http://localhost:5173` (stateful cookies dozvoljene u CORS/Sanctum).
-- Demo korisnici (lozinka svima `password`):
-  - admin@example.com (admin)
-  - lana@demo.com, leo@demo.com (landlords)
-  - tena@demo.com, tomas@demo.com, tara@demo.com (seekers)
-- Dokumentacija: `docs/api-contract.md`, `docs/api-examples.md`, `docs/ui.md`
+- Base URLs / CORS:
+  - API: `http://localhost:8000/api/v1`
+  - SPA: `http://localhost:5173`
+  - Ensure Sanctum/CORS is configured for stateful cookies.
+- Demo users (password for all: `password`):
+  - `admin@example.com` (admin)
+  - `lana@demo.com`, `leo@demo.com` (landlords)
+  - `tena@demo.com`, `tomas@demo.com`, `tara@demo.com` (seekers/tenants)
+- Reference docs:
+  - `docs/api-contract.md`
+  - `docs/api-examples.md`
+  - `docs/ui.md`
 
-## B) Manualni test slučajevi
+## B) Manual Test Cases
 
-### Auth & role pristup
-| ID | Precondition | Koraci | Očekivano | Napomena |
+### Auth and role access
+| ID | Precondition | Steps | Expected result | Notes |
 | --- | --- | --- | --- | --- |
-| AUTH-01 | Backend radi | 1) GET /sanctum/csrf-cookie 2) POST /api/v1/auth/register sa novim emailom | 201, session cookie + user.role default seeker | register |
-| AUTH-02 | AUTH-01 session | 1) GET /api/v1/auth/me sa session cookie | 200, vraća user sa rolom | me |
-| AUTH-03 | Seeker session | 1) POST /api/v1/landlord/listings (seeker) | 403 Forbidden | policy |
-| AUTH-04 | Bez session | 1) GET /api/v1/landlord/listings | 401 | auth guard |
+| AUTH-01 | Backend running | 1) `GET /sanctum/csrf-cookie` 2) `POST /api/v1/auth/register` with new email | `201`, session cookie set, `user.role=seeker` | register |
+| AUTH-02 | AUTH-01 session | 1) `GET /api/v1/auth/me` with session cookie | `200`, returns user with role | me |
+| AUTH-03 | Seeker session | 1) `POST /api/v1/landlord/listings` as seeker | `403 Forbidden` | policy |
+| AUTH-04 | No session | 1) `GET /api/v1/landlord/listings` | `401` | auth guard |
 
-### Listing browse/filter/detail
-| ID | Precondition | Koraci | Očekivano | Napomena |
+### Listings browse/filter/detail
+| ID | Precondition | Steps | Expected result | Notes |
 | --- | --- | --- | --- | --- |
-| LST-01 | Seed podaci | 1) GET /api/v1/listings | 200, lista >0, camelCase polja | list |
-| LST-02 | Seed podaci | 1) GET /api/v1/listings?category=villa&priceMin=100&priceMax=300&rating=4.5 | 200, svi rezultati po filteru | filter |
-| LST-03 | Seed podaci | 1) GET /api/v1/listings/{id} | 200, uključuje images[], facilities[] | detail |
+| LST-01 | Seed data | 1) `GET /api/v1/listings` | `200`, list count >0, camelCase payload | list |
+| LST-02 | Seed data | 1) `GET /api/v1/listings?category=villa&priceMin=100&priceMax=300&rating=4.5` | `200`, all returned items satisfy filters | filter |
+| LST-03 | Seed data | 1) `GET /api/v1/listings/{id}` | `200`, includes `images[]`, `facilities[]` | detail |
 
-### Recommendations & badges
-| ID | Precondition | Koraci | Očekivano | Napomena |
+### Recommendations and badges
+| ID | Precondition | Steps | Expected result | Notes |
 | --- | --- | --- | --- | --- |
-| REC-01 | Seeker session | 1) GET /api/v1/listings/{id} 2) ponovi u 12h | 1 view event u `listing_events` | dedupe |
-| REC-02 | Seeker session + aktivni listing | 1) GET /api/v1/listings/{id}/similar | 200, bez self/inactive | similar |
-| REC-03 | Seeker session + view/saved search | 1) GET /api/v1/recommendations | 200, aktivni listings + optional reasons | feed |
-| BADGE-01 | Admin session | 1) GET /api/v1/admin/users/{landlord}/security | vraća `landlordMetrics` + `landlordBadges` | admin |
-| BADGE-02 | Admin session | 1) PATCH /api/v1/admin/users/{landlord}/badges topLandlord=false | badge override sačuvan | override |
+| REC-01 | Seeker session | 1) `GET /api/v1/listings/{id}` 2) Repeat within 12h | Exactly one view event in `listing_events` | dedupe |
+| REC-02 | Seeker session + active listing | 1) `GET /api/v1/listings/{id}/similar` | `200`, excludes self/inactive listings | similar |
+| REC-03 | Seeker session + view/saved search history | 1) `GET /api/v1/recommendations` | `200`, active listings + optional reasons | feed |
+| BADGE-01 | Admin session | 1) `GET /api/v1/admin/users/{landlord}/security` | Returns `landlordMetrics` + `landlordBadges` | admin |
+| BADGE-02 | Admin session | 1) `PATCH /api/v1/admin/users/{landlord}/badges topLandlord=false` | Badge override persisted | override |
 
-### Search v2 (Meili)
-| ID | Precondition | Koraci | Očekivano | Napomena |
+### Search v2 (MeiliSearch)
+| ID | Precondition | Steps | Expected result | Notes |
 | --- | --- | --- | --- | --- |
-| SRCH-01 | `SEARCH_DRIVER=meili`, indeksiran sadržaj | 1) GET /api/v1/search/listings?q=beograd | 200, data + facets keys | v2 search |
-| SRCH-02 | SRCH-01 | 1) GET /api/v1/search/listings?priceBucket=0-300&rooms=2 | 200, facet counts prate filtere | facets |
-| SRCH-03 | SRCH-01 | 1) GET /api/v1/search/suggest?q=beo | 200, city/amenity/query predlozi | autosuggest |
+| SRCH-01 | `SEARCH_DRIVER=meili`, indexed data | 1) `GET /api/v1/search/listings?q=belgrade` | `200`, response includes `data` and facet keys | v2 search |
+| SRCH-02 | SRCH-01 | 1) `GET /api/v1/search/listings?priceBucket=0-300&rooms=2` | `200`, facet counts respect filters | facets |
+| SRCH-03 | SRCH-01 | 1) `GET /api/v1/search/suggest?q=bel` | `200`, city/amenity/query suggestions | autosuggest |
 
-### Landlord listings CRUD & policy
-| ID | Precondition | Koraci | Očekivano | Napomena |
+### Landlord listings CRUD and policies
+| ID | Precondition | Steps | Expected result | Notes |
 | --- | --- | --- | --- | --- |
-| LL-01 | Landlord token | 1) POST /api/v1/landlord/listings sa valid payloadom (title, pricePerNight, category, city, country, address, beds, baths, images[]) | 201, kreirana listing sa coverImage = images[0] | create |
-| LL-02 | LL-01 listing | 1) PUT /api/v1/landlord/listings/{id} sa promenom title | 200, title ažuriran | update |
-| LL-03 | Landlord B token, listing A vlasništvo | 1) PUT /api/v1/landlord/listings/{A-id} | 403 | policy |
-| LL-04 | Landlord token | 1) GET /api/v1/landlord/listings | 200, samo njegove + facilities/images | owner filter |
+| LL-01 | Landlord session | 1) `POST /api/v1/landlord/listings` with valid payload | `201`, listing created with `coverImage=images[0]` | create |
+| LL-02 | LL-01 listing | 1) `PUT /api/v1/landlord/listings/{id}` change `title` | `200`, title updated | update |
+| LL-03 | Landlord B session, listing owned by landlord A | 1) `PUT /api/v1/landlord/listings/{A-id}` | `403` | policy |
+| LL-04 | Landlord session | 1) `GET /api/v1/landlord/listings` | `200`, only owner listings with facilities/images | owner filter |
 
-### KYC / Verified landlord
-| ID | Precondition | Koraci | Očekivano | Napomena |
+### KYC and verified landlord flow
+| ID | Precondition | Steps | Expected result | Notes |
 | --- | --- | --- | --- | --- |
-| KYC-01 | Landlord session | 1) POST /api/v1/kyc/submissions (id_front, selfie, proof_of_address) | 201, status pending | submit |
-| KYC-02 | KYC-01 pending | 1) POST /api/v1/kyc/submissions (ponovo) | 409 Conflict | block duplicate |
-| KYC-03 | Admin session | 1) GET /api/v1/admin/kyc/submissions?status=pending | 200, lista pending | admin queue |
-| KYC-04 | Admin session | 1) PATCH /api/v1/admin/kyc/submissions/{id}/approve | 200, user verification_status=approved | approve |
-| KYC-05 | Admin session | 1) PATCH /api/v1/admin/kyc/submissions/{id}/reject sa note | 200, status rejected + note | reject |
-| KYC-06 | Non-owner session | 1) GET /api/v1/kyc/documents/{id} | 403 | access control |
+| KYC-01 | Landlord session | 1) `POST /api/v1/kyc/submissions` with required files | `201`, status `pending` | submit |
+| KYC-02 | KYC-01 pending | 1) Submit again | `409 Conflict` | duplicate blocked |
+| KYC-03 | Admin session | 1) `GET /api/v1/admin/kyc/submissions?status=pending` | `200`, pending queue list | admin queue |
+| KYC-04 | Admin session | 1) `PATCH /api/v1/admin/kyc/submissions/{id}/approve` | `200`, user verification status becomes `approved` | approve |
+| KYC-05 | Admin session | 1) `PATCH /api/v1/admin/kyc/submissions/{id}/reject` with note | `200`, status `rejected`, note saved | reject |
+| KYC-06 | Non-owner session | 1) `GET /api/v1/kyc/documents/{id}` | `403` | access control |
 
-### Transactions (ugovor, e-potpis, depozit)
-| ID | Precondition | Koraci | Očekivano | Napomena |
+### Transactions (contracts, signatures, deposit)
+| ID | Precondition | Steps | Expected result | Notes |
 | --- | --- | --- | --- | --- |
-| TX-01 | Landlord session, postoji listing + accepted aplikacija | 1) POST /api/v1/transactions (listingId, seekerId, depositAmount, rentAmount) | 201, status initiated | start |
-| TX-02 | TX-01 | 1) POST /api/v1/transactions/{id}/contracts (startDate) | 201, generisan PDF u private storage | contract |
-| TX-03 | TX-02 | 1) POST /api/v1/contracts/{contract}/sign (seeker) 2) POST /api/v1/contracts/{contract}/sign (landlord) | contract final, status landlord_signed | signing |
-| TX-04 | TX-03 + Stripe CLI | 1) POST /api/v1/transactions/{id}/payments/deposit/session 2) webhook checkout.session.completed | status deposit_paid | payment |
-| TX-05 | TX-04 | 1) POST /api/v1/transactions/{id}/move-in/confirm (landlord) | status move_in_confirmed | move-in |
-| TX-06 | Admin session | 1) POST /api/v1/admin/transactions/{id}/payout | status completed | payout |
-| TX-07 | Non-participant session | 1) GET /api/v1/transactions/{id} | 403 | authz |
+| TX-01 | Landlord session, listing + accepted application exists | 1) `POST /api/v1/transactions` (`listingId`, `seekerId`, `depositAmount`, `rentAmount`) | `201`, status `initiated` | start |
+| TX-02 | TX-01 | 1) `POST /api/v1/transactions/{id}/contracts` (`startDate`) | `201`, contract PDF in private storage | contract |
+| TX-03 | TX-02 | 1) Seeker signs 2) Landlord signs (`POST /api/v1/contracts/{contract}/sign`) | Contract `final`, transaction status `landlord_signed` | signing |
+| TX-04 | TX-03 + Stripe CLI forwarding | 1) `POST /api/v1/transactions/{id}/payments/deposit/session` 2) Process `checkout.session.completed` | Status `deposit_paid` | payment |
+| TX-05 | TX-04 | 1) `POST /api/v1/transactions/{id}/move-in/confirm` by landlord | Status `move_in_confirmed` | move-in |
+| TX-06 | Admin session | 1) `POST /api/v1/admin/transactions/{id}/payout` | Status `completed` | payout |
+| TX-07 | Non-participant session | 1) `GET /api/v1/transactions/{id}` | `403` | authz |
 
-### Ratings & profil
-| ID | Precondition | Koraci | Očekivano | Napomena |
+### Ratings and profile
+| ID | Precondition | Steps | Expected result | Notes |
 | --- | --- | --- | --- | --- |
-| RAT-01 | Završena transakcija (completed ili move_in_confirmed) između seeker+landlord za listing | 1) POST /api/v1/listings/{listing}/ratings (ratee_user_id=landlord, rating=5) | 201 Created | landlord rating |
-| RAT-02 | Nema završene transakcije | 1) POST /api/v1/listings/{listing}/ratings (ratee_user_id=landlord, rating=4) | 403 Forbidden | blok pre završetka |
-| RAT-03 | Završena transakcija | 1) POST /api/v1/listings/{listing}/ratings (rating=5) | 201 Created | listing rating |
-| RAT-04 | Landlord session | 1) POST /api/v1/listings/{listing}/ratings (ratee_user_id=landlord, rating=5) | 403 Forbidden | landlord ne ocenjuje |
-| RAT-05 | Landlord ili seeker session, postojeća ocena | 1) POST /api/v1/ratings/{rating}/report | 201 Created, kreiran report u moderation queue | report rating |
-| RAT-06 | Landlord ili seeker session, listing rating | 1) POST /api/v1/listing-ratings/{id}/report | 201 Created, kreiran report u moderation queue | report listing rating |
-| PROF-01 | Prijavljen korisnik | 1) PATCH /api/v1/me/profile (full_name, phone, address_book) | 200 OK, user ažuriran | edit profil |
-| PROF-02 | Prijavljen korisnik | 1) PATCH /api/v1/me/password (current_password, new_password, confirmation) | 200 OK, lozinka ažurirana | change password |
-| VER-01 | Prijavljen korisnik, email nije verifikovan | 1) POST /api/v1/me/verification/email/request 2) POST /api/v1/me/verification/email/confirm (code) | email_verified=true | email |
+| RAT-01 | Completed transaction between seeker and landlord for listing | 1) `POST /api/v1/listings/{listing}/ratings` (`ratee_user_id=landlord`, `rating=5`) | `201 Created` | landlord rating |
+| RAT-02 | No completed transaction | 1) same endpoint with rating | `403 Forbidden` | blocked before completion |
+| RAT-03 | Completed transaction | 1) `POST /api/v1/listings/{listing}/ratings` (listing rating) | `201 Created` | listing rating |
+| RAT-04 | Landlord session | 1) Landlord rates own side in listing endpoint | `403 Forbidden` | not allowed |
+| RAT-05 | Landlord or seeker session, existing user rating | 1) `POST /api/v1/ratings/{rating}/report` | `201 Created`, moderation report created | report user rating |
+| RAT-06 | Landlord or seeker session, existing listing rating | 1) `POST /api/v1/listing-ratings/{id}/report` | `201 Created`, moderation report created | report listing rating |
+| PROF-01 | Authenticated user | 1) `PATCH /api/v1/me/profile` (`full_name`, `phone`, `address_book`) | `200`, user updated | edit profile |
+| PROF-02 | Authenticated user | 1) `PATCH /api/v1/me/password` (`current_password`, new password + confirmation) | `200`, password updated | change password |
+| VER-01 | Authenticated user, email not verified | 1) `POST /api/v1/me/verification/email/request` 2) `POST /api/v1/me/verification/email/confirm` (`code`) | `email_verified=true` | email verification |
 
-### KYC verifikacija
-| ID | Precondition | Koraci | Očekivano | Napomena |
+### Additional KYC verification coverage (tenant + landlord)
+| ID | Precondition | Steps | Expected result | Notes |
 | --- | --- | --- | --- | --- |
-| KYC-01 | Seeker session | 1) POST /api/v1/kyc/submissions (id_front, selfie, proof_of_address) | 201 Created, status pending | seeker KYC |
-| KYC-02 | Landlord session | 1) POST /api/v1/kyc/submissions (id_front, selfie, proof_of_address) | 201 Created, status pending | landlord KYC |
-| KYC-03 | Admin session, pending KYC | 1) PATCH /api/v1/admin/kyc/submissions/{id}/approve | 200 OK, status approved, address_verified=true | approve |
+| KYC-07 | Seeker session | 1) `POST /api/v1/kyc/submissions` with required files | `201`, status `pending` | seeker KYC |
+| KYC-08 | Landlord session | 1) `POST /api/v1/kyc/submissions` with required files | `201`, status `pending` | landlord KYC |
+| KYC-09 | Admin session, pending submission | 1) `PATCH /api/v1/admin/kyc/submissions/{id}/approve` | `200`, status `approved`, `address_verified=true` | approve |
 
-### Saved searches & alerts
-| ID | Precondition | Koraci | Očekivano | Napomena |
+### Saved searches and alerts
+| ID | Precondition | Steps | Expected result | Notes |
 | --- | --- | --- | --- | --- |
-| SS-01 | Seeker session | 1) POST /api/v1/saved-searches (filters + name opcionalno) | 201, vraća saved search sa normalizovanim filters | create |
-| SS-02 | SS-01 | 1) POST isti filters payload | 409 Conflict | dedupe |
-| SS-03 | Seeker session, ACTIVE listing koji matchuje | 1) Pokreni `php artisan saved-searches:match` 2) GET /api/v1/notifications | 200, kreiran match + listing.new_match notifikacija | matcher |
-| SS-04 | SS-03 | 1) Ponovi `php artisan saved-searches:match` bez novih listinga | nema duplih matchova/notifikacija | idempotent |
+| SS-01 | Seeker session | 1) `POST /api/v1/saved-searches` (`filters`, optional `name`) | `201`, saved search with normalized filters | create |
+| SS-02 | SS-01 exists | 1) Repeat same filters payload | `409 Conflict` | dedupe |
+| SS-03 | Seeker session + new matching active listing | 1) Run `php artisan saved-searches:match` 2) `GET /api/v1/notifications` | `200`, creates match + `listing.new_match` notification | matcher |
+| SS-04 | SS-03 done | 1) Run matcher again without new listings | No duplicate matches/notifications | idempotent |
 
 ### Booking requests (inquiry)
-| ID | Precondition | Koraci | Očekivano | Napomena |
+| ID | Precondition | Steps | Expected result | Notes |
 | --- | --- | --- | --- | --- |
-| BR-01 | Seeker session, listing owner=landlord | 1) POST /api/v1/booking-requests (listingId, landlordId, guests, message) | 201, status pending | create |
-| BR-02 | Seeker session | 1) GET /api/v1/booking-requests?role=seeker | 200, samo sopstveni | seeker view |
-| BR-03 | Landlord token | 1) GET /api/v1/booking-requests?role=landlord | 200, incoming | landlord view |
-| BR-04 | Landlord token | 1) PATCH /api/v1/booking-requests/{id} status=accepted | 200, status accepted | accept |
-| BR-05 | Tenant token, status pending | 1) PATCH /api/v1/booking-requests/{id} status=cancelled | 200, status cancelled | cancel |
-| BR-06 | Tenant token, pokuša accepted | 1) PATCH status=accepted | 403 | policy |
-| BR-07 | Admin token | 1) PATCH bilo koji request status=rejected | 200 | admin override |
+| BR-01 | Seeker session, listing owner is landlord | 1) `POST /api/v1/booking-requests` (`listingId`, `landlordId`, `guests`, `message`) | `201`, status `pending` | create |
+| BR-02 | Seeker session | 1) `GET /api/v1/booking-requests?role=seeker` | `200`, only own requests | seeker view |
+| BR-03 | Landlord session | 1) `GET /api/v1/booking-requests?role=landlord` | `200`, incoming requests | landlord view |
+| BR-04 | Landlord session | 1) `PATCH /api/v1/booking-requests/{id}` (`status=accepted`) | `200`, status `accepted` | accept |
+| BR-05 | Seeker session, request pending | 1) `PATCH /api/v1/booking-requests/{id}` (`status=cancelled`) | `200`, status `cancelled` | cancel |
+| BR-06 | Seeker session | 1) Attempt to set `status=accepted` | `403` | policy |
+| BR-07 | Admin session | 1) Patch any request to `status=rejected` | `200` | admin override |
 
 ### Messaging skeleton
-| ID | Precondition | Koraci | Očekivano | Napomena |
+| ID | Precondition | Steps | Expected result | Notes |
 | --- | --- | --- | --- | --- |
-| MSG-01 | Seeker session | 1) GET /api/v1/conversations | 200, lista gde seeker učestvuje | conv list |
-| MSG-02 | Participant token | 1) GET /api/v1/conversations/{id}/messages | 200, <=50 msg, sorted asc | messages |
-| MSG-03 | Non-participant token | 1) GET /api/v1/conversations/{id}/messages | 403 | authz |
+| MSG-01 | Seeker session | 1) `GET /api/v1/conversations` | `200`, returns conversations where seeker participates | conversation list |
+| MSG-02 | Participant session | 1) `GET /api/v1/conversations/{id}/messages` | `200`, up to 50 messages, sorted ascending | messages |
+| MSG-03 | Non-participant session | 1) `GET /api/v1/conversations/{id}/messages` | `403` | authz |
 
-### Frontend sanitarni testovi
-| ID | Precondition | Koraci | Očekivano | Napomena |
+### Frontend sanity checks
+| ID | Precondition | Steps | Expected result | Notes |
 | --- | --- | --- | --- | --- |
-| FE-01 | Frontend dev server, mock store | 1) Uloguj se (mock role switch) 2) Navigacija na /favorites kao guest | Redirect na /, toast “Access denied” | guard |
-| FE-02 | Role switch landlord | 1) /profile -> switch na Landlord 2) proveri da link „My Listings” vodi na /landlord/listings | Radi, prikazuje listing kartice | nav |
-| FE-03 | Loading/Empty/Error | 1) Simuliraj slow network 2) Otvori /search i /map 3) Proveri skeleton/empty/error bannere/toasts | UI stanja prikazana | UX |
+| FE-01 | Frontend dev server, mock store | 1) Login (mock role switch) 2) Navigate to `/favorites` as guest | Redirect to `/`, "Access denied" toast | route guard |
+| FE-02 | Role switch to landlord | 1) `/profile` -> switch to Landlord 2) "My Listings" link opens `/landlord/listings` | Works and displays listing cards | navigation |
+| FE-03 | Slow/failure simulation | 1) Simulate slow network 2) Open `/search` and `/map` 3) Verify skeleton/empty/error states | Expected UI states visible | UX |
 
-## C) API cURL primeri
-> Base: `http://localhost:8000`
+## C) API cURL Notes
+Base URL: `http://localhost:8000`
 
-Koristite Sanctum cookie/session flow: prvo `GET /sanctum/csrf-cookie`, zatim POST/GET rute sa `--cookie-jar` i `X-XSRF-TOKEN` header-om (vidi `docs/api-examples.md` za kompletne primere).
+Use Sanctum cookie/session flow:
+1. `GET /sanctum/csrf-cookie`
+2. Use cookie jar for authenticated API calls
+3. Send `X-XSRF-TOKEN` header for state-changing requests
 
-## D) Negativni testovi (401/403/422/404)
-- 401: GET /api/v1/landlord/listings bez session → 401 JSON `{message:"Unauthenticated."}`
-- 403: Seeker PATCH /api/v1/booking-requests/{id} status=accepted → 403
-- 403: Landlord B PUT /api/v1/landlord/listings/{listingA} → 403
-- 422: POST /api/v1/booking-requests bez landlordId ili message<5 → 422 sa validation errors
-- 422: POST /api/v1/landlord/listings sa category=“cabin” → 422
-- 404: GET /api/v1/listings/99999 → 404
+See `docs/api-examples.md` for complete cURL sequences.
 
-## E) Smoke checklist (≈10 min)
-1) POST /api/v1/auth/login (tenant) → token dobijen
-2) GET /api/v1/listings → 200, data array
-3) GET /api/v1/listings/{id} → 200, ima images/facilities
-4) POST /api/v1/booking-requests (tenant) → 201 pending
-5) GET /api/v1/booking-requests?role=tenant → sadrži novi request
-6) PATCH /api/v1/booking-requests/{id} (landlord) status=accepted → 200
-7) GET /api/v1/landlord/listings (landlord) → 200, samo njegove
-8) PUT /api/v1/landlord/listings/{id} (vlasnik) → 200
-9) GET /api/v1/conversations (tenant) → 200 lista
-10) Frontend: otvori Home/Search → vidi skeleton/karte; switch role u Profile radi i guard blokira nepristupačne rute
+## D) Negative Tests (401/403/422/404)
+- `401`: `GET /api/v1/landlord/listings` without session -> `{"message":"Unauthenticated."}`
+- `403`: seeker attempts `PATCH /api/v1/booking-requests/{id}` with `status=accepted`
+- `403`: landlord B attempts `PUT /api/v1/landlord/listings/{listingA}`
+- `422`: `POST /api/v1/booking-requests` without `landlordId` or with `message < 5`
+- `422`: `POST /api/v1/landlord/listings` with invalid category (example `cabin`)
+- `404`: `GET /api/v1/listings/99999`
+
+## E) Smoke Checklist (about 10 minutes)
+1. `POST /api/v1/auth/login` as tenant -> authenticated session established.
+2. `GET /api/v1/listings` -> `200`, returns data array.
+3. `GET /api/v1/listings/{id}` -> `200`, includes images/facilities.
+4. `POST /api/v1/booking-requests` as tenant -> `201 pending`.
+5. `GET /api/v1/booking-requests?role=tenant` -> includes newly created request.
+6. `PATCH /api/v1/booking-requests/{id}` as landlord -> `status=accepted`, `200`.
+7. `GET /api/v1/landlord/listings` as landlord -> `200`, only owner listings.
+8. `PUT /api/v1/landlord/listings/{id}` as owner -> `200`.
+9. `GET /api/v1/conversations` as tenant -> `200` conversation list.
+10. Frontend check: Home/Search renders cards; Profile role switch works; route guards block unauthorized routes.

@@ -1,104 +1,104 @@
-# Docker manual (projekat: IzdajIznajmiV2)
+# Docker Manual (Project: IzdajIznajmiV2)
 
-Kratak podsetnik za pokretanje, kontrolu i troubleshooting Docker okruzenja.
+Quick reference for running, controlling, and troubleshooting Docker environments.
 
-## Osnovno pokretanje
-- Start (prvi put ili posle izmena image-a):
+## Basic Commands
+- Start (first run or after image changes):
 ```bash
 docker compose up --build
 ```
-- Start u pozadini (detach):
+- Start in background:
 ```bash
 docker compose up -d --build
 ```
-- Stop + ukloni kontejnere:
+- Stop and remove containers:
 ```bash
 docker compose down
 ```
 
-## Status i logovi
-- Status servisa (u root folderu repo-a):
+## Status and Logs
+- Service status (from repo root):
 ```bash
 docker compose ps
 ```
-- Svi aktivni kontejneri:
+- Running containers:
 ```bash
 docker ps
 ```
-- Svi kontejneri (ukljucujuci zaustavljene):
+- All containers (including stopped):
 ```bash
 docker ps -a
 ```
-- Logovi:
+- All service logs:
 ```bash
 docker compose logs
 ```
-- Logovi za konkretan servis (npr. backend):
+- Logs for a specific service (example backend):
 ```bash
 docker compose logs --tail=200 backend
 ```
-- Pracenje logova uzivo:
+- Follow logs live:
 ```bash
 docker compose logs -f
 ```
 
-## Ulazak u kontejnere
-- Shell u backend:
+## Entering Containers
+- Backend shell:
 ```bash
 docker compose exec backend sh
 ```
-- Jednokratna komanda u backend:
+- One-off backend command:
 ```bash
 docker compose exec -T backend php artisan migrate:fresh --seed
 ```
 
-## Inicijalne komande (backend)
-- Migracije + seed:
+## Initial Backend Tasks
+- Migrations + seed:
 ```bash
 docker compose run --rm backend php artisan migrate:fresh --seed
 ```
-- Reindex (MeiliSearch):
+- MeiliSearch reindex:
 ```bash
 docker compose run --rm backend php artisan search:listings:reindex --reset
 ```
 
-## Restart / oporavak pojedinacnih servisa
-- Restart servisa:
+## Restart and Recovery
+- Restart selected services:
 ```bash
 docker compose restart queue scheduler reverb
 ```
-- Pokretanje samo odabranih servisa:
+- Start only selected services:
 ```bash
 docker compose up -d queue scheduler reverb
 ```
 
-## Ciscenje
-- Stop + ukloni kontejnere i mreze:
+## Cleanup
+- Stop and remove containers/networks:
 ```bash
 docker compose down
 ```
-- Ukloni i volume-e (brisanje DB/storage/node_modules):
+- Remove volumes too (deletes DB/storage/node_modules data):
 ```bash
 docker compose down -v
 ```
 
-## Portovi
+## Ports
 - API: `http://localhost:8000`
 - Frontend: `http://localhost:5173`
-- Meili: `http://localhost:7700`
+- MeiliSearch: `http://localhost:7700`
 
-
-
-## Production compose (odvojeno od lokalnog razvoja)
-- Production fajl: `docker-compose.production.yml`
+## Production Compose (separate from local dev)
+- Compose file: `docker-compose.production.yml`
 - Env template: `.env.production.compose.example`
-- Faza Web Push + PWA (detalji implementacije + troubleshooting): `docs/changes/2026-02-20-web-push-pwa.md`
+- Push/PWA release notes: `docs/releases/notifications/web-push-pwa-rollout-2026-02-20.md`
 
-- First optional step, make $DC alias:
+Optional alias:
 ```bash
 DC="docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml"
+```
 
-- Priprema env:
+Common flow:
+- Prepare env:
 ```bash
 cp .env.production.compose.example .env.production.compose
 ```
@@ -106,81 +106,82 @@ cp .env.production.compose.example .env.production.compose
 ```bash
 docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml up -d --build
 ```
-- Inicijalne migracije:
+- Initial migrations:
 ```bash
 docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml exec backend php artisan migrate:fresh --seed
 ```
-- Provera health endpoint-a (preko gateway-a):
+- Check health endpoint (through gateway):
 ```bash
 curl -f http://localhost/api/v1/health
 ```
-- Javno izlaganje (Cloudflare Quick Tunnel, bez otvaranja portova na ruteru):
+- Optional public exposure (Cloudflare Quick Tunnel, no router port forwarding):
 ```bash
 docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml --profile public up -d tunnel
 ```
-- Pracenje logova tunela (URL ce biti `https://...trycloudflare.com`):
+- Follow tunnel logs (`https://...trycloudflare.com` URL appears in logs):
 ```bash
 docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml logs -f tunnel
 ```
-- Jednokratno citanje javnog URL-a:
+- One-time read of public URL:
 ```bash
 docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml logs tunnel | grep -oE 'https://[a-z0-9-]+\\.trycloudflare\\.com' | head -n 1
 ```
-- Napomena: `trycloudflare` URL se obicno menja nakon restarta tunnel servisa.
 - Stop production stack:
 ```bash
 docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml down
 ```
 
-## Production env prioritet (.env.production vs .env)
-- Ako je `APP_ENV=production`, Laravel ce ucitati `backend/.env.production` (ako fajl postoji).
-- To znaci da vrednosti iz `backend/.env` mogu biti ignorisane za production runtime.
-- Prakticno pravilo:
-  - local/dev: koristi `backend/.env`
-  - production compose: odrzavaj i `backend/.env.production`
+## Env Priority in Production (`.env.production` vs `.env`)
+- If `APP_ENV=production`, Laravel loads `backend/.env.production` when it exists.
+- In that case values from `backend/.env` can be ignored at runtime.
 
-Brza provera sta backend stvarno vidi:
+Practical rule:
+- Local/dev: maintain `backend/.env`
+- Production compose: maintain `backend/.env.production`
+
+Quick runtime verification:
 ```bash
 docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml exec backend php artisan tinker --execute="dump(config('mail.default')); dump(config('mail.mailers.smtp.host')); dump(config('mail.mailers.smtp.port'));"
 ```
 
-Ako mail i dalje pokazuje `log/127.0.0.1/2525`:
+If mail still shows `log/127.0.0.1/2525`:
 ```bash
 docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml exec backend php artisan optimize:clear
 docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml up -d --force-recreate backend queue scheduler reverb
 ```
 
-## VAZNO: kako se vide izmene
-- Production test stack koristi bind mount za `./backend` i `./frontend`, pa izmene koje napravis lokalno ulaze i u running production test kontejnere.
-- To znaci da izmene mogu biti vidljive i na `localhost` (dev) i na production test URL-u, jer dele isti source kod na disku.
-- Ako hoces potpunu izolaciju, koristi odvojeni clone projekta ili image-only deployment bez bind mount-a.
+## Important: How File Changes Become Visible
+- Production test stack uses bind mounts for `./backend` and `./frontend`.
+- Local file edits are immediately visible to those running containers.
+- Result: the same source tree can affect both local and production-test URLs.
+- For full isolation, use a separate clone or image-only deployment without bind mounts.
 
-## Kada treba dodatna akcija
-- Backend `.php` izmene: najcesce su odmah vidljive (refresh stranice).
-- Frontend izmene u production stack-u: potrebno je rebuild-ovati frontend servis (nema HMR kao u dev modu):
+## When Extra Actions Are Required
+- Backend `.php` changes: usually visible immediately after refresh.
+- Frontend changes in production stack: rebuild frontend service (no HMR in production mode):
 ```bash
 docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml up -d --build frontend
 ```
-- Alternativno (kada je frontend kontejner vec podignut), moze i:
+- Alternative if frontend container is already running:
 ```bash
 docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml exec frontend npm run build
 ```
-- Kada menjas `.env`, `config/*`, rute ili middleware:
+- When changing `.env`, `config/*`, routes, or middleware:
 ```bash
 docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml exec backend php artisan optimize:clear
 docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml exec backend php artisan event:clear
 docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml up -d --force-recreate backend queue scheduler reverb
 ```
-- Kada menjas event/listener wiring (npr. notifikacije, chat events), proveri registracije:
+- When changing event/listener wiring (for example notifications/chat events), verify registrations:
 ```bash
 docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml exec backend php artisan event:list
 ```
-- Kada menjas migracije:
+- When changing migrations:
 ```bash
 docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml exec backend php artisan migrate --force
 ```
 
-## Watch (docker compose)
-- `Watch` je opcija koja prati promene i automatski radi sync/rebuild.
-- U ovom projektu nije neophodan zbog bind mount-ova (`backend/`, `frontend/`).
-- Ako se pojavi meni: pritisni `d` za detach ili ignorisi.
+## Docker Compose Watch
+- `watch` can sync/rebuild on file changes.
+- It is not required in this project because bind mounts are already used.
+- If an interactive watch menu appears, detach with `d`.
