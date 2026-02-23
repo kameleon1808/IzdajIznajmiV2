@@ -8,7 +8,7 @@ export interface LanguageOption {
 }
 
 const STORAGE_KEY = 'ii-language'
-const DEFAULT_LANGUAGE: LanguageCode = 'en'
+const DEFAULT_LANGUAGE: LanguageCode = 'sr'
 
 const languageOptions: LanguageOption[] = [
   { code: 'en', label: 'English' },
