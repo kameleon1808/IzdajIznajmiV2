@@ -9,6 +9,7 @@ use App\Services\SecuritySessionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 
 class UserAccountController extends Controller
@@ -64,6 +65,28 @@ class UserAccountController extends Controller
             $user->fill($updates);
             $user->save();
         }
+
+        return response()->json(['user' => new UserResource($user->fresh('roles'))]);
+    }
+
+    public function updateAvatar(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        abort_unless($user, 401, 'Unauthenticated');
+
+        $data = $request->validate([
+            'avatar' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:5120'],
+        ]);
+
+        $file = $data['avatar'];
+        $path = $file->store('avatars/'.$user->id, 'public');
+
+        if ($user->avatar_path && $user->avatar_path !== $path) {
+            Storage::disk('public')->delete($user->avatar_path);
+        }
+
+        $user->avatar_path = $path;
+        $user->save();
 
         return response()->json(['user' => new UserResource($user->fresh('roles'))]);
     }

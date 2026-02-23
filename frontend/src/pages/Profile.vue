@@ -15,6 +15,7 @@ const auth = useAuthStore()
 const toast = useToastStore()
 const languageStore = useLanguageStore()
 const t = (key: Parameters<typeof languageStore.t>[0]) => languageStore.t(key)
+const profileAvatarUrl = computed(() => auth.user.avatarUrl ?? null)
 const selectedRole = ref<Role>(auth.primaryRole)
 const showRoleSwitch = computed(() => auth.isMockMode)
 const roleLabel = (role: Role | string) => {
@@ -83,13 +84,19 @@ const handleLogout = async () => {
 
     <div class="flex items-center gap-3 rounded-2xl bg-white p-4 shadow-soft border border-white/60">
       <img
-        src="https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&w=300&q=80"
+        v-if="profileAvatarUrl"
+        :src="profileAvatarUrl"
         :alt="t('common.avatarAlt')"
         class="h-16 w-16 rounded-3xl object-cover"
       />
+      <div
+        v-else
+        class="flex h-16 w-16 items-center justify-center rounded-3xl bg-slate-100 px-2 text-center text-[10px] font-semibold leading-tight text-slate-600"
+      >
+        Blank profile picture
+      </div>
       <div>
         <p class="text-lg font-semibold text-slate-900">{{ auth.user.name }}</p>
-        <p class="text-sm text-muted">@{{ auth.user.id }}</p>
         <Badge variant="pending" class="mt-1 inline-block capitalize">{{ roleLabel(auth.primaryRole) }}</Badge>
       </div>
       <div class="ml-auto">

@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import Button from '../components/ui/Button.vue'
 import ErrorBanner from '../components/ui/ErrorBanner.vue'
-import { changeMyPassword, updateMyProfile } from '../services'
+import { changeMyPassword, updateMyProfile, uploadMyAvatar } from '../services'
 import { useAuthStore } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
 import { useLanguageStore } from '../stores/language'
@@ -38,6 +38,12 @@ const profileDirty = computed(
 
 const profileSaving = ref(false)
 const profileError = ref('')
+const avatarInputRef = ref<HTMLInputElement | null>(null)
+const avatarFile = ref<File | null>(null)
+const avatarPreviewUrl = ref<string | null>(null)
+const avatarUploading = ref(false)
+const avatarError = ref('')
+const avatarImageUrl = computed(() => avatarPreviewUrl.value || auth.user.avatarUrl || null)
 
 const saveProfile = async () => {
   if (!profileDirty.value) return
@@ -61,6 +67,49 @@ const saveProfile = async () => {
     profileError.value = (err as Error).message || t('settings.profile.saveFailed')
   } finally {
     profileSaving.value = false
+  }
+}
+
+const resetAvatarSelection = () => {
+  if (avatarPreviewUrl.value) {
+    URL.revokeObjectURL(avatarPreviewUrl.value)
+  }
+  avatarFile.value = null
+  avatarPreviewUrl.value = null
+  if (avatarInputRef.value) {
+    avatarInputRef.value.value = ''
+  }
+}
+
+const openAvatarPicker = () => {
+  avatarInputRef.value?.click()
+}
+
+const onAvatarChange = (event: Event) => {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+  if (!file) return
+  avatarError.value = ''
+  avatarFile.value = file
+  if (avatarPreviewUrl.value) {
+    URL.revokeObjectURL(avatarPreviewUrl.value)
+  }
+  avatarPreviewUrl.value = URL.createObjectURL(file)
+}
+
+const saveAvatar = async () => {
+  if (!avatarFile.value) return
+  avatarUploading.value = true
+  avatarError.value = ''
+  try {
+    const user = await uploadMyAvatar(avatarFile.value)
+    auth.setUser(user)
+    resetAvatarSelection()
+    toast.push({ title: t('common.success'), message: t('settings.profile.avatarUpdated'), type: 'success' })
+  } catch (err) {
+    avatarError.value = (err as Error).message || t('settings.profile.avatarUpdateFailed')
+  } finally {
+    avatarUploading.value = false
   }
 }
 
@@ -115,6 +164,12 @@ watch(
     initialProfile.value = { ...profileForm }
   },
 )
+
+onBeforeUnmount(() => {
+  if (avatarPreviewUrl.value) {
+    URL.revokeObjectURL(avatarPreviewUrl.value)
+  }
+})
 </script>
 
 <template>
@@ -122,6 +177,42 @@ watch(
     <div class="rounded-2xl bg-white p-4 shadow-soft border border-white/60 space-y-3">
       <h2 class="text-base font-semibold text-slate-900">{{ t('settings.profile.title') }}</h2>
       <ErrorBanner v-if="profileError" :message="profileError" />
+      <ErrorBanner v-if="avatarError" :message="avatarError" />
+      <div class="rounded-2xl border border-line bg-slate-50 p-3">
+        <p class="text-sm font-semibold text-slate-900">{{ t('settings.profile.avatarTitle') }}</p>
+        <div class="mt-3 flex items-center gap-3">
+          <img
+            v-if="avatarImageUrl"
+            :src="avatarImageUrl"
+            :alt="t('common.avatarAlt')"
+            class="h-16 w-16 rounded-2xl object-cover"
+          />
+          <div
+            v-else
+            class="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-200 px-2 text-center text-[10px] font-semibold leading-tight text-slate-700"
+          >
+            Blank profile picture
+          </div>
+          <div class="min-w-0 flex-1 space-y-2">
+            <input
+              ref="avatarInputRef"
+              type="file"
+              accept="image/png,image/jpeg,image/jpg,image/webp"
+              class="hidden"
+              @change="onAvatarChange"
+            />
+            <p v-if="avatarFile" class="truncate text-xs text-muted">{{ avatarFile.name }}</p>
+            <div class="flex gap-2">
+              <Button size="sm" variant="secondary" @click="openAvatarPicker">
+                {{ t('settings.profile.chooseAvatar') }}
+              </Button>
+              <Button size="sm" :disabled="!avatarFile || avatarUploading" @click="saveAvatar">
+                {{ avatarUploading ? t('common.saving') : t('settings.profile.uploadAvatar') }}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </div>
       <label class="space-y-1 text-sm font-semibold text-slate-900">
         {{ t('settings.personal.fullName') }}
         <input v-model="profileForm.fullName" type="text" class="w-full rounded-xl border border-line px-3 py-3 text-sm focus:border-primary focus:outline-none" />

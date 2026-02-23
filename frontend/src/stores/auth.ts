@@ -7,6 +7,7 @@ interface User {
   id: string
   name: string
   fullName?: string
+  avatarUrl?: string | null
   dateOfBirth?: string | null
   gender?: 'muski' | 'zenski' | 'ne_zelim_da_kazem' | null
   residentialAddress?: string | null
@@ -36,6 +37,7 @@ const defaultUser: User = {
   name: 'Guest',
   role: 'guest',
   roles: ['guest'],
+  avatarUrl: null,
   dateOfBirth: null,
   gender: null,
   residentialAddress: null,
@@ -82,6 +84,7 @@ export const useAuthStore = defineStore('auth', {
         id: String(user?.id ?? 'guest'),
         name: user?.name ?? user?.fullName ?? user?.full_name ?? 'User',
         fullName: user?.fullName ?? user?.full_name,
+        avatarUrl: user?.avatarUrl ?? user?.avatar_url ?? null,
         dateOfBirth: user?.dateOfBirth ?? user?.date_of_birth ?? null,
         gender: user?.gender ?? null,
         residentialAddress: user?.residentialAddress ?? user?.residential_address ?? null,

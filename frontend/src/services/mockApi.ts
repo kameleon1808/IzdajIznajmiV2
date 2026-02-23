@@ -1446,6 +1446,7 @@ let mockAccount = {
   id: 'mock-user',
   name: 'Mock User',
   fullName: 'Mock User',
+  avatarUrl: null as string | null,
   dateOfBirth: '1994-01-10',
   gender: 'muski',
   residentialAddress: 'Mock Street 12',
@@ -1484,6 +1485,16 @@ export async function updateMyProfile(payload: {
     employmentStatus: payload.employmentStatus ?? mockAccount.employmentStatus,
     phone: nextPhone,
     addressBook: payload.addressBook ?? mockAccount.addressBook,
+  }
+  return JSON.parse(JSON.stringify(mockAccount))
+}
+
+export async function uploadMyAvatar(avatarFile: File) {
+  await delay()
+  const nextAvatarUrl = typeof URL !== 'undefined' ? URL.createObjectURL(avatarFile) : null
+  mockAccount = {
+    ...mockAccount,
+    avatarUrl: nextAvatarUrl,
   }
   return JSON.parse(JSON.stringify(mockAccount))
 }

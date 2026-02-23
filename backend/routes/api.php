@@ -188,6 +188,7 @@ $apiRoutes = function () use ($authRoutes) {
             Route::get('/users/{user}/transactions/shared', [UserTransactionController::class, 'shared']);
 
             Route::patch('/me/profile', [UserAccountController::class, 'updateProfile']);
+            Route::post('/me/avatar', [UserAccountController::class, 'updateAvatar']);
             Route::patch('/me/password', [UserAccountController::class, 'updatePassword']);
             Route::post('/me/verification/email/request', [UserVerificationController::class, 'requestEmail'])
                 ->middleware('throttle:verification_request');

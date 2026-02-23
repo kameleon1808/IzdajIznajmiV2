@@ -23,8 +23,9 @@ const languageStore = useLanguageStore()
 const t = (key: Parameters<typeof languageStore.t>[0]) => languageStore.t(key)
 
 const variant = computed(() => props.config?.type ?? 'title')
-const location = computed(() => props.config?.location ?? t('topbar.defaultLocation'))
-const userName = computed(() => props.config?.userName ?? t('topbar.defaultGreeting'))
+const location = computed(() => props.config?.location ?? auth.user?.residentialAddress ?? t('topbar.defaultLocation'))
+const userName = computed(() => props.config?.userName ?? auth.user?.name ?? auth.user?.fullName ?? t('topbar.defaultGreeting'))
+const homeAvatarUrl = computed(() => auth.user?.avatarUrl ?? null)
 const titleText = computed(() => {
   const key = props.config?.titleKey
   if (key) return t(key as Parameters<typeof languageStore.t>[0])
@@ -69,10 +70,17 @@ const goProfile = () => {
     <div v-if="variant === 'home'" class="flex items-center justify-between rounded-2xl bg-surface-2 px-4 py-3 shadow-soft border border-border">
       <div class="flex items-center gap-3">
         <img
-          src="https://images.unsplash.com/photo-1508214751196-bcfd4ca60f91?auto=format&fit=crop&w=200&q=80"
+          v-if="homeAvatarUrl"
+          :src="homeAvatarUrl"
           :alt="t('topbar.avatarAlt')"
           class="h-12 w-12 rounded-2xl object-cover shadow-soft"
         />
+        <div
+          v-else
+          class="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 px-1 text-center text-[10px] font-semibold leading-tight text-slate-600 shadow-soft"
+        >
+          Blank profile picture
+        </div>
         <div class="flex flex-col">
           <span class="text-xs text-muted">{{ userName }}</span>
           <div class="flex items-center gap-1 text-sm font-semibold text-text">

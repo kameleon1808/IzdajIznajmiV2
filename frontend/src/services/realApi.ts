@@ -918,6 +918,13 @@ export const updateMyProfile = async (payload: {
   return data.user ?? data
 }
 
+export const uploadMyAvatar = async (avatarFile: File) => {
+  const body = new FormData()
+  body.append('avatar', avatarFile)
+  const { data } = await apiClient.post('/me/avatar', body)
+  return data.user ?? data
+}
+
 export const changeMyPassword = async (payload: {
   currentPassword: string
   newPassword: string

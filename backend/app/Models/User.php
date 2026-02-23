@@ -30,6 +30,7 @@ class User extends Authenticatable
         'gender',
         'residential_address',
         'employment_status',
+        'avatar_path',
         'email',
         'phone',
         'role',

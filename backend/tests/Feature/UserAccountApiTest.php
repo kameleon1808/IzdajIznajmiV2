@@ -4,7 +4,9 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
@@ -63,6 +65,28 @@ class UserAccountApiTest extends TestCase
             'id' => $user->id,
             'phone' => '+38591111223',
         ]);
+    }
+
+    public function test_user_can_upload_avatar(): void
+    {
+        Storage::fake('public');
+        $user = User::factory()->create(['role' => 'seeker']);
+
+        $this->bootstrapCsrf();
+
+        $this->actingAs($user);
+        $response = $this->post('/api/v1/me/avatar', [
+            'avatar' => UploadedFile::fake()->image('avatar.jpg', 400, 400),
+        ], [
+            'Accept' => 'application/json',
+        ]);
+
+        $response->assertOk()->assertJsonPath('user.id', $user->id);
+
+        $avatarPath = $user->fresh()->avatar_path;
+        $this->assertNotNull($avatarPath);
+        Storage::disk('public')->assertExists($avatarPath);
+        $this->assertStringStartsWith('/storage/avatars/'.$user->id.'/', (string) $response->json('user.avatarUrl'));
     }
 
     public function test_user_can_change_password_with_current_password(): void
