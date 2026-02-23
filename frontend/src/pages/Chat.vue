@@ -6,6 +6,7 @@ import ChatInput from '../components/chat/ChatInput.vue'
 import EmptyState from '../components/ui/EmptyState.vue'
 import ListSkeleton from '../components/ui/ListSkeleton.vue'
 import { useChatStore } from '../stores/chat'
+import { useNotificationStore } from '../stores/notifications'
 import { useAuthStore } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
 import { useLanguageStore } from '../stores/language'
@@ -17,6 +18,7 @@ import { PollingBackoff } from '../utils/pollingBackoff'
 const route = useRoute()
 const router = useRouter()
 const chatStore = useChatStore()
+const notificationStore = useNotificationStore()
 const message = ref('')
 const attachments = ref<File[]>([])
 const uploading = ref(false)
@@ -343,7 +345,11 @@ watch(
 
 watch(
   () => conversation.value?.id,
-  (id) => {
+  async (id) => {
+    if (id) {
+      notificationStore.markMessageNotificationsForConversation(id)
+      await notificationStore.fetchUnreadCount()
+    }
     startMessagePolling(id)
     startTypingPoll(id)
     startPresencePolling()

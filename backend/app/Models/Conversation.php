@@ -50,10 +50,21 @@ class Conversation extends Model
     public function markReadFor(User $user): void
     {
         $column = $user->id === $this->tenant_id ? 'tenant_last_read_at' : 'landlord_last_read_at';
+        $now = Carbon::now();
         $originalTimestamps = $this->timestamps;
         $this->timestamps = false;
-        $this->forceFill([$column => Carbon::now()])->saveQuietly();
+        $this->forceFill([$column => $now])->saveQuietly();
         $this->timestamps = $originalTimestamps;
+
+        Notification::query()
+            ->where('user_id', $user->id)
+            ->where('type', Notification::TYPE_MESSAGE_RECEIVED)
+            ->where('is_read', false)
+            ->where('data->conversation_id', (int) $this->id)
+            ->update([
+                'is_read' => true,
+                'read_at' => $now,
+            ]);
     }
 
     public function unreadCountFor(User $user): int

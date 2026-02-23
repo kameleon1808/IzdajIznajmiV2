@@ -2,10 +2,14 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\GeocodeListingJob;
+use App\Jobs\IndexListingJob;
+use App\Jobs\RemoveListingFromIndexJob;
 use App\Models\Application;
 use App\Models\Conversation;
 use App\Models\Listing;
 use App\Models\Message;
+use App\Models\Notification;
 use App\Models\User;
 use App\Services\ListingAddressGuardService;
 use App\Services\ListingStatusService;
@@ -275,6 +279,53 @@ class ChatApiTest extends TestCase
         $afterRead->assertOk();
         $payloadAfter = $afterRead->json('data') ?? $afterRead->json();
         $this->assertSame(0, $payloadAfter[0]['unreadCount']);
+    }
+
+    public function test_marking_conversation_read_marks_related_message_notifications_as_read(): void
+    {
+        Queue::fake([
+            GeocodeListingJob::class,
+            IndexListingJob::class,
+            RemoveListingFromIndexJob::class,
+        ]);
+
+        $seeker = User::factory()->create(['role' => 'seeker']);
+        $landlord = User::factory()->create(['role' => 'landlord']);
+        $listing = $this->createListing($landlord);
+
+        $conversation = Conversation::create([
+            'tenant_id' => $seeker->id,
+            'landlord_id' => $landlord->id,
+            'listing_id' => $listing->id,
+        ]);
+
+        $matching = Notification::create([
+            'user_id' => $seeker->id,
+            'type' => Notification::TYPE_MESSAGE_RECEIVED,
+            'title' => 'New message',
+            'body' => 'Open chat',
+            'data' => ['conversation_id' => $conversation->id],
+            'url' => "/chat?conversationId={$conversation->id}",
+            'is_read' => false,
+        ]);
+
+        $other = Notification::create([
+            'user_id' => $seeker->id,
+            'type' => Notification::TYPE_MESSAGE_RECEIVED,
+            'title' => 'Another conversation',
+            'body' => 'Should stay unread',
+            'data' => ['conversation_id' => 999999],
+            'url' => '/chat?conversationId=999999',
+            'is_read' => false,
+        ]);
+
+        $this->actingAs($seeker)
+            ->postJson("/api/v1/conversations/{$conversation->id}/read")
+            ->assertOk();
+
+        $this->assertTrue((bool) $matching->fresh()?->is_read);
+        $this->assertNotNull($matching->fresh()?->read_at);
+        $this->assertFalse((bool) $other->fresh()?->is_read);
     }
 
     public function test_participant_can_fetch_single_conversation(): void

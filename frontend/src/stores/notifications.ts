@@ -106,6 +106,27 @@ export const useNotificationStore = defineStore('notifications', {
         throw error
       }
     },
+    markMessageNotificationsForConversation(conversationId: string) {
+      if (!conversationId) return
+
+      let markedCount = 0
+      for (const notification of this.notifications) {
+        const payloadConversationId = String(
+          notification.data?.conversation_id ?? notification.data?.conversationId ?? '',
+        )
+        if (notification.type !== 'message.received' || notification.isRead || payloadConversationId !== conversationId) {
+          continue
+        }
+        notification.isRead = true
+        notification.readAt = new Date().toISOString()
+        markedCount += 1
+      }
+
+      if (markedCount > 0) {
+        this.unreadCount = Math.max(0, this.unreadCount - markedCount)
+        this.unreadCountEtag = null
+      }
+    },
     async fetchPreferences() {
       this.preferencesLoading = true
       try {
