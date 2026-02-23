@@ -93,6 +93,11 @@ docker compose down -v
 - Production fajl: `docker-compose.production.yml`
 - Env template: `.env.production.compose.example`
 - Faza Web Push + PWA (detalji implementacije + troubleshooting): `docs/changes/2026-02-20-web-push-pwa.md`
+
+- First optional step, make $DC alias:
+```bash
+DC="docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml"
+
 - Priprema env:
 ```bash
 cp .env.production.compose.example .env.production.compose

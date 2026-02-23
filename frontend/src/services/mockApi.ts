@@ -1429,6 +1429,7 @@ export async function getPublicProfile(userId: string): Promise<PublicProfile> {
     id: userId,
     role,
     fullName: `${role === 'seeker' ? 'Seeker' : 'Landlord'} ${userId}`,
+    avatarUrl: `https://i.pravatar.cc/300?u=${encodeURIComponent(userId)}`,
     joinedAt: new Date().toISOString(),
     verifications: { email: true, address: false },
     verification: { status: 'approved', verifiedAt: new Date().toISOString() },

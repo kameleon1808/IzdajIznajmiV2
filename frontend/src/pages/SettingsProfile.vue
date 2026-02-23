@@ -185,11 +185,11 @@ onBeforeUnmount(() => {
             v-if="avatarImageUrl"
             :src="avatarImageUrl"
             :alt="t('common.avatarAlt')"
-            class="h-16 w-16 rounded-2xl object-cover"
+            class="h-12 w-12 rounded-2xl object-cover shadow-soft"
           />
           <div
             v-else
-            class="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-200 px-2 text-center text-[10px] font-semibold leading-tight text-slate-700"
+            class="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 px-1 text-center text-[10px] font-semibold leading-tight text-slate-600 shadow-soft"
           >
             Blank profile picture
           </div>

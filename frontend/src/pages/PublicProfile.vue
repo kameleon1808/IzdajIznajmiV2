@@ -8,6 +8,7 @@ import EmptyState from '../components/ui/EmptyState.vue'
 import Badge from '../components/ui/Badge.vue'
 import ModalSheet from '../components/ui/ModalSheet.vue'
 import Button from '../components/ui/Button.vue'
+import ImageLightbox from '../components/ui/ImageLightbox.vue'
 import { getPublicProfile, getUserRatings, reportRating, replyToRating, getSharedTransactions, reportTransaction, leaveRating } from '../services'
 import { useAuthStore } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
@@ -42,6 +43,10 @@ const ratingScore = ref(0)
 const ratingComment = ref('')
 const ratingSubmitting = ref(false)
 const ratingSubmitted = ref(false)
+const avatarLightboxOpen = ref(false)
+const avatarLightboxIndex = ref(0)
+const publicAvatarUrl = computed(() => profile.value?.avatarUrl ?? null)
+const publicAvatarImages = computed(() => (publicAvatarUrl.value ? [publicAvatarUrl.value] : []))
 
 const eligibleListingIds = computed(() => (profile.value?.eligibleListingIds ?? []).map((id) => String(id)))
 const eligibleListingIdSet = computed(() => new Set(eligibleListingIds.value))
@@ -219,6 +224,12 @@ const submitRating = async () => {
 const goToEditProfile = () => {
   router.push('/settings/profile')
 }
+
+const openAvatarLightbox = () => {
+  if (!publicAvatarUrl.value) return
+  avatarLightboxIndex.value = 0
+  avatarLightboxOpen.value = true
+}
 </script>
 
 <template>
@@ -229,7 +240,28 @@ const goToEditProfile = () => {
     <template v-else-if="profile">
       <div class="rounded-2xl bg-white p-4 shadow-soft border border-white/60 space-y-2">
         <div class="flex items-start justify-between gap-3">
-          <h1 class="text-xl font-semibold text-slate-900">{{ profile.fullName }}</h1>
+          <div class="flex min-w-0 items-center gap-3">
+            <button
+              v-if="publicAvatarUrl"
+              type="button"
+              class="cursor-zoom-in rounded-2xl"
+              :aria-label="t('common.avatarAlt')"
+              @click="openAvatarLightbox"
+            >
+              <img
+                :src="publicAvatarUrl"
+                :alt="t('common.avatarAlt')"
+                class="h-12 w-12 rounded-2xl object-cover shadow-soft"
+              />
+            </button>
+            <div
+              v-else
+              class="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 px-1 text-center text-[10px] font-semibold leading-tight text-slate-600 shadow-soft"
+            >
+              Blank profile picture
+            </div>
+            <h1 class="min-w-0 break-words text-xl font-semibold text-slate-900">{{ profile.fullName }}</h1>
+          </div>
           <Button v-if="isSelf" variant="secondary" size="sm" @click="goToEditProfile">
             {{ t('publicProfile.editProfile') }}
           </Button>
@@ -425,4 +457,13 @@ const goToEditProfile = () => {
       </Button>
     </div>
   </ModalSheet>
+
+  <ImageLightbox
+    :images="publicAvatarImages"
+    :open="avatarLightboxOpen"
+    :index="avatarLightboxIndex"
+    :alt="t('common.avatarAlt')"
+    @update:open="avatarLightboxOpen = $event"
+    @update:index="avatarLightboxIndex = $event"
+  />
 </template>

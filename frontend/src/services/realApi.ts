@@ -823,6 +823,7 @@ const mapProfile = (data: any): PublicProfile => ({
   id: String(data.id),
   role: data.role ?? data.userRole ?? data.user_role,
   fullName: data.fullName ?? data.full_name ?? data.name ?? '',
+  avatarUrl: data.avatarUrl ?? data.avatar_url ?? null,
   joinedAt: data.joinedAt ?? data.joined_at ?? data.created_at,
   badges: data.badges ?? [],
   verifications: {

@@ -186,6 +186,7 @@ export interface PublicProfile {
   id: string
   role?: string
   fullName: string
+  avatarUrl?: string | null
   joinedAt?: string
   badges?: string[]
   verifications: {

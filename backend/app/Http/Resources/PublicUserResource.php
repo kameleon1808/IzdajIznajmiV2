@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use App\Services\BadgeService;
 use App\Services\TransactionEligibilityService;
+use App\Support\MediaUrl;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -42,6 +43,7 @@ class PublicUserResource extends JsonResource
             'id' => $this->id,
             'role' => $this->role,
             'fullName' => $this->full_name ?? $this->name,
+            'avatarUrl' => $this->avatar_path ? MediaUrl::publicStorage($this->avatar_path) : null,
             'joinedAt' => optional($this->created_at)->toISOString(),
             'badges' => app(BadgeService::class)->badgesFor($this->resource, $this->landlordMetric),
             'verifications' => [

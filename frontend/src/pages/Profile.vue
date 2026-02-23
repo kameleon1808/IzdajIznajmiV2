@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { Bell, Bookmark, ChevronRight, CreditCard, HelpCircle, Languages, LogOut, Shield, Store, FileText } from 'lucide-vue-next'
 import Badge from '../components/ui/Badge.vue'
 import Button from '../components/ui/Button.vue'
+import ImageLightbox from '../components/ui/ImageLightbox.vue'
 import ModalSheet from '../components/ui/ModalSheet.vue'
 import { useAuthStore, type Role } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
@@ -16,6 +17,9 @@ const toast = useToastStore()
 const languageStore = useLanguageStore()
 const t = (key: Parameters<typeof languageStore.t>[0]) => languageStore.t(key)
 const profileAvatarUrl = computed(() => auth.user.avatarUrl ?? null)
+const profileAvatarImages = computed(() => (profileAvatarUrl.value ? [profileAvatarUrl.value] : []))
+const avatarLightboxOpen = ref(false)
+const avatarLightboxIndex = ref(0)
 const selectedRole = ref<Role>(auth.primaryRole)
 const showRoleSwitch = computed(() => auth.isMockMode)
 const roleLabel = (role: Role | string) => {
@@ -67,6 +71,12 @@ const handleLogout = async () => {
   showLogout.value = false
   router.push('/')
 }
+
+const openAvatarLightbox = () => {
+  if (!profileAvatarUrl.value) return
+  avatarLightboxIndex.value = 0
+  avatarLightboxOpen.value = true
+}
 </script>
 
 <template>
@@ -83,15 +93,22 @@ const handleLogout = async () => {
     </div>
 
     <div class="flex items-center gap-3 rounded-2xl bg-white p-4 shadow-soft border border-white/60">
-      <img
+      <button
         v-if="profileAvatarUrl"
-        :src="profileAvatarUrl"
-        :alt="t('common.avatarAlt')"
-        class="h-16 w-16 rounded-3xl object-cover"
-      />
+        type="button"
+        class="cursor-zoom-in rounded-2xl"
+        :aria-label="t('common.avatarAlt')"
+        @click="openAvatarLightbox"
+      >
+        <img
+          :src="profileAvatarUrl"
+          :alt="t('common.avatarAlt')"
+          class="h-12 w-12 rounded-2xl object-cover shadow-soft"
+        />
+      </button>
       <div
         v-else
-        class="flex h-16 w-16 items-center justify-center rounded-3xl bg-slate-100 px-2 text-center text-[10px] font-semibold leading-tight text-slate-600"
+        class="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 px-1 text-center text-[10px] font-semibold leading-tight text-slate-600 shadow-soft"
       >
         Blank profile picture
       </div>
@@ -150,4 +167,13 @@ const handleLogout = async () => {
       <Button variant="danger" class="flex-1" @click="handleLogout">{{ t('auth.logout') }}</Button>
     </div>
   </ModalSheet>
+
+  <ImageLightbox
+    :images="profileAvatarImages"
+    :open="avatarLightboxOpen"
+    :index="avatarLightboxIndex"
+    :alt="t('common.avatarAlt')"
+    @update:open="avatarLightboxOpen = $event"
+    @update:index="avatarLightboxIndex = $event"
+  />
 </template>
