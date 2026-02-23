@@ -31,7 +31,7 @@ class TransactionsApiTest extends TestCase
             'address_key' => $addressKey,
             'city' => 'Split',
             'country' => 'Croatia',
-            'price_per_night' => 250,
+            'price_per_month' => 250,
             'rating' => 4.9,
             'reviews_count' => 30,
             'beds' => 3,

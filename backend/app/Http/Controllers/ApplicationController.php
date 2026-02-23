@@ -58,6 +58,8 @@ class ApplicationController extends Controller
                 'seeker_id' => $user->id,
                 'landlord_id' => $listing->owner_id,
                 'message' => $request->validated()['message'] ?? null,
+                'start_date' => $request->validated()['startDate'] ?? null,
+                'end_date' => $request->validated()['endDate'] ?? null,
                 'status' => Application::STATUS_SUBMITTED,
             ]);
         } catch (QueryException $e) {
@@ -80,7 +82,7 @@ class ApplicationController extends Controller
         $this->recordRapidApplications($user);
 
         $application = Application::withCompletedTransactionFlag()
-            ->with(['listing.images'])
+            ->with(['listing.images', 'seeker:id,full_name,name', 'landlord:id,full_name,name'])
             ->findOrFail($application->id);
 
         return response()->json(new ApplicationResource($application), 201);
@@ -93,7 +95,7 @@ class ApplicationController extends Controller
         abort_unless($this->userHasRole($user, ['seeker', 'admin']), 403, 'Forbidden');
 
         $applications = Application::withCompletedTransactionFlag()
-            ->with(['listing.images'])
+            ->with(['listing.images', 'seeker:id,full_name,name', 'landlord:id,full_name,name'])
             ->where('seeker_id', $user->id)
             ->latest()
             ->get();
@@ -114,7 +116,7 @@ class ApplicationController extends Controller
         $listingId = $request->input('listing_id');
 
         $applications = Application::withCompletedTransactionFlag()
-            ->with(['listing.images'])
+            ->with(['listing.images', 'seeker:id,full_name,name', 'landlord:id,full_name,name'])
             ->where('landlord_id', $landlordId)
             ->when($listingId, fn ($query) => $query->where('listing_id', (int) $listingId))
             ->latest()
@@ -128,7 +130,14 @@ class ApplicationController extends Controller
         $status = $request->validated()['status'];
         Gate::authorize('updateStatus', [$application, $status]);
 
-        $application->update(['status' => $status]);
+        $payload = ['status' => $status];
+        if ($status === Application::STATUS_WITHDRAWN) {
+            $payload['withdrawn_at'] = now();
+        } else {
+            $payload['withdrawn_at'] = null;
+        }
+
+        $application->update($payload);
 
         event(new ApplicationStatusChanged($application->fresh('listing')));
 
@@ -140,7 +149,7 @@ class ApplicationController extends Controller
         ]);
 
         $application = Application::withCompletedTransactionFlag()
-            ->with(['listing.images'])
+            ->with(['listing.images', 'seeker:id,full_name,name', 'landlord:id,full_name,name'])
             ->findOrFail($application->id);
 
         return response()->json(new ApplicationResource($application));

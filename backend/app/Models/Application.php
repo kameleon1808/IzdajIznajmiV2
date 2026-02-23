@@ -21,7 +21,16 @@ class Application extends Model
         'seeker_id',
         'landlord_id',
         'message',
+        'start_date',
+        'end_date',
+        'withdrawn_at',
         'status',
+    ];
+
+    protected $casts = [
+        'start_date' => 'date',
+        'end_date' => 'date',
+        'withdrawn_at' => 'datetime',
     ];
 
     public function listing(): BelongsTo

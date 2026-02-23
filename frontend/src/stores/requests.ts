@@ -44,13 +44,13 @@ export const useRequestsStore = defineStore('requests', {
         this.loading = false
       }
     },
-    async sendRequest(payload: { listingId: string; message?: string; tenantId?: string }) {
+    async sendRequest(payload: { listingId: string; message?: string; tenantId?: string; startDate: string; endDate: string }) {
       this.error = ''
       try {
         const auth = useAuthStore()
         const body = { ...payload } as any
         if (isMockApi) body.tenantId = payload.tenantId ?? auth.user.id
-        const created = await applyToListing(body.listingId, body.message)
+        const created = await applyToListing(body.listingId, body.message, body.startDate, body.endDate)
         this.tenantRequests = [created, ...this.tenantRequests]
         return created
       } catch (error) {

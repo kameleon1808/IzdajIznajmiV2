@@ -20,7 +20,7 @@ return new class extends Migration
             $table->string('country');
             $table->decimal('lat', 10, 7)->nullable();
             $table->decimal('lng', 10, 7)->nullable();
-            $table->unsignedInteger('price_per_night');
+            $table->unsignedInteger('price_per_month');
             $table->decimal('rating', 3, 1)->default(0);
             $table->unsignedInteger('reviews_count')->default(0);
             $table->string('cover_image')->nullable();

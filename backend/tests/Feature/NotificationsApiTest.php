@@ -198,6 +198,8 @@ class NotificationsApiTest extends TestCase
 
         $this->postJson("/api/v1/listings/{$listing->id}/apply", [
             'message' => 'I want to apply',
+            'startDate' => now()->addDays(7)->toDateString(),
+            'endDate' => now()->addDays(7)->addMonthNoOverflow()->toDateString(),
         ]);
 
         $this->assertDatabaseHas('notifications', [
@@ -227,6 +229,8 @@ class NotificationsApiTest extends TestCase
 
         $this->postJson("/api/v1/listings/{$listing->id}/apply", [
             'message' => 'I want to apply',
+            'startDate' => now()->addDays(7)->toDateString(),
+            'endDate' => now()->addDays(7)->addMonthNoOverflow()->toDateString(),
         ]);
 
         $this->assertDatabaseMissing('notifications', [

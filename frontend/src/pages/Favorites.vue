@@ -90,7 +90,7 @@ const categories = computed(() => [
         </div>
         <div class="space-y-1 p-3">
           <p class="text-sm font-semibold text-slate-900">{{ item.title }}</p>
-          <p class="text-xs text-muted">${{ item.pricePerNight }}/{{ tx('listing.night', 'night') }}</p>
+          <p class="text-xs text-muted">€{{ item.pricePerMonth }}/{{ tx('listing.month', 'month') }}</p>
         </div>
       </div>
     </div>

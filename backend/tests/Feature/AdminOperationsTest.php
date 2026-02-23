@@ -28,7 +28,7 @@ class AdminOperationsTest extends TestCase
             'address_key' => $guard->normalizeAddressKey($address, 'Zagreb', 'Croatia'),
             'city' => 'Zagreb',
             'country' => 'Croatia',
-            'price_per_night' => 100,
+            'price_per_month' => 100,
             'rating' => 4.5,
             'reviews_count' => 0,
             'beds' => 2,

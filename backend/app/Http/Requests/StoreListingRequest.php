@@ -17,7 +17,7 @@ class StoreListingRequest extends FormRequest
     {
         return [
             'title' => ['required', 'string', 'max:255'],
-            'pricePerNight' => ['required', 'integer', 'min:1'],
+            'pricePerMonth' => ['required', 'integer', 'min:1'],
             'category' => ['required', Rule::in(Listing::CATEGORY_VALUES)],
             'city' => ['required', 'string', 'max:255'],
             'country' => ['required', 'string', 'max:255'],

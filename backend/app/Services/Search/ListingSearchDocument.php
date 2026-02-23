@@ -29,7 +29,7 @@ class ListingSearchDocument
             'city' => $city,
             'city_normalized' => self::normalizeText($city),
             'country' => $listing->country,
-            'price_per_night' => $listing->price_per_night,
+            'price_per_month' => $listing->price_per_month,
             'rooms' => $listing->rooms,
             'area' => $listing->area,
             'floor' => $listing->floor,
@@ -55,7 +55,7 @@ class ListingSearchDocument
             'cover_image_url' => MediaUrl::normalize($listing->cover_image),
             'created_at' => optional($listing->created_at)->toISOString(),
             'published_at' => optional($listing->published_at)->toISOString(),
-            'price_bucket' => ListingSearchBuckets::priceBucketFor($listing->price_per_night),
+            'price_bucket' => ListingSearchBuckets::priceBucketFor($listing->price_per_month),
             'area_bucket' => ListingSearchBuckets::areaBucketFor($listing->area),
         ];
     }

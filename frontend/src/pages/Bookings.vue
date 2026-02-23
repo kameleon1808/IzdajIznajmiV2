@@ -18,7 +18,7 @@ import { useRequestsStore } from '../stores/requests'
 import { useViewingsStore } from '../stores/viewings'
 import { useTransactionsStore } from '../stores/transactions'
 import { useToastStore } from '../stores/toast'
-import type { Application, ViewingRequest } from '../types'
+import type { Application, Booking, ViewingRequest } from '../types'
 import { resolveBookingsTabs } from '../utils/viewings'
 
 const bookingsStore = useBookingsStore()
@@ -50,6 +50,8 @@ const contractDeposit = ref('')
 const contractRent = ref('')
 const contractLoading = ref(false)
 const pendingContractRequest = ref<Application | null>(null)
+const showReservationDetails = ref(false)
+const reservationDetails = ref<{ kind: 'request'; item: Application } | { kind: 'booking'; item: Booking } | null>(null)
 
 const reservationTabs = computed<string[]>(() => {
   if (auth.hasRole('seeker')) return ['booked', 'history', 'requests']
@@ -261,7 +263,7 @@ const updateStatus = async (id: string, status: Application['status']) => {
 const openStartContract = (request: Application) => {
   if (!request.listing?.id) return
   pendingContractRequest.value = request
-  const baseAmount = request.listing.pricePerNight ? String(request.listing.pricePerNight) : ''
+  const baseAmount = request.listing.pricePerMonth ? String(request.listing.pricePerMonth) : ''
   contractRent.value = baseAmount
   contractDeposit.value = baseAmount
   showContractSheet.value = true
@@ -409,6 +411,114 @@ const formatSlotTime = (request: ViewingRequest) => {
 
 const goToListing = (listingId: string) => router.push(`/listing/${listingId}`)
 
+const parseDate = (value?: string | null): Date | null => {
+  if (!value) return null
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return null
+  return parsed
+}
+
+const formatDate = (value?: string | null) => {
+  const parsed = parseDate(value)
+  if (!parsed) return tx('bookings.notAvailable', 'N/A')
+  return parsed.toLocaleDateString()
+}
+
+const formatDateTime = (value?: string | null) => {
+  const parsed = parseDate(value)
+  if (!parsed) return tx('bookings.notAvailable', 'N/A')
+  return parsed.toLocaleString()
+}
+
+const formatMoney = (value?: number | null, currency = 'EUR') => {
+  if (value == null || Number.isNaN(Number(value))) return tx('bookings.notAvailable', 'N/A')
+  return `${currency === 'EUR' ? '€' : `${currency} `}${Number(value).toFixed(2)}`
+}
+
+const computeCalculatedPrice = (pricePerMonth?: number | null, startDate?: string | null, endDate?: string | null): number | null => {
+  if (!pricePerMonth || !startDate || !endDate) return null
+  const start = parseDate(startDate)
+  const end = parseDate(endDate)
+  if (!start || !end || end <= start) return null
+  const fullMonths =
+    (end.getFullYear() - start.getFullYear()) * 12 +
+    (end.getMonth() - start.getMonth()) -
+    (end.getDate() < start.getDate() ? 1 : 0)
+  const normalizedMonths = Math.max(0, fullMonths)
+  const pivot = new Date(start)
+  pivot.setMonth(pivot.getMonth() + normalizedMonths)
+  const remainingMs = Math.max(0, end.getTime() - pivot.getTime())
+  const remainingDays = remainingMs / (1000 * 60 * 60 * 24)
+  const daysInPivotMonth = new Date(pivot.getFullYear(), pivot.getMonth() + 1, 0).getDate() || 30
+  const months = normalizedMonths + remainingDays / daysInPivotMonth
+  return Math.round(months * pricePerMonth * 100) / 100
+}
+
+const reservationPeriodLabel = (startDate?: string | null, endDate?: string | null, fallback?: string) => {
+  if (startDate && endDate) {
+    return `${formatDate(startDate)} - ${formatDate(endDate)}`
+  }
+  return fallback || tx('bookings.notAvailable', 'N/A')
+}
+
+const openReservationDetailsForRequest = (request: Application) => {
+  reservationDetails.value = { kind: 'request', item: request }
+  showReservationDetails.value = true
+}
+
+const openReservationDetailsForBooking = (booking: Booking) => {
+  reservationDetails.value = { kind: 'booking', item: booking }
+  showReservationDetails.value = true
+}
+
+const closeReservationDetails = () => {
+  showReservationDetails.value = false
+  reservationDetails.value = null
+}
+
+const detailsTitle = computed(() => {
+  if (!reservationDetails.value) return tx('bookings.details', 'Details')
+  if (reservationDetails.value.kind === 'request') {
+    return reservationDetails.value.item.listing.title ?? tx('bookings.listingLabel', 'Listing')
+  }
+  return reservationDetails.value.item.listingTitle
+})
+
+const detailsStatusLabel = computed(() => {
+  if (!reservationDetails.value) return tx('bookings.notAvailable', 'N/A')
+  if (reservationDetails.value.kind === 'request') {
+    return statusLabel(reservationDetails.value.item.status)
+  }
+  return reservationDetails.value.item.status === 'booked'
+    ? tx('bookings.tabs.booked', 'Booked')
+    : tx('bookings.tabs.history', 'History')
+})
+
+const detailsCurrency = computed(() => {
+  if (!reservationDetails.value) return 'EUR'
+  return reservationDetails.value.item.currency || 'EUR'
+})
+
+const detailsPricePerMonth = computed(() => {
+  if (!reservationDetails.value) return null
+  if (reservationDetails.value.kind === 'request') {
+    return reservationDetails.value.item.listing.pricePerMonth ?? null
+  }
+  return reservationDetails.value.item.pricePerMonth
+})
+
+const detailsCalculatedPrice = computed(() => {
+  if (!reservationDetails.value) return null
+  if (reservationDetails.value.kind === 'request') {
+    const item = reservationDetails.value.item
+    if (item.calculatedPrice != null) return item.calculatedPrice
+    return computeCalculatedPrice(item.listing.pricePerMonth ?? null, item.startDate, item.endDate)
+  }
+  const item = reservationDetails.value.item
+  if (item.calculatedPrice != null) return item.calculatedPrice
+  return computeCalculatedPrice(item.pricePerMonth, item.startDate, item.endDate)
+})
+
 const reservationTabLabel = (key: string) => {
   if (key === 'requests') return tx('bookings.tabs.requests', 'Requests')
   if (key === 'booked') return tx('bookings.tabs.booked', 'Booked')
@@ -499,7 +609,7 @@ const scrollToHighlightedViewing = () => {
                 <p class="text-base font-semibold text-slate-900">{{ listingTitle(request) }}</p>
                 <p class="text-xs text-muted">
                   {{ request.listing.city || tx('bookings.viewDetails', 'View details') }}
-                  <span v-if="request.listing.pricePerNight">· ${{ request.listing.pricePerNight }}/{{ tx('listing.night', 'night') }}</span>
+                  <span v-if="request.listing.pricePerMonth">· €{{ request.listing.pricePerMonth }}/{{ tx('listing.month', 'month') }}</span>
                 </p>
               </div>
               <Badge :variant="statusVariant[request.status]">{{ badgeLabel(request) }}</Badge>
@@ -531,6 +641,9 @@ const scrollToHighlightedViewing = () => {
               </Button>
             </div>
             <div class="flex justify-end gap-2">
+              <Button variant="secondary" size="md" @click="openReservationDetailsForRequest(request)">
+                {{ tx('bookings.details', 'Details') }}
+              </Button>
               <Button v-if="auth.hasRole('landlord')" variant="primary" size="md" @click="openMessage(request.id)">
                 {{ tx('bookings.message', 'Message') }}
               </Button>
@@ -576,7 +689,7 @@ const scrollToHighlightedViewing = () => {
 
               <div class="flex items-center justify-between text-xs text-muted">
                 <span>{{ booking.guestsText }}</span>
-                <span>${{ booking.pricePerNight }}/{{ tx('listing.night', 'night') }}</span>
+                <span>€{{ booking.pricePerMonth }}/{{ tx('listing.month', 'month') }}</span>
               </div>
 
               <div class="flex gap-2">
@@ -585,6 +698,9 @@ const scrollToHighlightedViewing = () => {
                 </Button>
                 <Button v-else variant="secondary" class="flex-1">
                   {{ tx('bookings.bookAgain', 'Book Again') }}
+                </Button>
+                <Button variant="secondary" class="flex-1" @click="openReservationDetailsForBooking(booking)">
+                  {{ tx('bookings.details', 'Details') }}
                 </Button>
                 <button class="rounded-xl bg-surface px-3 py-2 text-primary">
                   <CalendarClock class="h-4 w-4" />
@@ -635,7 +751,7 @@ const scrollToHighlightedViewing = () => {
               <p class="text-base font-semibold text-slate-900">{{ viewingListingTitle(request) }}</p>
               <p class="text-xs text-muted">
                 {{ request.listing?.city || tx('bookings.viewDetails', 'View details') }}
-                <span v-if="request.listing?.pricePerNight">· ${{ request.listing?.pricePerNight }}/{{ tx('listing.night', 'night') }}</span>
+                <span v-if="request.listing?.pricePerMonth">· €{{ request.listing?.pricePerMonth }}/{{ tx('listing.month', 'month') }}</span>
               </p>
               <div class="mt-1 flex items-center gap-2 text-xs text-slate-600">
                 <Clock3 class="h-4 w-4 text-primary" />
@@ -752,6 +868,92 @@ const scrollToHighlightedViewing = () => {
         </Button>
         <Button variant="primary" class="flex-1" :disabled="contractLoading" @click="startContract">
           {{ contractLoading ? tx('bookings.creating', 'Creating...') : tx('bookings.createTransaction', 'Create transaction') }}
+        </Button>
+      </div>
+    </div>
+  </ModalSheet>
+
+  <ModalSheet v-model="showReservationDetails" :title="tx('bookings.details', 'Details')">
+    <div v-if="reservationDetails" class="space-y-3 text-sm text-slate-700">
+      <div class="rounded-2xl border border-line bg-surface p-3">
+        <p class="font-semibold text-slate-900">{{ detailsTitle }}</p>
+        <p class="text-xs text-muted">{{ tx('bookings.statusLabel', 'Status') }}: {{ detailsStatusLabel }}</p>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2">
+        <div class="rounded-xl border border-line bg-white p-3">
+          <p class="text-xs text-muted">{{ tx('bookings.createdAt', 'Created at') }}</p>
+          <p class="font-medium text-slate-900">{{ formatDateTime(reservationDetails.item.createdAt) }}</p>
+        </div>
+        <div class="rounded-xl border border-line bg-white p-3">
+          <p class="text-xs text-muted">{{ tx('bookings.updatedAt', 'Updated at') }}</p>
+          <p class="font-medium text-slate-900">
+            {{
+              reservationDetails.kind === 'request'
+                ? formatDateTime(reservationDetails.item.updatedAt)
+                : tx('bookings.notAvailable', 'N/A')
+            }}
+          </p>
+        </div>
+      </div>
+
+      <div v-if="reservationDetails.item.withdrawnAt" class="rounded-xl border border-line bg-white p-3">
+        <p class="text-xs text-muted">{{ tx('bookings.withdrawnAt', 'Withdrawn at') }}</p>
+        <p class="font-medium text-slate-900">{{ formatDateTime(reservationDetails.item.withdrawnAt) }}</p>
+      </div>
+
+      <div class="rounded-xl border border-line bg-white p-3">
+        <p class="text-xs text-muted">{{ tx('bookings.reservationPeriod', 'Reservation period') }}</p>
+        <p class="font-medium text-slate-900">
+          {{
+            reservationDetails.kind === 'request'
+              ? reservationPeriodLabel(reservationDetails.item.startDate, reservationDetails.item.endDate)
+              : reservationPeriodLabel(reservationDetails.item.startDate, reservationDetails.item.endDate, reservationDetails.item.datesRange)
+          }}
+        </p>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2">
+        <div class="rounded-xl border border-line bg-white p-3">
+          <p class="text-xs text-muted">{{ tx('bookings.monthlyPrice', 'Monthly price') }}</p>
+          <p class="font-medium text-slate-900">{{ formatMoney(detailsPricePerMonth, detailsCurrency) }}</p>
+        </div>
+        <div class="rounded-xl border border-line bg-white p-3">
+          <p class="text-xs text-muted">{{ tx('bookings.calculatedPrice', 'Calculated price') }}</p>
+          <p class="font-medium text-slate-900">{{ formatMoney(detailsCalculatedPrice, detailsCurrency) }}</p>
+        </div>
+      </div>
+
+      <div v-if="reservationDetails.kind === 'request'" class="rounded-xl border border-line bg-white p-3">
+        <p class="text-xs text-muted">{{ tx('bookings.message', 'Message') }}</p>
+        <p class="font-medium text-slate-900">{{ reservationDetails.item.message || tx('bookings.noMessage', 'No message') }}</p>
+      </div>
+
+      <div class="rounded-xl border border-line bg-white p-3">
+        <p class="text-xs text-muted">
+          {{ reservationDetails.kind === 'request' ? tx('bookings.requestId', 'Request ID') : tx('bookings.bookingId', 'Booking ID') }}
+        </p>
+        <p class="font-mono text-xs text-slate-900">{{ reservationDetails.item.id }}</p>
+      </div>
+
+      <div v-if="reservationDetails.kind === 'request'" class="grid grid-cols-2 gap-2">
+        <div class="rounded-xl border border-line bg-white p-3">
+          <p class="text-xs text-muted">{{ tx('bookings.seeker', 'Seeker') }}</p>
+          <p class="font-medium text-slate-900">
+            {{ reservationDetails.item.participants.seekerName || reservationDetails.item.participants.seekerId }}
+          </p>
+        </div>
+        <div class="rounded-xl border border-line bg-white p-3">
+          <p class="text-xs text-muted">{{ tx('bookings.landlord', 'Landlord') }}</p>
+          <p class="font-medium text-slate-900">
+            {{ reservationDetails.item.participants.landlordName || reservationDetails.item.participants.landlordId }}
+          </p>
+        </div>
+      </div>
+
+      <div class="flex justify-end">
+        <Button variant="secondary" @click="closeReservationDetails">
+          {{ tx('bookings.close', 'Close') }}
         </Button>
       </div>
     </div>

@@ -15,7 +15,7 @@ class DbReportIndexesCommand extends Command
     {
         $checks = [
             [
-                'label' => 'Listings search composite (status, city, price_per_night, rooms, expired_at)',
+                'label' => 'Listings search composite (status, city, price_per_month, rooms, expired_at)',
                 'table' => 'listings',
                 'index' => 'idx_listings_status_city_price_rooms_expired',
             ],

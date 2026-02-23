@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::table('listings', function (Blueprint $table) {
             $table->index('category');
-            $table->index('price_per_night');
+            $table->index('price_per_month');
             $table->index('city');
             $table->index('owner_id');
         });
@@ -20,7 +20,7 @@ return new class extends Migration
     {
         Schema::table('listings', function (Blueprint $table) {
             $table->dropIndex(['category']);
-            $table->dropIndex(['price_per_night']);
+            $table->dropIndex(['price_per_month']);
             $table->dropIndex(['city']);
             $table->dropIndex(['owner_id']);
         });

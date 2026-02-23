@@ -27,7 +27,7 @@ class ChatSignalsTest extends TestCase
             'address_key' => $addressKey,
             'city' => 'Zagreb',
             'country' => 'Croatia',
-            'price_per_night' => 150,
+            'price_per_month' => 150,
             'rating' => 4.8,
             'reviews_count' => 12,
             'beds' => 2,

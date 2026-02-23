@@ -24,7 +24,9 @@ class ApplicationsSeeder extends Seeder
             'listing_id' => $listing->id,
             'seeker_id' => $seeker->id,
             'landlord_id' => $listing->owner_id,
-            'message' => 'I love this place. Is it available next week?',
+            'message' => 'I love this place. Is it available from next month?',
+            'start_date' => now()->addDays(7)->toDateString(),
+            'end_date' => now()->addDays(7)->addMonthNoOverflow()->toDateString(),
             'status' => Application::STATUS_SUBMITTED,
         ]);
     }

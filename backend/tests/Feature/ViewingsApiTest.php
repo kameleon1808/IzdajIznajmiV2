@@ -31,7 +31,7 @@ class ViewingsApiTest extends TestCase
             'address_key' => $addressKey,
             'city' => $city,
             'country' => $country,
-            'price_per_night' => 120,
+            'price_per_month' => 120,
             'rating' => 4.8,
             'reviews_count' => 10,
             'beds' => 2,

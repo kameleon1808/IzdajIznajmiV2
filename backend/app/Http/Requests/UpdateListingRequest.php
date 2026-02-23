@@ -27,7 +27,7 @@ class UpdateListingRequest extends FormRequest
     {
         return [
             'title' => ['sometimes', 'string', 'max:255'],
-            'pricePerNight' => ['sometimes', 'integer', 'min:1'],
+            'pricePerMonth' => ['sometimes', 'integer', 'min:1'],
             'category' => ['sometimes', Rule::in(Listing::CATEGORY_VALUES)],
             'city' => ['sometimes', 'string', 'max:255'],
             'country' => ['sometimes', 'string', 'max:255'],

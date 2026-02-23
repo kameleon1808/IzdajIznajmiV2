@@ -5,6 +5,7 @@ import type {
   AdminKpiSummary,
   AdminTrendPoint,
   Application,
+  Booking,
   ChatAttachment,
   Conversation,
   KycDocument,
@@ -73,7 +74,7 @@ const mapListing = (data: any): Listing => {
     locationOverriddenAt: data.locationOverriddenAt ?? data.location_overridden_at ?? null,
     distanceKm: data.distanceKm != null ? Number(data.distanceKm) : data.distance_km != null ? Number(data.distance_km) : undefined,
     geocodedAt: data.geocodedAt ?? data.geocoded_at ?? null,
-    pricePerNight: Number(data.pricePerNight ?? data.price_per_night ?? data.price ?? 0),
+    pricePerMonth: Number(data.pricePerMonth ?? data.price_per_month ?? data.pricePerNight ?? data.price_per_night ?? data.price ?? 0),
     rating: Number(data.rating ?? 0),
     reviewsCount: Number(data.reviewsCount ?? data.reviews_count ?? 0),
     coverImage: data.coverImage ?? data.cover_image ?? coverFromDetailed ?? '',
@@ -110,23 +111,74 @@ const mapListing = (data: any): Listing => {
   }
 }
 
+const parseIsoDate = (value?: string | null): Date | null => {
+  if (!value) return null
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return null
+  return parsed
+}
+
+const computeCalculatedPrice = (pricePerMonth?: number | null, startDate?: string | null, endDate?: string | null): number | null => {
+  if (!pricePerMonth || !startDate || !endDate) return null
+  const start = parseIsoDate(startDate)
+  const end = parseIsoDate(endDate)
+  if (!start || !end || end <= start) return null
+
+  const fullMonths =
+    (end.getFullYear() - start.getFullYear()) * 12 +
+    (end.getMonth() - start.getMonth()) -
+    (end.getDate() < start.getDate() ? 1 : 0)
+  const normalizedMonths = Math.max(0, fullMonths)
+  const pivot = new Date(start)
+  pivot.setMonth(pivot.getMonth() + normalizedMonths)
+  const remainingMs = Math.max(0, end.getTime() - pivot.getTime())
+  const remainingDays = remainingMs / (1000 * 60 * 60 * 24)
+  const daysInPivotMonth = new Date(pivot.getFullYear(), pivot.getMonth() + 1, 0).getDate() || 30
+  const months = normalizedMonths + remainingDays / daysInPivotMonth
+
+  return Math.round(months * pricePerMonth * 100) / 100
+}
+
 const mapApplication = (data: any): Application => ({
+  // Keep reservation detail fields at top level so details modal can consume a stable shape.
   id: String(data.id),
   status: data.status,
   message: data.message ?? null,
   createdAt: data.createdAt ?? data.created_at ?? '',
+  updatedAt: data.updatedAt ?? data.updated_at ?? '',
+  startDate: data.startDate ?? data.start_date ?? null,
+  endDate: data.endDate ?? data.end_date ?? null,
+  withdrawnAt: data.withdrawnAt ?? data.withdrawn_at ?? null,
+  currency: data.currency ?? 'EUR',
+  calculatedPrice:
+    data.calculatedPrice != null
+      ? Number(data.calculatedPrice)
+      : data.calculated_price != null
+      ? Number(data.calculated_price)
+      : computeCalculatedPrice(
+          Number(data.listing?.pricePerMonth ?? data.listing?.price_per_month ?? data.listing?.pricePerNight ?? data.listing?.price_per_night ?? 0),
+          data.startDate ?? data.start_date ?? null,
+          data.endDate ?? data.end_date ?? null,
+        ),
   hasCompletedTransaction: Boolean(data.hasCompletedTransaction ?? data.has_completed_transaction ?? false),
   listing: {
     id: String(data.listing?.id ?? data.listingId ?? data.listing_id ?? ''),
     title: data.listing?.title ?? data.listingTitle,
     city: data.listing?.city,
     coverImage: data.listing?.coverImage ?? data.listing?.cover_image,
-    pricePerNight: data.listing?.pricePerNight ?? data.listing?.price_per_night,
+    pricePerMonth: data.listing?.pricePerMonth ?? data.listing?.price_per_month ?? data.listing?.pricePerNight ?? data.listing?.price_per_night,
     status: data.listing?.status,
   },
   participants: {
     seekerId: String(data.participants?.seekerId ?? data.seekerId ?? data.seeker_id ?? ''),
     landlordId: String(data.participants?.landlordId ?? data.landlordId ?? data.landlord_id ?? ''),
+    seekerName: data.participants?.seekerName ?? data.participants?.seeker_name ?? data.seeker?.fullName ?? data.seeker?.full_name ?? data.seeker_name,
+    landlordName:
+      data.participants?.landlordName ??
+      data.participants?.landlord_name ??
+      data.landlord?.fullName ??
+      data.landlord?.full_name ??
+      data.landlord_name,
   },
 })
 
@@ -210,7 +262,7 @@ const mapViewingRequest = (data: any): ViewingRequest => ({
         title: data.listing.title ?? data.listingTitle,
         city: data.listing.city,
         coverImage: data.listing.coverImage ?? data.listing.cover_image,
-        pricePerNight: data.listing.pricePerNight ?? data.listing.price_per_night,
+        pricePerMonth: data.listing.pricePerMonth ?? data.listing.price_per_month ?? data.listing.pricePerNight ?? data.listing.price_per_night,
         status: data.listing.status,
       }
     : null,
@@ -480,7 +532,7 @@ export const getLandlordListings = async (): Promise<Listing[]> => {
 export const createListing = async (payload: any): Promise<Listing> => {
   const form = new FormData()
   appendIfValue(form, 'title', payload.title)
-  appendIfValue(form, 'pricePerNight', payload.pricePerNight)
+  appendIfValue(form, 'pricePerMonth', payload.pricePerMonth)
   appendIfValue(form, 'category', payload.category)
   appendIfValue(form, 'address', payload.address)
   appendIfValue(form, 'city', payload.city)
@@ -510,7 +562,7 @@ export const createListing = async (payload: any): Promise<Listing> => {
 export const updateListing = async (id: string, payload: any): Promise<Listing> => {
   const form = new FormData()
   if (payload.title !== undefined) form.append('title', payload.title)
-  if (payload.pricePerNight !== undefined) form.append('pricePerNight', payload.pricePerNight)
+  if (payload.pricePerMonth !== undefined) form.append('pricePerMonth', payload.pricePerMonth)
   if (payload.category !== undefined) form.append('category', payload.category)
   if (payload.address !== undefined) form.append('address', payload.address)
   if (payload.city !== undefined) form.append('city', payload.city)
@@ -627,8 +679,13 @@ export const deleteSavedSearch = async (id: string): Promise<void> => {
   await apiClient.delete(`/saved-searches/${id}`)
 }
 
-export const applyToListing = async (listingId: string, message?: string | null): Promise<Application> => {
-  const { data } = await apiClient.post(`/listings/${listingId}/apply`, { message })
+export const applyToListing = async (
+  listingId: string,
+  message?: string | null,
+  startDate?: string,
+  endDate?: string,
+): Promise<Application> => {
+  const { data } = await apiClient.post(`/listings/${listingId}/apply`, { message, startDate, endDate })
   return mapApplication(data.data ?? data)
 }
 
@@ -1112,7 +1169,7 @@ export const stopImpersonation = async () => {
   return data
 }
 
-export const getBookings = async () => {
+export const getBookings = async (_status: Booking['status']): Promise<Booking[]> => {
   return []
 }
 

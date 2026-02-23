@@ -60,10 +60,10 @@ class ListingSearchService
         }
 
         if ($this->hasValue($filters['priceMin'] ?? null)) {
-            $query->where('price_per_night', '>=', (int) $filters['priceMin']);
+            $query->where('price_per_month', '>=', (int) $filters['priceMin']);
         }
         if ($this->hasValue($filters['priceMax'] ?? null)) {
-            $query->where('price_per_night', '<=', (int) $filters['priceMax']);
+            $query->where('price_per_month', '<=', (int) $filters['priceMax']);
         }
 
         if ($this->hasValue($filters['rooms'] ?? null)) {

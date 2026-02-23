@@ -78,7 +78,7 @@ const error = computed(() => listingsStore.error)
             </div>
             <h3 class="text-base font-semibold text-slate-900">{{ highlighted?.title }}</h3>
             <div class="flex items-center justify-between">
-              <span class="text-sm font-semibold text-primary">${{ highlighted?.pricePerNight }}/{{ t('listing.night') }}</span>
+              <span class="text-sm font-semibold text-primary">€{{ highlighted?.pricePerMonth }}/{{ t('listing.month') }}</span>
               <div class="flex items-center gap-1 text-xs text-muted">
                 <MapPin class="h-4 w-4 text-primary" />
                 <span>{{ highlighted?.rating?.toFixed(1) }} {{ t('map.ratingLabel') }}</span>

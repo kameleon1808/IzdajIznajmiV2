@@ -41,7 +41,7 @@ class RecommendationsApiTest extends TestCase
         $viewed = Listing::factory()->create([
             'owner_id' => $landlord->id,
             'city' => 'Split',
-            'price_per_night' => 120,
+            'price_per_month' => 120,
             'rooms' => 2,
             'area' => 55,
             'status' => ListingStatusService::STATUS_ACTIVE,
@@ -51,7 +51,7 @@ class RecommendationsApiTest extends TestCase
         $similar = Listing::factory()->create([
             'owner_id' => $landlord->id,
             'city' => 'Split',
-            'price_per_night' => 125,
+            'price_per_month' => 125,
             'rooms' => 2,
             'area' => 58,
             'status' => ListingStatusService::STATUS_ACTIVE,
@@ -93,14 +93,14 @@ class RecommendationsApiTest extends TestCase
         $viewed = Listing::factory()->create([
             'owner_id' => $landlord->id,
             'city' => 'Beograd',
-            'price_per_night' => 115,
+            'price_per_month' => 115,
             'status' => ListingStatusService::STATUS_ACTIVE,
         ]);
 
         $similar = Listing::factory()->create([
             'owner_id' => $landlord->id,
             'city' => 'Novi Sad',
-            'price_per_night' => 120,
+            'price_per_month' => 120,
             'status' => ListingStatusService::STATUS_ACTIVE,
         ]);
 

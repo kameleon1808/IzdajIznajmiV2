@@ -17,7 +17,7 @@ const toggle = (e: Event, id: string) => {
 const languageStore = useLanguageStore()
 const t = (key: Parameters<typeof languageStore.t>[0]) => languageStore.t(key)
 
-const nightLabel = computed(() => (props.useTranslations ? t('listing.night') : 'night'))
+const monthLabel = computed(() => (props.useTranslations ? t('listing.month') : 'month'))
 const verifiedLabel = computed(() => (props.useTranslations ? t('listing.verifiedLandlord') : 'Verified landlord'))
 const topLandlordLabel = computed(() => (props.useTranslations ? t('listing.topLandlord') : 'Top landlord'))
 const categoryLabel = computed(() => {
@@ -78,7 +78,7 @@ const categoryLabel = computed(() => {
         </div>
       </div>
       <div class="flex items-center justify-between">
-        <span class="text-sm text-muted lg:text-base">${{ listing.pricePerNight }}/{{ nightLabel }}</span>
+        <span class="text-sm text-muted lg:text-base">€{{ listing.pricePerMonth }}/{{ monthLabel }}</span>
         <span class="rounded-pill bg-primary-soft px-3 py-1 text-xs font-semibold capitalize text-primary lg:px-4 lg:py-1.5 lg:text-sm">
           {{ categoryLabel }}
         </span>

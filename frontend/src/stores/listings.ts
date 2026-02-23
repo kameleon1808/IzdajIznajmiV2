@@ -72,7 +72,7 @@ const loadFavorites = (): string[] => {
 
 type ListingFormInput = {
   title: string
-  pricePerNight: number
+  pricePerMonth: number
   category: Listing['category']
   address: string
   city: string

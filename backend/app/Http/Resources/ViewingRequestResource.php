@@ -52,7 +52,7 @@ class ViewingRequestResource extends JsonResource
             'id' => $listing->id,
             'title' => $listing->title,
             'city' => $listing->city,
-            'pricePerNight' => $listing->price_per_night,
+            'pricePerMonth' => $listing->price_per_month,
             'coverImage' => $cover ?: $firstImage,
             'status' => $listing->status,
         ];

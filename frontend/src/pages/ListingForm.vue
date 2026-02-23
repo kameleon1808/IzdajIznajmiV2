@@ -45,7 +45,7 @@ const isEdit = computed(() => route.name === 'landlord-listing-edit')
 
 const form = reactive({
   title: '',
-  pricePerNight: 0,
+  pricePerMonth: 0,
   category: 'apartment' as Listing['category'],
   address: '',
   city: '',
@@ -119,7 +119,7 @@ const loadListing = async () => {
     if (data) {
       gallery.value = []
       form.title = data.title
-      form.pricePerNight = data.pricePerNight
+      form.pricePerMonth = data.pricePerMonth
       form.category = data.category
       form.address = data.address || ''
       form.city = data.city
@@ -190,7 +190,7 @@ const amenityOptions = computed(() => {
 
 const isValid = computed(() => {
   const areaValue = form.area !== '' ? Number(form.area) : NaN
-  const priceValue = Number(form.pricePerNight)
+  const priceValue = Number(form.pricePerMonth)
   return (
     !!form.title &&
     !!form.address &&
@@ -391,9 +391,9 @@ const publishNow = async () => {
           />
         </label>
         <label class="text-sm font-semibold text-slate-900">
-          {{ t('listingForm.pricePerNight') }}
+          {{ t('listingForm.pricePerMonth') }}
           <input
-            v-model.number="form.pricePerNight"
+            v-model.number="form.pricePerMonth"
             type="number"
             min="1"
             step="1"

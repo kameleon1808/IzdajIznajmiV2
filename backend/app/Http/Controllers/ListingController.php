@@ -75,7 +75,7 @@ class ListingController extends Controller
                     'title' => $item->title,
                     'lat' => $item->lat,
                     'lng' => $item->lng,
-                    'pricePerNight' => $item->price_per_night,
+                    'pricePerMonth' => $item->price_per_month,
                     'coverImage' => MediaUrl::normalize($item->cover_image),
                     'city' => $item->city,
                     'distanceKm' => $item->distance_km !== null ? round((float) $item->distance_km, 2) : null,

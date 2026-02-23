@@ -43,7 +43,7 @@ const listings: Listing[] = [
     locationSource: 'geocoded',
     geocodedAt: '2025-01-01T00:00:00Z',
     locationOverriddenAt: null,
-    pricePerNight: 240,
+    pricePerMonth: 240,
     rating: 4.8,
     reviewsCount: 182,
     coverImage: '',
@@ -74,7 +74,7 @@ const listings: Listing[] = [
     locationSource: 'geocoded',
     geocodedAt: '2025-01-01T00:00:00Z',
     locationOverriddenAt: null,
-    pricePerNight: 180,
+    pricePerMonth: 180,
     rating: 4.6,
     reviewsCount: 140,
     coverImage: '',
@@ -105,7 +105,7 @@ const listings: Listing[] = [
     locationSource: 'geocoded',
     geocodedAt: '2025-01-01T00:00:00Z',
     locationOverriddenAt: null,
-    pricePerNight: 130,
+    pricePerMonth: 130,
     rating: 4.7,
     reviewsCount: 96,
     coverImage: '',
@@ -136,7 +136,7 @@ const listings: Listing[] = [
     locationSource: 'geocoded',
     geocodedAt: '2025-01-01T00:00:00Z',
     locationOverriddenAt: null,
-    pricePerNight: 210,
+    pricePerMonth: 210,
     rating: 4.9,
     reviewsCount: 201,
     coverImage: '',
@@ -167,7 +167,7 @@ const listings: Listing[] = [
     locationSource: 'geocoded',
     geocodedAt: '2025-01-01T00:00:00Z',
     locationOverriddenAt: null,
-    pricePerNight: 320,
+    pricePerMonth: 320,
     rating: 4.9,
     reviewsCount: 112,
     coverImage: '',
@@ -198,7 +198,7 @@ const listings: Listing[] = [
     locationSource: 'geocoded',
     geocodedAt: '2025-01-01T00:00:00Z',
     locationOverriddenAt: null,
-    pricePerNight: 115,
+    pricePerMonth: 115,
     rating: 4.5,
     reviewsCount: 88,
     coverImage: '',
@@ -261,14 +261,54 @@ const reviews: Record<string, Review[]> = {
   ],
 }
 
+const parseDate = (value?: string | null): Date | null => {
+  if (!value) return null
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return null
+  return parsed
+}
+
+const calculateReservationPrice = (pricePerMonth: number, startDate?: string | null, endDate?: string | null): number | null => {
+  const start = parseDate(startDate)
+  const end = parseDate(endDate)
+  if (!start || !end || end <= start) return null
+  const fullMonths =
+    (end.getFullYear() - start.getFullYear()) * 12 +
+    (end.getMonth() - start.getMonth()) -
+    (end.getDate() < start.getDate() ? 1 : 0)
+  const normalizedMonths = Math.max(0, fullMonths)
+  const pivot = new Date(start)
+  pivot.setMonth(pivot.getMonth() + normalizedMonths)
+  const remainingMs = Math.max(0, end.getTime() - pivot.getTime())
+  const remainingDays = remainingMs / (1000 * 60 * 60 * 24)
+  const daysInPivotMonth = new Date(pivot.getFullYear(), pivot.getMonth() + 1, 0).getDate() || 30
+  const months = normalizedMonths + remainingDays / daysInPivotMonth
+
+  return Math.round(months * pricePerMonth * 100) / 100
+}
+
+const formatRange = (startDate?: string | null, endDate?: string | null): string => {
+  const start = parseDate(startDate)
+  const end = parseDate(endDate)
+  if (!start || !end) return ''
+  const fmt = (value: Date) => value.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+  return `${fmt(start)} - ${fmt(end)}`
+}
+
 const bookings: Booking[] = [
   {
     id: 'b1',
     listingId: '2',
     listingTitle: 'Nordic Lights Hotel',
-    datesRange: '12 - 16 Feb 2026',
+    startDate: '2026-02-12',
+    endDate: '2026-03-12',
+    datesRange: formatRange('2026-02-12', '2026-03-12'),
     guestsText: '2 Guests',
-    pricePerNight: 180,
+    guestsCount: 2,
+    pricePerMonth: 180,
+    calculatedPrice: calculateReservationPrice(180, '2026-02-12', '2026-03-12'),
+    currency: 'EUR',
+    createdAt: '2026-01-20T09:30:00Z',
     rating: 4.6,
     coverImage: listings[1]?.coverImage ?? '',
     status: 'booked',
@@ -277,9 +317,15 @@ const bookings: Booking[] = [
     id: 'b2',
     listingId: '1',
     listingTitle: 'Seaside Villa Aurora',
-    datesRange: '23 - 28 Jan 2026',
+    startDate: '2026-01-23',
+    endDate: '2026-02-23',
+    datesRange: formatRange('2026-01-23', '2026-02-23'),
     guestsText: '4 Guests',
-    pricePerNight: 240,
+    guestsCount: 4,
+    pricePerMonth: 240,
+    calculatedPrice: calculateReservationPrice(240, '2026-01-23', '2026-02-23'),
+    currency: 'EUR',
+    createdAt: '2025-12-30T11:00:00Z',
     rating: 4.8,
     coverImage: listings[0]?.coverImage ?? '',
     status: 'history',
@@ -326,7 +372,7 @@ const viewingRequests: ViewingRequest[] = [
       title: listings[0]?.title ?? 'Listing',
       city: listings[0]?.city,
       coverImage: listings[0]?.coverImage,
-      pricePerNight: listings[0]?.pricePerNight,
+      pricePerMonth: listings[0]?.pricePerMonth,
       status: (listings[0] as any)?.status,
     },
     participants: { seekerId: 'tenant-1', landlordId: 'landlord-1' },
@@ -343,7 +389,7 @@ const viewingRequests: ViewingRequest[] = [
       title: listings[1]?.title ?? 'Listing',
       city: listings[1]?.city,
       coverImage: listings[1]?.coverImage,
-      pricePerNight: listings[1]?.pricePerNight,
+      pricePerMonth: listings[1]?.pricePerMonth,
       status: (listings[1] as any)?.status,
     },
     participants: { seekerId: 'tenant-2', landlordId: 'landlord-2' },
@@ -357,7 +403,7 @@ const toAppListing = (listingId: string) => {
     title: listing?.title ?? 'Listing',
     city: listing?.city,
     coverImage: listing?.coverImage ?? listing?.images?.[0],
-    pricePerNight: listing?.pricePerNight,
+    pricePerMonth: listing?.pricePerMonth,
     status: (listing as any)?.status ?? 'active',
   }
 }
@@ -380,27 +426,42 @@ const applications: Application[] = [
     status: 'submitted',
     message: 'We would love a quiet family stay. Can we check in early?',
     createdAt: '2026-01-05T10:00:00Z',
+    updatedAt: '2026-01-05T10:00:00Z',
+    startDate: '2026-02-01',
+    endDate: '2026-03-01',
+    currency: 'EUR',
+    calculatedPrice: calculateReservationPrice(listings[0]?.pricePerMonth ?? 0, '2026-02-01', '2026-03-01'),
     hasCompletedTransaction: false,
     listing: toAppListing('1'),
-    participants: { seekerId: 'tenant-1', landlordId: 'landlord-1' },
+    participants: { seekerId: 'tenant-1', landlordId: 'landlord-1', seekerName: 'Tenant One', landlordName: 'Lana Landlord' },
   },
   {
     id: 'app2',
     status: 'accepted',
     message: 'Celebrating anniversary, need late checkout.',
     createdAt: '2026-01-08T12:30:00Z',
+    updatedAt: '2026-01-09T08:40:00Z',
+    startDate: '2026-02-12',
+    endDate: '2026-03-12',
+    currency: 'EUR',
+    calculatedPrice: calculateReservationPrice(listings[1]?.pricePerMonth ?? 0, '2026-02-12', '2026-03-12'),
     hasCompletedTransaction: true,
     listing: toAppListing('2'),
-    participants: { seekerId: 'tenant-1', landlordId: 'landlord-2' },
+    participants: { seekerId: 'tenant-1', landlordId: 'landlord-2', seekerName: 'Tenant One', landlordName: 'Luka Landlord' },
   },
   {
     id: 'app3',
     status: 'rejected',
     message: 'Workcation with stable Wi-Fi, flexible dates.',
     createdAt: '2026-01-10T09:20:00Z',
+    updatedAt: '2026-01-11T14:00:00Z',
+    startDate: '2026-02-20',
+    endDate: '2026-03-20',
+    currency: 'EUR',
+    calculatedPrice: calculateReservationPrice(listings[2]?.pricePerMonth ?? 0, '2026-02-20', '2026-03-20'),
     hasCompletedTransaction: false,
     listing: toAppListing('3'),
-    participants: { seekerId: 'tenant-2', landlordId: 'landlord-1' },
+    participants: { seekerId: 'tenant-2', landlordId: 'landlord-1', seekerName: 'Tenant Two', landlordName: 'Lana Landlord' },
   },
 ]
 
@@ -617,8 +678,8 @@ const applyFilters = (items: Listing[], filters?: Partial<ListingFilters>) => {
   filtered = filtered.filter((item) => {
     const matchCategory = filters.category && filters.category !== 'all' ? item.category === filters.category : true
     const matchGuests = filters.guests ? item.beds >= filters.guests : true
-    const matchPrice = filters.priceRange ? item.pricePerNight >= filters.priceRange[0] && item.pricePerNight <= filters.priceRange[1] : true
-    const matchPriceBucket = filters.priceBucket ? bucketFor(item.pricePerNight, priceBuckets) === filters.priceBucket : true
+    const matchPrice = filters.priceRange ? item.pricePerMonth >= filters.priceRange[0] && item.pricePerMonth <= filters.priceRange[1] : true
+    const matchPriceBucket = filters.priceBucket ? bucketFor(item.pricePerMonth, priceBuckets) === filters.priceBucket : true
     const matchInstant = filters.instantBook ? item.instantBook : true
     const matchLocation = filters.location
       ? `${item.city} ${item.country}`.toLowerCase().includes(filters.location.toLowerCase())
@@ -698,7 +759,7 @@ const buildFacets = (items: Listing[]): ListingSearchFacets => {
     tally(status, item.status)
     tally(rooms, String(item.rooms ?? item.beds ?? ''))
     item.facilities?.forEach((facility) => tally(amenities, facility))
-    tally(priceBucket, bucketFor(item.pricePerNight, priceBuckets))
+    tally(priceBucket, bucketFor(item.pricePerMonth, priceBuckets))
     tally(areaBucket, bucketFor(item.area ?? 0, areaBuckets))
   })
 
@@ -974,7 +1035,7 @@ const makeListingSummary = (listingId: string) => {
     title: listing?.title ?? 'Listing',
     city: listing?.city,
     coverImage: listing?.coverImage ?? listing?.images?.[0],
-    pricePerNight: listing?.pricePerNight,
+    pricePerMonth: listing?.pricePerMonth,
     status: (listing as any)?.status,
   }
 }
@@ -1638,7 +1699,7 @@ export async function getLandlordListings(ownerId: string | number): Promise<Lis
 
 type ListingInput = {
   title: string
-  pricePerNight: number
+  pricePerMonth: number
   category: Listing['category']
   address: string
   city: string
@@ -1674,7 +1735,7 @@ export async function createListing(payload: ListingInput & { ownerId: string | 
     country: payload.country,
     lat: payload.lat,
     lng: payload.lng,
-    pricePerNight: payload.pricePerNight,
+    pricePerMonth: payload.pricePerMonth,
     rating: 4.7,
     reviewsCount: 0,
     coverImage,
@@ -1772,19 +1833,38 @@ export async function markListingAvailable(id: string): Promise<Listing | null> 
   return publishListing(id)
 }
 
-export async function applyToListing(listingId: string, message?: string | null): Promise<Application> {
+export async function applyToListing(
+  listingId: string,
+  message?: string | null,
+  startDate?: string,
+  endDate?: string,
+): Promise<Application> {
   await delay()
   maybeFail()
   const listing = listings.find((l) => l.id === listingId)
+  const fallbackStart = new Date()
+  fallbackStart.setDate(fallbackStart.getDate() + 7)
+  const normalizedStart = startDate ?? fallbackStart.toISOString().slice(0, 10)
+  const fallbackEnd = new Date(`${normalizedStart}T00:00:00`)
+  fallbackEnd.setMonth(fallbackEnd.getMonth() + 1)
+  const normalizedEnd = endDate ?? fallbackEnd.toISOString().slice(0, 10)
+  const monthly = listing?.pricePerMonth ?? 0
   const application: Application = {
     id: makeId(),
     status: 'submitted',
     message: message ?? '',
     createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    startDate: normalizedStart,
+    endDate: normalizedEnd,
+    currency: 'EUR',
+    calculatedPrice: calculateReservationPrice(monthly, normalizedStart, normalizedEnd),
     listing: toAppListing(listingId),
     participants: {
       seekerId: 'mock-seeker',
       landlordId: (listing as any)?.ownerId ?? 'mock-landlord',
+      seekerName: 'Mock Seeker',
+      landlordName: listing?.landlord?.fullName ?? 'Mock Landlord',
     },
   }
   applications.unshift(application)
@@ -1806,7 +1886,13 @@ export async function updateApplicationStatus(id: string, status: Application['s
   const index = applications.findIndex((a) => a.id === id)
   if (index === -1) return null
   const current = applications[index]!
-  applications[index] = { ...current, status }
+  const nowIso = new Date().toISOString()
+  applications[index] = {
+    ...current,
+    status,
+    updatedAt: nowIso,
+    withdrawnAt: status === 'withdrawn' ? nowIso : null,
+  }
   return JSON.parse(JSON.stringify(applications[index]))
 }
 

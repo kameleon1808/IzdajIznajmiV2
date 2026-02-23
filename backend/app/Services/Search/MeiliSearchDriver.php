@@ -205,8 +205,8 @@ class MeiliSearchDriver implements SearchDriver
     private function buildSort(?string $sort): ?string
     {
         return match ($sort) {
-            'price_asc' => 'price_per_night:asc',
-            'price_desc' => 'price_per_night:desc',
+            'price_asc' => 'price_per_month:asc',
+            'price_desc' => 'price_per_month:desc',
             'rating' => 'rating_avg:desc',
             'newest' => 'created_at:desc',
             default => 'created_at:desc',
@@ -312,10 +312,10 @@ class MeiliSearchDriver implements SearchDriver
         }
 
         if ($this->hasValue($filters['priceMin'] ?? null)) {
-            $clauses[] = 'price_per_night >= '.(int) $filters['priceMin'];
+            $clauses[] = 'price_per_month >= '.(int) $filters['priceMin'];
         }
         if ($this->hasValue($filters['priceMax'] ?? null)) {
-            $clauses[] = 'price_per_night <= '.(int) $filters['priceMax'];
+            $clauses[] = 'price_per_month <= '.(int) $filters['priceMax'];
         }
         if ($this->hasValue($filters['areaMin'] ?? null)) {
             $clauses[] = 'area >= '.(int) $filters['areaMin'];
@@ -394,7 +394,7 @@ class MeiliSearchDriver implements SearchDriver
             'description',
             'city',
             'country',
-            'price_per_night',
+            'price_per_month',
             'rooms',
             'beds',
             'area',
@@ -503,12 +503,12 @@ class MeiliSearchDriver implements SearchDriver
                 'not_ground_floor',
                 'price_bucket',
                 'area_bucket',
-                'price_per_night',
+                'price_per_month',
                 'area',
                 'rating',
                 'instant_book',
             ],
-            'sortableAttributes' => ['price_per_night', 'created_at', 'rating_avg'],
+            'sortableAttributes' => ['price_per_month', 'created_at', 'rating_avg'],
             'displayedAttributes' => $this->displayedAttributes(),
         ];
     }

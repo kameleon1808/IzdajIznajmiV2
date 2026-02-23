@@ -274,7 +274,7 @@ class RecommendationService
             }
         }
 
-        $price = $listing->price_per_night;
+        $price = $listing->price_per_month;
         $priceMin = $profile['priceMin'] ?? null;
         $priceMax = $profile['priceMax'] ?? null;
         if ($price !== null && $priceMin !== null && $priceMax !== null) {
@@ -342,7 +342,7 @@ class RecommendationService
             $reasons[] = 'Popular in '.$city;
         }
 
-        $price = $listing->price_per_night;
+        $price = $listing->price_per_month;
         $priceMin = $profile['priceMin'] ?? null;
         $priceMax = $profile['priceMax'] ?? null;
         if ($price !== null && $priceMin !== null && $priceMax !== null && $price >= $priceMin && $price <= $priceMax) {
@@ -387,7 +387,7 @@ class RecommendationService
             return false;
         }
 
-        $price = $listing->price_per_night;
+        $price = $listing->price_per_month;
         if ($this->hasValue($filters['priceMin'] ?? null) && $price !== null && $price < (int) $filters['priceMin']) {
             return false;
         }
@@ -440,8 +440,8 @@ class RecommendationService
             if ($listing->city) {
                 $cityCounts[$listing->city] = ($cityCounts[$listing->city] ?? 0) + 1;
             }
-            if ($listing->price_per_night) {
-                $prices[] = (float) $listing->price_per_night;
+            if ($listing->price_per_month) {
+                $prices[] = (float) $listing->price_per_month;
             }
             $roomsValue = $listing->rooms ?? $listing->beds;
             if ($roomsValue) {

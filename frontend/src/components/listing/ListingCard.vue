@@ -26,7 +26,7 @@ const bedBathText = computed(() => {
   return `${props.listing.beds} ${bedLabel} · ${props.listing.baths} ${bathLabel}`
 })
 
-const nightLabel = computed(() => (props.useTranslations ? t('listing.night') : 'night'))
+const monthLabel = computed(() => (props.useTranslations ? t('listing.month') : 'month'))
 const verifiedLabel = computed(() => (props.useTranslations ? t('listing.verified') : 'Verified'))
 const topLandlordLabel = computed(() => (props.useTranslations ? t('listing.topLandlord') : 'Top landlord'))
 </script>
@@ -85,7 +85,7 @@ const topLandlordLabel = computed(() => (props.useTranslations ? t('listing.topL
           >
             {{ listing.distanceKm.toFixed(1) }} km
           </span>
-          <span class="font-semibold text-primary">${{ listing.pricePerNight }}/{{ nightLabel }}</span>
+          <span class="font-semibold text-primary">€{{ listing.pricePerMonth }}/{{ monthLabel }}</span>
         </div>
       </div>
     </div>

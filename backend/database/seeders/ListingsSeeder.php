@@ -313,7 +313,7 @@ class ListingsSeeder extends Seeder
                 'lat' => $data['lat'],
                 'lng' => $data['lng'],
                 'geocoded_at' => now(),
-                'price_per_night' => $price,
+                'price_per_month' => $price,
                 'rating' => $faker->randomFloat(1, 4.2, 5),
                 'reviews_count' => $faker->numberBetween(10, 150),
                 'cover_image' => $images->first(),

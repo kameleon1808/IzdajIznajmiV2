@@ -167,9 +167,9 @@ class SqlSearchDriver implements SearchDriver
             $this->mapFacetRows($amenityRows, 'name')
         );
 
-        $priceCase = ListingSearchBuckets::caseExpression('price_per_night', ListingSearchBuckets::priceBuckets());
+        $priceCase = ListingSearchBuckets::caseExpression('price_per_month', ListingSearchBuckets::priceBuckets());
         $priceRows = (clone $baseQuery)
-            ->whereNotNull('price_per_night')
+            ->whereNotNull('price_per_month')
             ->selectRaw("{$priceCase} as bucket, count(*) as count")
             ->groupBy('bucket')
             ->get();
@@ -229,10 +229,10 @@ class SqlSearchDriver implements SearchDriver
     {
         switch ($sort) {
             case 'price_asc':
-                $query->orderBy('price_per_night');
+                $query->orderBy('price_per_month');
                 break;
             case 'price_desc':
-                $query->orderByDesc('price_per_night');
+                $query->orderByDesc('price_per_month');
                 break;
             case 'rating':
                 $query->orderByDesc('rating');
@@ -254,9 +254,9 @@ class SqlSearchDriver implements SearchDriver
                     $min = $range['min'];
                     $max = $range['max'];
                     $builder->orWhere(function ($sub) use ($min, $max) {
-                        $sub->where('price_per_night', '>=', $min);
+                        $sub->where('price_per_month', '>=', $min);
                         if ($max !== null) {
-                            $sub->where('price_per_night', '<', $max);
+                            $sub->where('price_per_month', '<', $max);
                         }
                     });
                 }

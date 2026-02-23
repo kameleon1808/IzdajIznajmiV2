@@ -110,7 +110,7 @@ const handleAction = async (
               <button class="text-left text-base font-semibold text-slate-900 hover:text-primary" @click="goToPublicListing(item.id)">
                 {{ item.title }}
               </button>
-              <p class="text-xs text-muted">${{ item.pricePerNight }}/{{ t('listing.night') }} · {{ item.city }}</p>
+              <p class="text-xs text-muted">€{{ item.pricePerMonth }}/{{ t('listing.month') }} · {{ item.city }}</p>
             </div>
             <Badge :variant="statusBadge(item.status).variant">{{ statusBadge(item.status).label }}</Badge>
           </div>

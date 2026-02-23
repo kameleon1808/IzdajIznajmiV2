@@ -96,7 +96,48 @@ const description = computed(
     t('listing.descriptionFallback'),
 )
 
-const isFormValid = computed(() => requestForm.guests > 0 && requestForm.message.trim().length >= 5)
+const parseDateOnly = (value: string): Date | null => {
+  if (!value) return null
+  const date = new Date(`${value}T00:00:00`)
+  return Number.isNaN(date.getTime()) ? null : date
+}
+
+const addOneMonth = (date: Date): Date => {
+  const day = date.getDate()
+  const next = new Date(date.getFullYear(), date.getMonth() + 1, 1)
+  const lastDay = new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate()
+  next.setDate(Math.min(day, lastDay))
+  return next
+}
+
+const formatYmd = (date: Date): string => {
+  const yyyy = date.getFullYear()
+  const mm = String(date.getMonth() + 1).padStart(2, '0')
+  const dd = String(date.getDate()).padStart(2, '0')
+  return `${yyyy}-${mm}-${dd}`
+}
+
+const hasMinimumMonthReservation = computed(() => {
+  const start = parseDateOnly(requestForm.startDate)
+  const end = parseDateOnly(requestForm.endDate)
+  if (!start || !end) return false
+  return end.getTime() >= addOneMonth(start).getTime()
+})
+
+const minEndDate = computed(() => {
+  const start = parseDateOnly(requestForm.startDate)
+  if (!start) return pickStartDate()
+  return formatYmd(addOneMonth(start))
+})
+
+const isFormValid = computed(
+  () =>
+    requestForm.guests > 0 &&
+    requestForm.message.trim().length >= 5 &&
+    !!requestForm.startDate &&
+    !!requestForm.endDate &&
+    hasMinimumMonthReservation.value,
+)
 const hasApplied = computed(
   () => !!listing.value && requestsStore.tenantRequests.some((app) => app.listing.id === listing.value?.id),
 )
@@ -483,11 +524,20 @@ const openInquiry = () => {
 
 const submitRequest = async () => {
   if (!listing.value || !isFormValid.value) return
+  if (!hasMinimumMonthReservation.value) {
+    toast.push({
+      title: t('listing.requestMinMonth'),
+      type: 'error',
+    })
+    return
+  }
   submitting.value = true
   try {
     await requestsStore.sendRequest({
       listingId: listing.value.id,
       message: requestForm.message,
+      startDate: requestForm.startDate,
+      endDate: requestForm.endDate,
     })
     toast.push({ title: t('listing.request.sentTitle'), message: t('listing.request.sentMessage'), type: 'success' })
     requestSheet.value = false
@@ -581,7 +631,7 @@ const requestViewingSlot = async (slotId: string) => {
 
 const pickStartDate = () => {
   const today = new Date()
-  return today.toISOString().split('T')[0]
+  return formatYmd(today)
 }
 
 const galleryImages = computed(() => {
@@ -699,7 +749,7 @@ const deleteViewingSlot = async (slotId: string) => {
       <div class="grid gap-3">
         <div class="flex-1">
           <p class="text-xs text-muted">{{ t('listing.price') }}</p>
-          <p class="text-lg font-semibold text-slate-900">${{ listing.pricePerNight }}/{{ t('listing.night') }}</p>
+          <p class="text-lg font-semibold text-slate-900">€{{ listing.pricePerMonth }}/{{ t('listing.month') }}</p>
         </div>
       </div>
 
@@ -1058,13 +1108,24 @@ const deleteViewingSlot = async (slotId: string) => {
       <div class="grid grid-cols-2 gap-2">
         <label class="space-y-1 text-xs font-semibold text-slate-900">
           {{ t('listing.checkIn') }}
-          <input v-model="requestForm.startDate" type="date" class="w-full rounded-xl border border-line px-3 py-3 text-sm focus:border-primary focus:outline-none" />
+          <input
+            v-model="requestForm.startDate"
+            type="date"
+            :min="pickStartDate()"
+            class="w-full rounded-xl border border-line px-3 py-3 text-sm focus:border-primary focus:outline-none"
+          />
         </label>
         <label class="space-y-1 text-xs font-semibold text-slate-900">
           {{ t('listing.checkOut') }}
-          <input v-model="requestForm.endDate" type="date" class="w-full rounded-xl border border-line px-3 py-3 text-sm focus:border-primary focus:outline-none" />
+          <input
+            v-model="requestForm.endDate"
+            type="date"
+            :min="minEndDate"
+            class="w-full rounded-xl border border-line px-3 py-3 text-sm focus:border-primary focus:outline-none"
+          />
         </label>
       </div>
+      <p class="text-xs text-muted">{{ t('listing.requestMinMonth') }}</p>
       <div class="flex items-center justify-between rounded-2xl bg-surface px-3 py-3">
         <div>
           <p class="text-sm font-semibold text-slate-900">{{ t('filters.guests') }}</p>
@@ -1099,7 +1160,7 @@ const deleteViewingSlot = async (slotId: string) => {
         </div>
         <div class="flex-1">
           <h4 class="font-semibold text-slate-900">{{ listing?.title }}</h4>
-          <p class="text-sm text-muted">{{ listing?.rating }} ★ · ${{ listing?.pricePerNight }}/{{ t('listing.night') }}</p>
+          <p class="text-sm text-muted">{{ listing?.rating }} ★ · €{{ listing?.pricePerMonth }}/{{ t('listing.month') }}</p>
         </div>
       </div>
 

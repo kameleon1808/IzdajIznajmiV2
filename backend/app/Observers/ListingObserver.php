@@ -78,7 +78,7 @@ class ListingObserver
             'description',
             'city',
             'country',
-            'price_per_night',
+            'price_per_month',
             'rooms',
             'area',
             'floor',

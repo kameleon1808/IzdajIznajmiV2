@@ -30,7 +30,7 @@ class ListingFactory extends Factory
             'lat' => $this->faker->latitude(),
             'lng' => $this->faker->longitude(),
             'geocoded_at' => now(),
-            'price_per_night' => $this->faker->numberBetween(30, 300),
+            'price_per_month' => $this->faker->numberBetween(30, 300),
             'rating' => 0,
             'reviews_count' => 0,
             'cover_image' => null,

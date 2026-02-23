@@ -39,7 +39,7 @@ class ListingResource extends JsonResource
             'locationAccuracyM' => $this->location_accuracy_m,
             'locationOverriddenAt' => optional($this->location_overridden_at)->toISOString(),
             'distanceKm' => $this->distanceValue($request),
-            'pricePerNight' => $this->price_per_night,
+            'pricePerMonth' => $this->price_per_month,
             'rating' => (float) $this->rating,
             'reviewsCount' => $this->reviews_count,
             'listing_rating_avg' => $this->listing_rating_avg !== null ? round((float) $this->listing_rating_avg, 1) : 0.0,

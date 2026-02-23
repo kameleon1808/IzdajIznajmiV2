@@ -76,7 +76,7 @@ class LandlordListingController extends Controller
                 'lat' => $data['lat'] ?? null,
                 'lng' => $data['lng'] ?? null,
                 'geocoded_at' => (isset($data['lat'], $data['lng']) && $data['lat'] !== null && $data['lng'] !== null) ? now() : null,
-                'price_per_night' => $data['pricePerNight'],
+                'price_per_month' => $data['pricePerMonth'],
                 'rating' => $data['rating'] ?? 4.7,
                 'reviews_count' => $data['reviews_count'] ?? 0,
                 'description' => $data['description'] ?? null,
@@ -141,7 +141,7 @@ class LandlordListingController extends Controller
         $payload = [];
         $map = [
             'title' => 'title',
-            'pricePerNight' => 'price_per_night',
+            'pricePerMonth' => 'price_per_month',
             'category' => 'category',
             'city' => 'city',
             'country' => 'country',

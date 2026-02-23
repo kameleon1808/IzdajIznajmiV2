@@ -25,7 +25,7 @@ class BookingRequestsSeeder extends Seeder
         foreach ($listings->take(20) as $index => $listing) {
             $tenantId = $tenants[$index % count($tenants)];
             $start = Carbon::now()->addDays($index + 1)->toDateString();
-            $end = Carbon::now()->addDays($index + 4)->toDateString();
+            $end = Carbon::parse($start)->addMonthNoOverflow()->toDateString();
 
             BookingRequest::create([
                 'listing_id' => $listing->id,

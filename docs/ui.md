@@ -78,7 +78,7 @@
 - Authenticated users without required role are redirected to `/` and shown "Access denied" toast.
 
 ## Core Frontend Data Shapes (simplified)
-- `Listing`: `{ id, title, city, country, address?, lat?, lng?, pricePerNight, rating, reviewsCount, coverImage, images?, description?, beds, baths, category, instantBook?, facilities?, ownerId?, status? }`
+- `Listing`: `{ id, title, city, country, address?, lat?, lng?, pricePerMonth, rating, reviewsCount, coverImage, images?, description?, beds, baths, category, instantBook?, facilities?, ownerId?, status? }`
 - `Application`: `{ id, listing, participants { seekerId, landlordId }, message?, status ('submitted'|'accepted'|'rejected'|'withdrawn'), createdAt }`
 - `ViewingSlot`: `{ id, listingId, startsAt, endsAt, capacity, isActive, pattern?, daysOfWeek?, timeFrom?, timeTo? }`
 - `ViewingRequest`: `{ id, status ('requested'|'confirmed'|'rejected'|'cancelled'), cancelledBy?, slot?, listing?, participants, createdAt }`

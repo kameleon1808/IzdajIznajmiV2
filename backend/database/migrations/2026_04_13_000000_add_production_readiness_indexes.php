@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::table('listings', function (Blueprint $table) {
             $table->index(
-                ['status', 'city', 'price_per_night', 'rooms', 'expired_at'],
+                ['status', 'city', 'price_per_month', 'rooms', 'expired_at'],
                 'idx_listings_status_city_price_rooms_expired'
             );
             $table->index(['status', 'expired_at'], 'idx_listings_status_expired_at');

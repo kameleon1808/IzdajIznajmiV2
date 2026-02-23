@@ -23,7 +23,7 @@ LIMIT 20;
 
 ## Recommended App Indexes
 Added/verified for high-volume paths:
-- Listings search: `(status, city, price_per_night, rooms, expired_at)` and `(status, expired_at)`
+- Listings search: `(status, city, price_per_month, rooms, expired_at)` and `(status, expired_at)`
 - Saved search matches unique: `(saved_search_id, listing_id)` unique
 - Notifications: `(user_id, read_at)`
 - Messages: `(conversation_id, created_at)`

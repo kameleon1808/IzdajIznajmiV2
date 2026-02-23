@@ -54,7 +54,7 @@ class SimilarListingsService
                     $builder->where('city', $listing->city);
                 }
                 if ($priceMin !== null && $priceMax !== null) {
-                    $builder->orWhereBetween('price_per_night', [$priceMin, $priceMax]);
+                    $builder->orWhereBetween('price_per_month', [$priceMin, $priceMax]);
                 }
             });
         }
@@ -84,7 +84,7 @@ class SimilarListingsService
      */
     private function priceRangeForListing(Listing $listing): array
     {
-        $basePrice = $listing->price_per_night !== null ? (int) $listing->price_per_night : null;
+        $basePrice = $listing->price_per_month !== null ? (int) $listing->price_per_month : null;
         if ($basePrice === null || $basePrice <= 0) {
             return [null, null];
         }
@@ -108,7 +108,7 @@ class SimilarListingsService
             $reasons[] = 'Same city';
         }
 
-        $priceReason = $this->priceReason($base->price_per_night, $candidate->price_per_night);
+        $priceReason = $this->priceReason($base->price_per_month, $candidate->price_per_month);
         if ($priceReason !== null) {
             $score += $priceReason['score'];
             $reasons[] = $priceReason['label'];

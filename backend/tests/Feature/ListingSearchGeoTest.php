@@ -37,7 +37,7 @@ class ListingSearchGeoTest extends TestCase
             'lat' => 44.8,
             'lng' => 20.5,
             'title' => 'Map Pin',
-            'price_per_night' => 120,
+            'price_per_month' => 120,
             'cover_image' => 'http://example.com/img.jpg',
             'city' => 'Belgrade',
         ]);

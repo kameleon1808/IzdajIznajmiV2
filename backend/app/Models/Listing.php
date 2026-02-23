@@ -46,7 +46,7 @@ class Listing extends Model
         'lat',
         'lng',
         'geocoded_at',
-        'price_per_night',
+        'price_per_month',
         'rating',
         'reviews_count',
         'cover_image',

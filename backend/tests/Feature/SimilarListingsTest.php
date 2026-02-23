@@ -22,7 +22,7 @@ class SimilarListingsTest extends TestCase
         $base = Listing::factory()->create([
             'owner_id' => $landlord->id,
             'city' => 'Split',
-            'price_per_night' => 100,
+            'price_per_month' => 100,
             'rooms' => 2,
             'area' => 50,
             'status' => ListingStatusService::STATUS_ACTIVE,
@@ -36,7 +36,7 @@ class SimilarListingsTest extends TestCase
         $candidateA = Listing::factory()->create([
             'owner_id' => $verifiedLandlord->id,
             'city' => 'Split',
-            'price_per_night' => 105,
+            'price_per_month' => 105,
             'rooms' => 2,
             'area' => 52,
             'status' => ListingStatusService::STATUS_ACTIVE,
@@ -46,7 +46,7 @@ class SimilarListingsTest extends TestCase
         $candidateB = Listing::factory()->create([
             'owner_id' => $landlord->id,
             'city' => 'Split',
-            'price_per_night' => 200,
+            'price_per_month' => 200,
             'rooms' => 4,
             'area' => 80,
             'status' => ListingStatusService::STATUS_ACTIVE,
@@ -56,7 +56,7 @@ class SimilarListingsTest extends TestCase
         $inactive = Listing::factory()->create([
             'owner_id' => $landlord->id,
             'city' => 'Split',
-            'price_per_night' => 90,
+            'price_per_month' => 90,
             'rooms' => 2,
             'area' => 49,
             'status' => ListingStatusService::STATUS_DRAFT,

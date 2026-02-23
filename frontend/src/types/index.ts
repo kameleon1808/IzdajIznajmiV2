@@ -11,7 +11,7 @@ export interface Listing {
   locationSource?: 'geocoded' | 'manual'
   locationAccuracyM?: number | null
   locationOverriddenAt?: string | null
-  pricePerNight: number
+  pricePerMonth: number
   rating: number
   reviewsCount: number
   coverImage: string
@@ -79,7 +79,15 @@ export interface Booking {
   listingTitle: string
   datesRange: string
   guestsText: string
-  pricePerNight: number
+  guestsCount?: number
+  pricePerMonth: number
+  calculatedPrice?: number | null
+  currency?: string
+  startDate?: string | null
+  endDate?: string | null
+  createdAt?: string | null
+  updatedAt?: string | null
+  withdrawnAt?: string | null
   rating: number
   coverImage: string
   status: 'booked' | 'history'
@@ -114,12 +122,14 @@ export interface ViewingRequest {
     title?: string
     city?: string
     coverImage?: string
-    pricePerNight?: number
+    pricePerMonth?: number
     status?: Listing['status']
   } | null
   participants: {
     seekerId: string
     landlordId: string
+    seekerName?: string
+    landlordName?: string
   }
 }
 
@@ -128,18 +138,26 @@ export interface Application {
   status: 'submitted' | 'accepted' | 'rejected' | 'withdrawn'
   message?: string | null
   createdAt?: string
+  updatedAt?: string
+  startDate?: string | null
+  endDate?: string | null
+  withdrawnAt?: string | null
+  currency?: string
+  calculatedPrice?: number | null
   hasCompletedTransaction?: boolean
   listing: {
     id: string
     title?: string
     city?: string
     coverImage?: string
-    pricePerNight?: number
+    pricePerMonth?: number
     status?: Listing['status']
   }
   participants: {
     seekerId: string
     landlordId: string
+    seekerName?: string
+    landlordName?: string
   }
 }
 

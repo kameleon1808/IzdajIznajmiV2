@@ -28,7 +28,7 @@ class ApplicationsApiTest extends TestCase
             'address_key' => $addressKey,
             'city' => 'Split',
             'country' => 'Croatia',
-            'price_per_night' => 250,
+            'price_per_month' => 250,
             'rating' => 4.9,
             'reviews_count' => 30,
             'beds' => 3,
@@ -51,15 +51,28 @@ class ApplicationsApiTest extends TestCase
 
         $response = $this->postJson("/api/v1/listings/{$listing->id}/apply", [
             'message' => 'We would like to stay.',
+            'startDate' => now()->addDays(7)->toDateString(),
+            'endDate' => now()->addDays(7)->addMonthNoOverflow()->toDateString(),
         ]);
 
-        $response->assertCreated()->assertJsonPath('status', Application::STATUS_SUBMITTED);
+        $response->assertCreated()
+            ->assertJsonPath('status', Application::STATUS_SUBMITTED)
+            ->assertJsonPath('startDate', now()->addDays(7)->toDateString())
+            ->assertJsonPath('endDate', now()->addDays(7)->addMonthNoOverflow()->toDateString())
+            ->assertJsonPath('currency', 'EUR');
 
         $this->assertDatabaseHas('applications', [
             'listing_id' => $listing->id,
             'seeker_id' => $seeker->id,
             'landlord_id' => $landlord->id,
         ]);
+
+        $stored = Application::query()
+            ->where('listing_id', $listing->id)
+            ->where('seeker_id', $seeker->id)
+            ->firstOrFail();
+        $this->assertSame(now()->addDays(7)->toDateString(), optional($stored->start_date)->toDateString());
+        $this->assertSame(now()->addDays(7)->addMonthNoOverflow()->toDateString(), optional($stored->end_date)->toDateString());
     }
 
     public function test_applying_twice_is_blocked(): void
@@ -69,9 +82,17 @@ class ApplicationsApiTest extends TestCase
         $listing = $this->createListing($landlord);
 
         $this->actingAs($seeker);
-        $this->postJson("/api/v1/listings/{$listing->id}/apply", ['message' => 'Hello']);
+        $this->postJson("/api/v1/listings/{$listing->id}/apply", [
+            'message' => 'Hello',
+            'startDate' => now()->addDays(7)->toDateString(),
+            'endDate' => now()->addDays(7)->addMonthNoOverflow()->toDateString(),
+        ]);
 
-        $response = $this->postJson("/api/v1/listings/{$listing->id}/apply", ['message' => 'Another try']);
+        $response = $this->postJson("/api/v1/listings/{$listing->id}/apply", [
+            'message' => 'Another try',
+            'startDate' => now()->addDays(9)->toDateString(),
+            'endDate' => now()->addDays(9)->addMonthNoOverflow()->toDateString(),
+        ]);
 
         $response->assertStatus(422);
         $this->assertCount(1, Application::all());
@@ -188,6 +209,8 @@ class ApplicationsApiTest extends TestCase
 
         $response = $this->postJson("/api/v1/listings/{$listing->id}/apply", [
             'message' => 'Trying to apply',
+            'startDate' => now()->addDays(7)->toDateString(),
+            'endDate' => now()->addDays(7)->addMonthNoOverflow()->toDateString(),
         ]);
 
         $response->assertStatus(422);
@@ -214,5 +237,30 @@ class ApplicationsApiTest extends TestCase
         $this->actingAs($seeker);
         $withdraw = $this->patchJson("/api/v1/applications/{$application->id}", ['status' => Application::STATUS_WITHDRAWN]);
         $withdraw->assertForbidden();
+    }
+
+    public function test_seeker_can_withdraw_submitted_application_and_withdrawn_at_is_recorded(): void
+    {
+        $seeker = User::factory()->create(['role' => 'seeker']);
+        $landlord = User::factory()->create(['role' => 'landlord']);
+        $listing = $this->createListing($landlord);
+        $application = Application::create([
+            'listing_id' => $listing->id,
+            'seeker_id' => $seeker->id,
+            'landlord_id' => $landlord->id,
+            'message' => 'Hello',
+            'start_date' => now()->addDays(7)->toDateString(),
+            'end_date' => now()->addDays(7)->addMonthNoOverflow()->toDateString(),
+            'status' => Application::STATUS_SUBMITTED,
+        ]);
+
+        $this->actingAs($seeker);
+        $response = $this->patchJson("/api/v1/applications/{$application->id}", ['status' => Application::STATUS_WITHDRAWN]);
+
+        $response->assertOk()
+            ->assertJsonPath('status', Application::STATUS_WITHDRAWN);
+        $this->assertIsString($response->json('withdrawnAt'));
+
+        $this->assertNotNull($application->fresh()->withdrawn_at);
     }
 }
