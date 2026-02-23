@@ -147,9 +147,26 @@ const router = createRouter({
       meta: { topBar: { type: 'back', title: 'Verification', titleKey: 'titles.verification' }, showTabs: false, roles: ['landlord', 'seeker', 'admin'] },
     },
     {
+      path: '/users/guest',
+      redirect: '/',
+    },
+    {
+      path: '/user/:id',
+      redirect: (to) => {
+        const id = String(to.params.id ?? '').toLowerCase()
+        if (id === 'guest') return '/'
+        return `/users/${to.params.id}`
+      },
+    },
+    {
       path: '/users/:id',
       name: 'public-profile',
       component: PublicProfile,
+      beforeEnter: (to) => {
+        const id = String(to.params.id ?? '').toLowerCase()
+        if (id === 'guest') return '/'
+        return true
+      },
       meta: { topBar: { type: 'back', title: 'Profile', titleKey: 'titles.profile' }, showTabs: false },
     },
     {

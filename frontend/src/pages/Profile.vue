@@ -6,6 +6,7 @@ import Badge from '../components/ui/Badge.vue'
 import Button from '../components/ui/Button.vue'
 import ImageLightbox from '../components/ui/ImageLightbox.vue'
 import ModalSheet from '../components/ui/ModalSheet.vue'
+import AvatarPlaceholder from '../components/ui/AvatarPlaceholder.vue'
 import { useAuthStore, type Role } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
 import { useLanguageStore } from '../stores/language'
@@ -106,12 +107,7 @@ const openAvatarLightbox = () => {
           class="h-12 w-12 rounded-2xl object-cover shadow-soft"
         />
       </button>
-      <div
-        v-else
-        class="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 px-1 text-center text-[10px] font-semibold leading-tight text-slate-600 shadow-soft"
-      >
-        Blank profile picture
-      </div>
+      <AvatarPlaceholder v-else :alt="t('common.avatarAlt')" />
       <div>
         <p class="text-lg font-semibold text-slate-900">{{ auth.user.name }}</p>
         <Badge variant="pending" class="mt-1 inline-block capitalize">{{ roleLabel(auth.primaryRole) }}</Badge>

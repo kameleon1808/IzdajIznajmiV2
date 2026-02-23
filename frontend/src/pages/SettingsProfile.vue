@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
 import Button from '../components/ui/Button.vue'
+import AvatarPlaceholder from '../components/ui/AvatarPlaceholder.vue'
 import ErrorBanner from '../components/ui/ErrorBanner.vue'
 import { changeMyPassword, updateMyProfile, uploadMyAvatar } from '../services'
 import { useAuthStore } from '../stores/auth'
@@ -187,12 +188,7 @@ onBeforeUnmount(() => {
             :alt="t('common.avatarAlt')"
             class="h-12 w-12 rounded-2xl object-cover shadow-soft"
           />
-          <div
-            v-else
-            class="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 px-1 text-center text-[10px] font-semibold leading-tight text-slate-600 shadow-soft"
-          >
-            Blank profile picture
-          </div>
+          <AvatarPlaceholder v-else :alt="t('common.avatarAlt')" />
           <div class="min-w-0 flex-1 space-y-2">
             <input
               ref="avatarInputRef"

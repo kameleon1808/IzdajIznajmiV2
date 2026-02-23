@@ -9,6 +9,7 @@ import Badge from '../components/ui/Badge.vue'
 import ModalSheet from '../components/ui/ModalSheet.vue'
 import Button from '../components/ui/Button.vue'
 import ImageLightbox from '../components/ui/ImageLightbox.vue'
+import AvatarPlaceholder from '../components/ui/AvatarPlaceholder.vue'
 import { getPublicProfile, getUserRatings, reportRating, replyToRating, getSharedTransactions, reportTransaction, leaveRating } from '../services'
 import { useAuthStore } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
@@ -87,14 +88,20 @@ const canReplyToRating = (rating: Rating) => {
 }
 
 const load = async () => {
+  const rawId = String(route.params.id ?? '')
+  if (!/^\d+$/.test(rawId) || rawId.toLowerCase() === 'guest') {
+    await router.replace('/')
+    return
+  }
+
   loading.value = true
   error.value = ''
   try {
-    profile.value = await getPublicProfile(route.params.id as string)
-    ratings.value = await getUserRatings(route.params.id as string)
+    profile.value = await getPublicProfile(rawId)
+    ratings.value = await getUserRatings(rawId)
     if (auth.user?.id) {
       try {
-        sharedTransactions.value = await getSharedTransactions(route.params.id as string)
+        sharedTransactions.value = await getSharedTransactions(rawId)
         const [firstTransaction] = sharedTransactions.value
         if (firstTransaction) {
           reportTransactionId.value = firstTransaction.id
@@ -254,12 +261,7 @@ const openAvatarLightbox = () => {
                 class="h-12 w-12 rounded-2xl object-cover shadow-soft"
               />
             </button>
-            <div
-              v-else
-              class="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 px-1 text-center text-[10px] font-semibold leading-tight text-slate-600 shadow-soft"
-            >
-              Blank profile picture
-            </div>
+            <AvatarPlaceholder v-else :alt="t('common.avatarAlt')" />
             <h1 class="min-w-0 break-words text-xl font-semibold text-slate-900">{{ profile.fullName }}</h1>
           </div>
           <Button v-if="isSelf" variant="secondary" size="sm" @click="goToEditProfile">

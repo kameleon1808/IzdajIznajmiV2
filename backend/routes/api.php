@@ -77,8 +77,8 @@ $apiRoutes = function () use ($authRoutes) {
         Route::get('/listings', [SearchController::class, 'listings'])->middleware('throttle:listings_search');
         Route::get('/suggest', [SearchController::class, 'suggest'])->middleware('throttle:listings_search');
     });
-    Route::get('/users/{user}', [UserProfileController::class, 'show']);
-    Route::get('/users/{user}/ratings', [RatingController::class, 'userRatings']);
+    Route::get('/users/{user}', [UserProfileController::class, 'show'])->whereNumber('user');
+    Route::get('/users/{user}/ratings', [RatingController::class, 'userRatings'])->whereNumber('user');
     Route::get('/geocode', [GeocodingController::class, 'lookup'])->middleware('throttle:listings_search');
     Route::get('/geocode/suggest', [GeocodeSuggestController::class, 'suggest'])->middleware('throttle:geocode_suggest');
 
@@ -130,7 +130,7 @@ $apiRoutes = function () use ($authRoutes) {
 
             Route::post('/presence/ping', [ChatSignalController::class, 'presencePing']);
             Route::get('/presence/users', [ChatSignalController::class, 'presenceBatch']);
-            Route::get('/users/{user}/presence', [ChatSignalController::class, 'presenceStatus']);
+            Route::get('/users/{user}/presence', [ChatSignalController::class, 'presenceStatus'])->whereNumber('user');
 
             Route::post('/listings/{listing}/ratings', [RatingController::class, 'store']);
             Route::get('/me/ratings', [RatingController::class, 'myRatings']);
@@ -185,7 +185,7 @@ $apiRoutes = function () use ($authRoutes) {
             Route::post('/transactions/{transaction}/move-in/confirm', [TransactionPaymentController::class, 'confirmMoveIn']);
             Route::post('/transactions/{transaction}/complete', [TransactionPaymentController::class, 'completeByLandlord']);
             Route::post('/transactions/{transaction}/report', [TransactionReportController::class, 'store']);
-            Route::get('/users/{user}/transactions/shared', [UserTransactionController::class, 'shared']);
+            Route::get('/users/{user}/transactions/shared', [UserTransactionController::class, 'shared'])->whereNumber('user');
 
             Route::patch('/me/profile', [UserAccountController::class, 'updateProfile']);
             Route::post('/me/avatar', [UserAccountController::class, 'updateAvatar']);

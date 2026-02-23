@@ -10,6 +10,7 @@ import {
   Video,
 } from 'lucide-vue-next'
 import NotificationBell from '../notifications/NotificationBell.vue'
+import AvatarPlaceholder from '../ui/AvatarPlaceholder.vue'
 import { useAuthStore } from '../../stores/auth'
 import { useChatStore } from '../../stores/chat'
 import { useLanguageStore } from '../../stores/language'
@@ -75,12 +76,7 @@ const goProfile = () => {
           :alt="t('topbar.avatarAlt')"
           class="h-12 w-12 rounded-2xl object-cover shadow-soft"
         />
-        <div
-          v-else
-          class="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 px-1 text-center text-[10px] font-semibold leading-tight text-slate-600 shadow-soft"
-        >
-          Blank profile picture
-        </div>
+        <AvatarPlaceholder v-else :alt="t('topbar.avatarAlt')" />
         <div class="flex flex-col">
           <span class="text-xs text-muted">{{ userName }}</span>
           <div class="flex items-center gap-1 text-sm font-semibold text-text">
