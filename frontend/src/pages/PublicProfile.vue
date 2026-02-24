@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ShieldCheck, ShieldX, Star } from 'lucide-vue-next'
 import ErrorBanner from '../components/ui/ErrorBanner.vue'
@@ -124,6 +124,16 @@ const load = async () => {
 }
 
 onMounted(load)
+watch(() => route.params.id, () => { nextTick(load) })
+
+const goToUser = (id: number | string) => {
+  const currentId = String(route.params.id)
+  if (String(id) === currentId) {
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+    return
+  }
+  router.push(`/users/${id}`)
+}
 
 const formatDate = (value?: string) => (value ? new Date(value).toLocaleDateString() : '')
 
@@ -361,7 +371,8 @@ const openAvatarLightbox = () => {
         <div v-else class="space-y-3">
           <div v-for="rating in ratings" :key="rating.id" class="rounded-xl border border-line bg-surface p-3">
             <div class="flex items-center justify-between">
-              <p class="font-semibold text-slate-900">{{ rating.rater?.name || t('publicProfile.guest') }}</p>
+              <a v-if="rating.rater?.id" :href="`/users/${rating.rater.id}`" class="font-semibold text-slate-900 hover:underline" @click.prevent="goToUser(rating.rater.id)">{{ rating.rater.name || t('publicProfile.guest') }}</a>
+              <p v-else class="font-semibold text-slate-900">{{ rating.rater?.name || t('publicProfile.guest') }}</p>
               <span class="rounded-full bg-primary/10 px-3 py-1 text-sm font-semibold text-primary">
                 {{ rating.rating }} ★
               </span>
@@ -369,11 +380,11 @@ const openAvatarLightbox = () => {
             <p class="text-sm text-muted">
               {{ rating.comment || t('publicProfile.noComment') }}
             </p>
-            <p class="text-xs text-muted mt-1">
+            <a :href="`/listing/${rating.listingId}`" class="text-xs text-muted mt-1 hover:underline block" @click.prevent="router.push(`/listing/${rating.listingId}`)">
               {{ t('publicProfile.listingLabel') }}:
               {{ rating.listing?.title || `#${rating.listingId}` }}
               {{ rating.listing?.city ? `· ${rating.listing.city}` : '' }}
-            </p>
+            </a>
             <p class="text-xs text-muted mt-1">{{ formatDate(rating.createdAt) }}</p>
             <div v-if="rating.replies?.length" class="mt-3 space-y-2">
               <div v-for="reply in rating.replies" :key="reply.id" class="rounded-xl border border-line bg-white p-3 text-sm">

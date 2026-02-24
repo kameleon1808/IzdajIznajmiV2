@@ -20,8 +20,10 @@ class DatabaseSeeder extends Seeder
             FacilitiesSeeder::class,
             ListingsSeeder::class,
             ApplicationsSeeder::class,
+            BookingRequestsSeeder::class,
             ConversationsSeeder::class,
             LandlordMetricsSeeder::class,
+            RatingsSeeder::class,
         ]);
     }
 }

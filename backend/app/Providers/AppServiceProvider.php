@@ -137,25 +137,25 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(RentalTransaction::class, RentalTransactionPolicy::class);
 
         RateLimiter::for('api', function (Request $request) {
-            return Limit::perMinute(60)->by($request->user()?->id ?? $request->ip());
+            return Limit::perMinute(240)->by($request->user()?->id ?? $request->ip());
         });
 
         RateLimiter::for('auth', function (Request $request) {
-            return Limit::perMinute(10)->by($request->ip());
+            return Limit::perMinute(30)->by($request->ip());
         });
 
         RateLimiter::for('listings_search', function (Request $request) {
-            return Limit::perMinute(60)->by($request->ip());
+            return Limit::perMinute(120)->by($request->ip());
         });
 
         RateLimiter::for('geocode_suggest', function (Request $request) {
-            return Limit::perMinute(40)->by($request->ip());
+            return Limit::perMinute(80)->by($request->ip());
         });
 
         RateLimiter::for('booking_requests', function (Request $request) {
             $key = $request->user()?->id ?? $request->ip();
 
-            return Limit::perMinute(20)->by($key);
+            return Limit::perMinute(60)->by($key);
         });
 
         RateLimiter::for('applications', function (Request $request) {
