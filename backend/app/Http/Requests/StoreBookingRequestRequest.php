@@ -20,7 +20,7 @@ class StoreBookingRequestRequest extends FormRequest
             'startDate' => ['required', 'date', 'after_or_equal:today'],
             'endDate' => ['required', 'date', 'after:startDate', $this->minimumMonthRule()],
             'guests' => ['required', 'integer', 'min:1', 'max:20'],
-            'message' => ['required', 'string', 'min:5', 'max:2000'],
+            'message' => ['nullable', 'string', 'max:2000'],
         ];
     }
 

@@ -104,6 +104,9 @@ Guest restrictions:
 - Add an optional message for landlord
 - Select reservation window (`startDate` + `endDate`)
 - Reservation window must be at least one month
+- Re-application to the same listing is allowed when:
+  - The previous reservation period has expired (`endDate < today`), or
+  - The new `startDate` is strictly after all active (`submitted`/`accepted`) applications' `endDate`
 - Track application status:
   - submitted
   - accepted

@@ -31,6 +31,20 @@ class BookingRequestController extends Controller
             return response()->json(['message' => 'Listing is not available for booking'], 422);
         }
 
+        $newStartDate = \Carbon\Carbon::parse($data['startDate'])->startOfDay();
+
+        $conflicting = BookingRequest::where('listing_id', $listing->id)
+            ->where('tenant_id', $user->id)
+            ->whereIn('status', ['pending', 'accepted'])
+            ->whereNotNull('end_date')
+            ->where('end_date', '>', now()->startOfDay())
+            ->where('end_date', '>=', $newStartDate)
+            ->exists();
+
+        if ($conflicting) {
+            return response()->json(['message' => 'You already have an active booking request for this period.'], 422);
+        }
+
         $bookingRequest = BookingRequest::create([
             'listing_id' => $listing->id,
             'tenant_id' => $user->id,
@@ -38,7 +52,7 @@ class BookingRequestController extends Controller
             'start_date' => $data['startDate'] ?? null,
             'end_date' => $data['endDate'] ?? null,
             'guests' => $data['guests'],
-            'message' => $data['message'],
+            'message' => $data['message'] ?? null,
             'status' => 'pending',
         ]);
 

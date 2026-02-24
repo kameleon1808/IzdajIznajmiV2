@@ -48,8 +48,18 @@ class ApplicationController extends Controller
             return response()->json(['message' => 'Listing is not active for applications'], 422);
         }
 
-        if (Application::where('listing_id', $listing->id)->where('seeker_id', $user->id)->exists()) {
-            return response()->json(['message' => 'You already applied to this listing'], 422);
+        $newStartDate = \Carbon\Carbon::parse($request->validated()['startDate'])->startOfDay();
+
+        $conflicting = Application::where('listing_id', $listing->id)
+            ->where('seeker_id', $user->id)
+            ->whereIn('status', [Application::STATUS_SUBMITTED, Application::STATUS_ACCEPTED])
+            ->whereNotNull('end_date')
+            ->where('end_date', '>', now()->startOfDay())
+            ->where('end_date', '>=', $newStartDate)
+            ->exists();
+
+        if ($conflicting) {
+            return response()->json(['message' => 'You already have an active application for this period.'], 422);
         }
 
         try {
@@ -63,10 +73,6 @@ class ApplicationController extends Controller
                 'status' => Application::STATUS_SUBMITTED,
             ]);
         } catch (QueryException $e) {
-            if ($e->getCode() === '23000') {
-                return response()->json(['message' => 'You already applied to this listing'], 422);
-            }
-
             throw $e;
         }
 

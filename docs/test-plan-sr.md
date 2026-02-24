@@ -118,7 +118,9 @@ This document defines backend and frontend manual test coverage for development/
 | ID | Precondition | Steps | Expected result | Notes |
 | --- | --- | --- | --- | --- |
 | APP-01 | Seeker session, listing is active | 1) `POST /api/v1/listings/{listing}/apply` with `startDate`, `endDate` (>= 1 month) and optional message | `201`, status `submitted` | create |
-| APP-02 | APP-01 exists | 1) Repeat apply on same listing | `422`, duplicate blocked | dedupe |
+| APP-02 | APP-01 exists (period not expired) | 1) Repeat apply on same listing with `startDate` before or on previous `endDate` | `422`, duplicate blocked | dedupe |
+| APP-02b | APP-01 exists (period not expired) | 1) Apply on same listing with `startDate` strictly after previous `endDate` | `201`, new application created | re-apply after period |
+| APP-02c | APP-01 exists, previous `endDate` in the past | 1) Apply on same listing with any valid `startDate` | `201`, new application created | re-apply after expiry |
 | APP-03 | Seeker session | 1) `GET /api/v1/seeker/applications` | `200`, only seeker-owned applications | seeker view |
 | APP-04 | Landlord session | 1) `GET /api/v1/landlord/applications` | `200`, incoming applications | landlord view |
 | APP-05 | Landlord session | 1) `PATCH /api/v1/applications/{id}` `status=accepted` | `200`, status `accepted` | accept |

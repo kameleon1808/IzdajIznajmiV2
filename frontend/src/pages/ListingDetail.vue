@@ -130,17 +130,33 @@ const minEndDate = computed(() => {
   return formatYmd(addOneMonth(start))
 })
 
-const isFormValid = computed(
-  () =>
-    requestForm.guests > 0 &&
-    requestForm.message.trim().length >= 5 &&
-    !!requestForm.startDate &&
-    !!requestForm.endDate &&
-    hasMinimumMonthReservation.value,
-)
-const hasApplied = computed(
-  () => !!listing.value && requestsStore.tenantRequests.some((app) => app.listing.id === listing.value?.id),
-)
+const activeRequestEndDate = computed<string | null>(() => {
+  if (!listing.value) return null
+  const today = pickStartDate()
+  const active = requestsStore.tenantRequests.filter(
+    (app) =>
+      app.listing.id === listing.value!.id &&
+      (app.status === 'submitted' || app.status === 'accepted') &&
+      !!app.endDate &&
+      app.endDate > today,
+  )
+  if (!active.length) return null
+  return active.reduce((max, app) => (app.endDate! > max ? app.endDate! : max), active[0]!.endDate!)
+})
+
+const minStartDate = computed(() => {
+  if (!activeRequestEndDate.value) return pickStartDate()
+  const d = new Date(`${activeRequestEndDate.value}T00:00:00`)
+  d.setDate(d.getDate() + 1)
+  return formatYmd(d)
+})
+
+const isFormValid = computed(() => {
+  if (!requestForm.guests || !requestForm.startDate || !requestForm.endDate) return false
+  if (!hasMinimumMonthReservation.value) return false
+  if (requestForm.startDate < minStartDate.value) return false
+  return true
+})
 const landlordName = computed(() => listing.value?.landlord?.fullName || `${t('common.user')} ${listing.value?.ownerId ?? ''}`)
 const viewingSlots = computed(() => {
   const listingId = listing.value?.id
@@ -513,10 +529,6 @@ const openInquiry = () => {
   }
   if (!auth.hasRole('seeker')) {
     toast.push({ title: t('listing.request.accessDenied'), message: t('listing.request.switchToSeeker'), type: 'error' })
-    return
-  }
-  if (hasApplied.value) {
-    toast.push({ title: t('listing.request.alreadyAppliedTitle'), message: t('listing.request.alreadyAppliedMessage'), type: 'info' })
     return
   }
   requestSheet.value = true
@@ -1095,8 +1107,8 @@ const deleteViewingSlot = async (slotId: string) => {
           <Button block variant="secondary" size="lg" :disabled="chatLoading" @click="openChat">
             {{ chatLoading ? t('listing.openingChat') : t('listing.messageHost') }}
           </Button>
-          <Button block size="lg" :disabled="hasApplied" @click="openInquiry">
-            {{ hasApplied ? t('listing.alreadyApplied') : t('listing.apply') }}
+          <Button block size="lg" @click="openInquiry">
+            {{ t('listing.apply') }}
           </Button>
         </div>
       </div>
@@ -1111,7 +1123,7 @@ const deleteViewingSlot = async (slotId: string) => {
           <input
             v-model="requestForm.startDate"
             type="date"
-            :min="pickStartDate()"
+            :min="minStartDate"
             class="w-full rounded-xl border border-line px-3 py-3 text-sm focus:border-primary focus:outline-none"
           />
         </label>

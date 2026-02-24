@@ -66,6 +66,10 @@ Legacy auth aliases under `/api/auth/*` still exist during transition.
     - `startDate` (required, date, `>= today`)
     - `endDate` (required, date, `> startDate`, minimum reservation window: 1 month)
   - Reservation pricing model is monthly (`pricePerMonth`) with `EUR` currency.
+  - Re-application rules: a seeker may apply to the same listing again only if:
+    - All previous `submitted`/`accepted` applications for that listing have `endDate < startDate` of the new application (i.e. the new period starts strictly after all active periods end), **or**
+    - All previous active applications have expired (`endDate < today`).
+  - Returns `422` if a `submitted` or `accepted` application exists with `endDate >= newStartDate`.
 - `GET /api/v1/seeker/applications`
 - `GET /api/v1/landlord/applications` (`listing_id` optional)
 - `PATCH /api/v1/applications/{application}`

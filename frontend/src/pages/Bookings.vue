@@ -52,6 +52,8 @@ const contractLoading = ref(false)
 const pendingContractRequest = ref<Application | null>(null)
 const showReservationDetails = ref(false)
 const reservationDetails = ref<{ kind: 'request'; item: Application } | { kind: 'booking'; item: Booking } | null>(null)
+const showWithdrawConfirm = ref(false)
+const pendingWithdrawId = ref<string | null>(null)
 
 const reservationTabs = computed<string[]>(() => {
   if (auth.hasRole('seeker')) return ['booked', 'history', 'requests']
@@ -258,6 +260,22 @@ const updateStatus = async (id: string, status: Application['status']) => {
   } catch (error) {
     toast.push({ title: tx('bookings.updateFailed', 'Update failed'), message: (error as Error).message, type: 'error' })
   }
+}
+
+const confirmWithdraw = (id: string) => {
+  pendingWithdrawId.value = id
+  showWithdrawConfirm.value = true
+}
+
+const doWithdraw = () => {
+  if (pendingWithdrawId.value) updateStatus(pendingWithdrawId.value, 'withdrawn')
+  showWithdrawConfirm.value = false
+  pendingWithdrawId.value = null
+}
+
+const cancelWithdraw = () => {
+  showWithdrawConfirm.value = false
+  pendingWithdrawId.value = null
 }
 
 const openStartContract = (request: Application) => {
@@ -471,10 +489,6 @@ const openReservationDetailsForBooking = (booking: Booking) => {
   showReservationDetails.value = true
 }
 
-const closeReservationDetails = () => {
-  showReservationDetails.value = false
-  reservationDetails.value = null
-}
 
 const detailsTitle = computed(() => {
   if (!reservationDetails.value) return tx('bookings.details', 'Details')
@@ -628,7 +642,7 @@ const scrollToHighlightedViewing = () => {
               </Button>
             </div>
             <div class="flex justify-end" v-else-if="auth.hasRole('seeker') && request.status === 'submitted'">
-              <Button variant="secondary" size="md" @click="updateStatus(request.id, 'withdrawn')">
+              <Button variant="secondary" size="md" @click="confirmWithdraw(request.id)">
                 {{ tx('bookings.withdraw', 'Withdraw') }}
               </Button>
             </div>
@@ -951,11 +965,20 @@ const scrollToHighlightedViewing = () => {
         </div>
       </div>
 
-      <div class="flex justify-end">
-        <Button variant="secondary" @click="closeReservationDetails">
-          {{ tx('bookings.close', 'Close') }}
-        </Button>
-      </div>
+    </div>
+  </ModalSheet>
+
+  <ModalSheet v-model="showWithdrawConfirm" :title="tx('bookings.withdrawConfirmTitle', 'Withdraw request')">
+    <p class="px-2 text-sm text-slate-700">
+      {{ tx('bookings.withdrawConfirm', 'Are you sure you want to withdraw this request?') }}
+    </p>
+    <div class="flex gap-2 pt-2">
+      <Button variant="secondary" class="flex-1" @click="cancelWithdraw">
+        {{ tx('common.cancel', 'Cancel') }}
+      </Button>
+      <Button variant="danger" class="flex-1" @click="doWithdraw">
+        {{ tx('bookings.withdraw', 'Withdraw') }}
+      </Button>
     </div>
   </ModalSheet>
 </template>
