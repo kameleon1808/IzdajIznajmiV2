@@ -5,11 +5,13 @@ namespace App\Providers;
 use App\Models\Application;
 use App\Models\BookingRequest;
 use App\Models\Listing;
+use App\Models\ListingRating;
 use App\Models\RentalTransaction;
 use App\Models\SavedSearch;
 use App\Models\ViewingRequest;
 use App\Models\ViewingSlot;
 use App\Observers\ListingObserver;
+use App\Observers\ListingRatingObserver;
 use App\Policies\ApplicationPolicy;
 use App\Policies\BookingRequestPolicy;
 use App\Policies\ListingPolicy;
@@ -128,6 +130,7 @@ class AppServiceProvider extends ServiceProvider
         });
 
         Listing::observe(ListingObserver::class);
+        ListingRating::observe(ListingRatingObserver::class);
         Gate::policy(Listing::class, ListingPolicy::class);
         Gate::policy(SavedSearch::class, SavedSearchPolicy::class);
         Gate::policy(BookingRequest::class, BookingRequestPolicy::class);

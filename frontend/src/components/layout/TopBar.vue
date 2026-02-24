@@ -79,7 +79,7 @@ const goProfile = () => {
         <AvatarPlaceholder v-else :alt="t('topbar.avatarAlt')" />
         <div class="flex flex-col">
           <span class="text-xs text-muted">{{ userName }}</span>
-          <div class="flex items-center gap-1 text-sm font-semibold text-text">
+          <div v-if="auth.isAuthenticated" class="flex items-center gap-1 text-sm font-semibold text-text">
             <MapPin class="h-4 w-4 text-primary" />
             <span>{{ location }}</span>
           </div>
