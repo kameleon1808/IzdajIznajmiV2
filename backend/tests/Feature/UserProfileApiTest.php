@@ -15,4 +15,3 @@ class UserProfileApiTest extends TestCase
             ->assertNotFound();
     }
 }
-

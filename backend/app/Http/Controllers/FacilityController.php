@@ -23,4 +23,3 @@ class FacilityController extends Controller
         ]);
     }
 }
-

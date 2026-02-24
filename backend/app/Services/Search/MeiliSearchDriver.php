@@ -291,6 +291,7 @@ class MeiliSearchDriver implements SearchDriver
 
             if (count($variants) === 1) {
                 $clauses[] = sprintf('amenities = "%s"', $this->escapeFilterValue($variants[0]));
+
                 continue;
             }
 
