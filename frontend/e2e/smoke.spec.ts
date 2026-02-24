@@ -11,6 +11,7 @@ test.describe('Smoke navigation', () => {
           impersonator: null,
         }),
       )
+      window.localStorage.setItem('ii-language', 'en')
     })
   })
 
