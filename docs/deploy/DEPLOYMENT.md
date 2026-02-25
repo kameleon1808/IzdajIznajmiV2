@@ -109,6 +109,88 @@ ALLOW_MIGRATE=1 ROLLBACK_REF=v1.2.3 ./ops/rollback.sh
 3) Tag release (`git tag vX.Y.Z && git push origin vX.Y.Z`).
 4) Deploy production workflow; verify health and key flows; monitor logs for 15 minutes.
 
+## Local Hosting via Cloudflare Tunnel
+
+An alternative to VPS deployment: run the full stack on a local machine and expose it publicly via Cloudflare Tunnel. No port forwarding required.
+
+### How it works
+
+```
+Browser → Cloudflare (izdajiznajmi.com) → cloudflared tunnel → Docker gateway (port 80)
+```
+
+The `docker-compose.production.yml` includes a `tunnel` service (profile `public`) that runs `cloudflared` inside Docker and routes traffic from `izdajiznajmi.com` to the `gateway` container.
+
+### One-time setup (per machine)
+
+Requires: domain managed by Cloudflare (nameservers pointing to Cloudflare).
+
+```bash
+# Install cloudflared (WSL/Linux)
+curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+sudo dpkg -i cloudflared.deb
+
+# Fix directory ownership if needed (Docker may have created it as root)
+sudo chown $USER:$USER ~/.cloudflared
+
+# Authenticate and create tunnel
+cloudflared tunnel login
+cloudflared tunnel create izdajiznajmi
+cloudflared tunnel route dns izdajiznajmi izdajiznajmi.com
+```
+
+Create `~/.cloudflared/config.yml` (replace UUID with output from `tunnel create`):
+```yaml
+tunnel: <TUNNEL-UUID>
+credentials-file: /home/nonroot/.cloudflared/<TUNNEL-UUID>.json
+
+ingress:
+  - hostname: izdajiznajmi.com
+    service: http://gateway:80
+  - service: http_status:404
+```
+
+Set file permissions so Docker's `nonroot` user can read the credentials:
+```bash
+chmod o+r ~/.cloudflared/<TUNNEL-UUID>.json
+chmod o+rx ~/.cloudflared
+```
+
+### Running
+
+```bash
+# Start full stack with public tunnel
+docker compose -f docker-compose.production.yml --profile public up -d
+
+# Run migrations (first run or after schema changes)
+docker compose -f docker-compose.production.yml exec backend php artisan migrate --force
+
+# Check tunnel status
+docker compose -f docker-compose.production.yml logs tunnel --tail=20
+```
+
+A healthy tunnel log shows:
+```
+INF Registered tunnel connection connIndex=0 ...
+INF Registered tunnel connection connIndex=1 ...
+```
+
+### Docker projects
+
+Two Compose projects use the same `docker-compose.production.yml`. They cannot run at the same time (both bind port 80).
+
+| Project name | Command flag | Purpose |
+|---|---|---|
+| `izdajiznajmiv2` | _(no `-p` flag)_ | Main production — public on `izdajiznajmi.com` |
+| `izdaji_prod` | `-p izdaji_prod` | Development/testing — local only (`localhost`) |
+
+### Caveats
+
+- The machine must remain on and connected for the site to be accessible.
+- Cloudflare Tunnel credentials (`~/.cloudflared/`) must be preserved; re-run setup if they are lost.
+- Both Docker projects bind port 80 on the host — stop one before starting the other.
+- Domain propagation after nameserver change can take up to 48 hours.
+
 ## Troubleshooting
 - 502/504: check php-fpm service and socket path in Nginx; ensure `storage/` is writable by `www-data`.
 - Cookies/auth: align `SANCTUM_STATEFUL_DOMAINS` with the SPA host, `SESSION_DOMAIN` with the parent domain, enable HTTPS and `SESSION_SECURE_COOKIE=true`.

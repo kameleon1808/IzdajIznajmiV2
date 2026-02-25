@@ -92,48 +92,125 @@ docker compose down -v
 - Env template: `.env.production.compose.example`
 - Push/PWA release notes: `docs/releases/notifications/web-push-pwa-rollout-2026-02-20.md`
 
+### Docker Projects — Overview
+
+Two Docker Compose projects use the same `docker-compose.production.yml`.
+**Important: they cannot run at the same time — both bind port 80.**
+
+| Project | Name | Purpose |
+|---|---|---|
+| `izdajiznajmiv2` | main production | publicly available at `izdajiznajmi.com` (named tunnel) |
+| `izdaji_prod` | development/testing | local at `localhost`, start on demand |
+
+---
+
+### Main Production Stack (`izdajiznajmiv2`)
+
+> Uses named Cloudflare Tunnel → `izdajiznajmi.com`
+
+- Start (with tunnel):
+```bash
+docker compose -f docker-compose.production.yml --profile public up -d
+```
+- Stop:
+```bash
+docker compose -f docker-compose.production.yml --profile public down
+```
+- Migrations:
+```bash
+docker compose -f docker-compose.production.yml exec backend php artisan migrate --force
+```
+- Health check:
+```bash
+curl -f http://localhost/api/v1/health
+```
+- Tunnel logs:
+```bash
+docker compose -f docker-compose.production.yml logs tunnel --tail=50
+```
+
+---
+
+### Development/Testing Stack (`izdaji_prod`)
+
+> Locally available at `http://localhost`. Start on demand — stop the production stack first.
+
 Optional alias:
 ```bash
 DC="docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml"
 ```
 
-Common flow:
 - Prepare env:
 ```bash
 cp .env.production.compose.example .env.production.compose
 ```
-- Start production stack:
+- Start (local only, no tunnel):
 ```bash
 docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml up -d --build
 ```
-- Initial migrations:
+- Initial migrations + seed:
 ```bash
 docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml exec backend php artisan migrate:fresh --seed
 ```
-- Check health endpoint (through gateway):
+- Health check:
 ```bash
 curl -f http://localhost/api/v1/health
 ```
-- Optional public exposure (Cloudflare Quick Tunnel, no router port forwarding):
-```bash
-docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml --profile public up -d tunnel
-```
-- Follow tunnel logs (`https://...trycloudflare.com` URL appears in logs):
-```bash
-docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml logs -f tunnel
-```
-- One-time read of public URL:
-```bash
-docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml logs tunnel | grep -oE 'https://[a-z0-9-]+\\.trycloudflare\\.com' | head -n 1
-```
-- Stop production stack:
+- Stop:
 ```bash
 docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml down
 ```
 
+---
+
+### Cloudflare Named Tunnel — One-time Setup
+
+> Must be done once on every machine that hosts the application.
+
+**Prerequisites:** domain must be added to the Cloudflare account (nameservers active).
+
+1. Install `cloudflared` on WSL:
+```bash
+curl -L --output cloudflared.deb https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+sudo dpkg -i cloudflared.deb
+```
+
+2. Fix permissions and authenticate:
+```bash
+sudo chown $USER:$USER ~/.cloudflared
+cloudflared tunnel login
+```
+_(open the URL in your browser and authorize the domain)_
+
+3. Create tunnel and DNS record:
+```bash
+cloudflared tunnel create izdajiznajmi
+cloudflared tunnel route dns izdajiznajmi izdajiznajmi.com
+```
+
+4. Create `~/.cloudflared/config.yml` (replace UUID):
+```yaml
+tunnel: <TUNNEL-UUID>
+credentials-file: /home/nonroot/.cloudflared/<TUNNEL-UUID>.json
+
+ingress:
+  - hostname: izdajiznajmi.com
+    service: http://gateway:80
+  - service: http_status:404
+```
+
+5. Set permissions for the Docker container:
+```bash
+chmod o+r ~/.cloudflared/<TUNNEL-UUID>.json
+chmod o+rx ~/.cloudflared
+```
+
+After this, starting with `--profile public` automatically uses `izdajiznajmi.com`.
+
 ## Env Priority in Production (`.env.production` vs `.env`)
 - If `APP_ENV=production`, Laravel loads `backend/.env.production` when it exists.
 - In that case values from `backend/.env` can be ignored at runtime.
+- `.env.production` takes precedence over Docker Compose environment variable defaults — keep it up to date when domains change.
 
 Practical rule:
 - Local/dev: maintain `backend/.env`
