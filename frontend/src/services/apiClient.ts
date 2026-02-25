@@ -91,6 +91,8 @@ apiClient.interceptors.response.use(
       await onUnauthorized()
     } else if (status === 403) {
       toast.push({ title: 'Not allowed', message: 'You do not have permission to do that.', type: 'error' })
+    } else if (status === 413) {
+      toast.push({ title: 'File too large', message: 'The uploaded files exceed the allowed size limit.', type: 'error' })
     } else if (status === 429) {
       const retryAfter = (error.response?.headers as any)?.['retry-after']
       toast.push({
