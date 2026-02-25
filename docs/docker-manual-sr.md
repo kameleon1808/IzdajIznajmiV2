@@ -108,6 +108,11 @@ Two Docker Compose projects use the same `docker-compose.production.yml`.
 
 > Uses named Cloudflare Tunnel → `izdajiznajmi.com`
 
+Optional alias:
+```bash
+DC="docker compose -f docker-compose.production.yml"
+```
+
 - Start (with tunnel):
 ```bash
 docker compose -f docker-compose.production.yml --profile public up -d
