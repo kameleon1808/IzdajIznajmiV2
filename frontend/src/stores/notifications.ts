@@ -106,6 +106,23 @@ export const useNotificationStore = defineStore('notifications', {
         throw error
       }
     },
+    async markKycNotificationsRead() {
+      const unread = this.notifications.filter((n) => n.type === 'kyc.submission_received' && !n.isRead)
+      if (unread.length === 0) return
+
+      await Promise.all(unread.map((n) => apiClient.patch(`/notifications/${n.id}/read`)))
+
+      let markedCount = 0
+      for (const notification of this.notifications) {
+        if (notification.type === 'kyc.submission_received' && !notification.isRead) {
+          notification.isRead = true
+          notification.readAt = new Date().toISOString()
+          markedCount += 1
+        }
+      }
+      this.unreadCount = Math.max(0, this.unreadCount - markedCount)
+      this.unreadCountEtag = null
+    },
     markMessageNotificationsForConversation(conversationId: string) {
       if (!conversationId) return
 

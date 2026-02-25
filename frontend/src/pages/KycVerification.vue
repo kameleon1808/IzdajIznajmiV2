@@ -14,11 +14,13 @@ import {
   withdrawKycSubmission,
 } from '../services'
 import { useAuthStore } from '../stores/auth'
+import { useNotificationStore } from '../stores/notifications'
 import { useToastStore } from '../stores/toast'
 import { useLanguageStore } from '../stores/language'
 import type { KycSubmission } from '../types'
 
 const auth = useAuthStore()
+const notificationStore = useNotificationStore()
 const toast = useToastStore()
 const languageStore = useLanguageStore()
 const t = (key: Parameters<typeof languageStore.t>[0]) => languageStore.t(key)
@@ -114,7 +116,10 @@ const load = async () => {
   }
 }
 
-onMounted(load)
+onMounted(() => {
+  load()
+  notificationStore.markKycNotificationsRead()
+})
 
 const goNext = () => {
   if (!canNext.value) {
