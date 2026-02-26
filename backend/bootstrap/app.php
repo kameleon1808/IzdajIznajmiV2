@@ -3,6 +3,7 @@
 use App\Console\Commands\DbReportIndexesCommand;
 use App\Console\Commands\ExpireListingsCommand;
 use App\Console\Commands\GeocodeListingsCommand;
+use App\Console\Commands\PurgeExpiredKycDocumentsCommand;
 use App\Console\Commands\RecomputeBadgesCommand;
 use App\Console\Commands\SavedSearchMatchCommand;
 use App\Console\Commands\SearchListingsReindexCommand;
@@ -48,6 +49,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ExpireListingsCommand::class,
         \App\Console\Commands\SendNotificationDigestCommand::class,
         GeocodeListingsCommand::class,
+        PurgeExpiredKycDocumentsCommand::class,
         RecomputeBadgesCommand::class,
         SavedSearchMatchCommand::class,
         SearchListingsReindexCommand::class,
@@ -58,7 +60,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command('badges:recompute')->dailyAt('03:00');
         $schedule->command('notifications:digest --frequency=daily')->dailyAt('09:00');
         $schedule->command('notifications:digest --frequency=weekly')->weeklyOn(1, '09:00'); // Monday
-        $schedule->command('saved-searches:match')->everyFifteenMinutes(); //
+        $schedule->command('saved-searches:match')->everyFifteenMinutes();
+        $schedule->command('kyc:purge-expired')->dailyAt('04:00');
     })
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->use([

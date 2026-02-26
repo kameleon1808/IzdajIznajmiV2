@@ -17,6 +17,7 @@ import AdminRatings from '../pages/AdminRatings.vue'
 import AdminDashboard from '../pages/AdminDashboard.vue'
 import AdminModeration from '../pages/AdminModeration.vue'
 import AdminKyc from '../pages/AdminKyc.vue'
+import AdminKycAuditLog from '../pages/AdminKycAuditLog.vue'
 import AdminTransactions from '../pages/AdminTransactions.vue'
 import AdminTransactionDetail from '../pages/AdminTransactionDetail.vue'
 import AdminUserSecurity from '../pages/AdminUserSecurity.vue'
@@ -252,6 +253,12 @@ const router = createRouter({
       name: 'admin-kyc',
       component: AdminKyc,
       meta: { topBar: { type: 'title', title: 'KYC Review', titleKey: 'titles.kycReview' }, showTabs: false, roles: ['admin'] },
+    },
+    {
+      path: '/admin/kyc/audit-log',
+      name: 'admin-kyc-audit-log',
+      component: AdminKycAuditLog,
+      meta: { topBar: { type: 'title', title: 'KYC Audit Log' }, showTabs: false, roles: ['admin'] },
     },
     {
       path: '/admin/transactions',

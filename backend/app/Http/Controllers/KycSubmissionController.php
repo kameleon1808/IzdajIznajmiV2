@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\StoreKycSubmissionRequest;
 use App\Http\Resources\KycSubmissionResource;
+use App\Jobs\ScanKycDocumentJob;
 use App\Models\KycDocument;
 use App\Models\KycSubmission;
 use App\Models\Notification;
@@ -11,6 +12,7 @@ use App\Models\User;
 use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -49,6 +51,14 @@ class KycSubmissionController extends Controller
 
             return $submission;
         });
+
+        // Dispatch AV scan for each stored document (outside transaction, after commit)
+        if (config('kyc.av_scan_enabled')) {
+            $submission->loadMissing('documents');
+            foreach ($submission->documents as $document) {
+                ScanKycDocumentJob::dispatch($document->id);
+            }
+        }
 
         $this->notifications->createNotification($user, Notification::TYPE_KYC_SUBMISSION_RECEIVED, [
             'title' => 'Verification submitted',
@@ -142,7 +152,7 @@ class KycSubmissionController extends Controller
         ];
 
         foreach ($files as $type => $file) {
-            if (! $file) {
+            if (! $file instanceof UploadedFile) {
                 continue;
             }
 
@@ -150,15 +160,19 @@ class KycSubmissionController extends Controller
             $filename = $type.'_'.Str::uuid()->toString().($extension ? ".{$extension}" : '');
             $path = $file->storeAs($dir, $filename, $disk);
 
+            // Use server-detected MIME (finfo magic bytes) for storage, not the client-provided value.
+            $mime = $this->detectMagicMime($file) ?? $file->getMimeType() ?? 'application/octet-stream';
+
             KycDocument::create([
                 'submission_id' => $submission->id,
                 'user_id' => $userId,
                 'doc_type' => $type,
                 'original_name' => $file->getClientOriginalName(),
-                'mime_type' => $file->getClientMimeType(),
+                'mime_type' => $mime,
                 'size_bytes' => $file->getSize(),
                 'disk' => $disk,
                 'path' => $path,
+                'av_status' => KycDocument::AV_PENDING,
             ]);
         }
     }
@@ -172,6 +186,31 @@ class KycSubmissionController extends Controller
             }
         }
         $submission->documents()->delete();
+    }
+
+    /**
+     * Detect MIME type from actual file bytes using finfo (magic bytes).
+     */
+    private function detectMagicMime(UploadedFile $file): ?string
+    {
+        $path = $file->getRealPath();
+        if (! $path || ! is_readable($path)) {
+            return null;
+        }
+
+        if (function_exists('finfo_open')) {
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            $mime = finfo_file($finfo, $path);
+            finfo_close($finfo);
+
+            return $mime ?: null;
+        }
+
+        if (function_exists('mime_content_type')) {
+            return mime_content_type($path) ?: null;
+        }
+
+        return null;
     }
 
     private function userHasRole($user, array|string $roles): bool

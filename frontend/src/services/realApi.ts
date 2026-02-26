@@ -8,6 +8,7 @@ import type {
   Booking,
   ChatAttachment,
   Conversation,
+  KycAuditEntry,
   KycDocument,
   KycSubmission,
   Listing,
@@ -1415,6 +1416,11 @@ export const rejectAdminKycSubmission = async (id: string | number, note?: strin
 export const redactAdminKycSubmission = async (id: string | number, note?: string): Promise<KycSubmission> => {
   const { data } = await apiClient.delete(`/admin/kyc/submissions/${id}/redact`, { data: { note } })
   return mapKycSubmission(data.data ?? data)
+}
+
+export const getKycAuditLog = async (limit = 50): Promise<KycAuditEntry[]> => {
+  const { data } = await apiClient.get('/admin/kyc/audit-log', { params: { limit } })
+  return (data.data ?? data) as KycAuditEntry[]
 }
 
 const mapSecuritySession = (data: any): SecuritySession => ({

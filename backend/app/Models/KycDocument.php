@@ -15,6 +15,18 @@ class KycDocument extends Model
 
     public const TYPE_PROOF = 'proof_of_address';
 
+    /** AV scan has not run yet. */
+    public const AV_PENDING = 'pending';
+
+    /** AV scan ran and file is clean. */
+    public const AV_CLEAN = 'clean';
+
+    /** AV scan found malware — file is quarantined. */
+    public const AV_INFECTED = 'infected';
+
+    /** AV scan could not complete (scanner unavailable, timeout, etc.). */
+    public const AV_ERROR = 'error';
+
     protected $fillable = [
         'submission_id',
         'user_id',
@@ -24,6 +36,12 @@ class KycDocument extends Model
         'size_bytes',
         'disk',
         'path',
+        'av_status',
+        'av_scanned_at',
+    ];
+
+    protected $casts = [
+        'av_scanned_at' => 'datetime',
     ];
 
     public function submission(): BelongsTo

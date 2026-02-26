@@ -118,6 +118,7 @@ export const getAdminKycSubmission = pick('getAdminKycSubmission')
 export const approveAdminKycSubmission = pick('approveAdminKycSubmission')
 export const rejectAdminKycSubmission = pick('rejectAdminKycSubmission')
 export const redactAdminKycSubmission = pick('redactAdminKycSubmission')
+export const getKycAuditLog = pick('getKycAuditLog')
 
 export const isMockApi = useMock
 export const setupMfa = pick('setupMfa')

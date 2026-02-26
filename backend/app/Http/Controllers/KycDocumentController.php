@@ -29,19 +29,20 @@ class KycDocumentController extends Controller
             abort(404, 'Document not found');
         }
 
-        if ($isAdmin) {
-            $this->auditLogs->record(
-                $user->id,
-                'kyc.document.viewed',
-                KycDocument::class,
-                $document->id,
-                [
-                    'submission_id' => $document->submission_id,
-                    'owner_id' => $document->user_id,
-                    'doc_type' => $document->doc_type,
-                ]
-            );
-        }
+        // Audit every access — admin and owner alike.
+        $action = $isAdmin ? 'kyc.document.admin_downloaded' : 'kyc.document.owner_downloaded';
+        $this->auditLogs->record(
+            $user->id,
+            $action,
+            KycDocument::class,
+            $document->id,
+            [
+                'submission_id' => $document->submission_id,
+                'owner_id' => $document->user_id,
+                'doc_type' => $document->doc_type,
+                'is_admin' => $isAdmin,
+            ]
+        );
 
         $mime = $document->mime_type ?? Storage::disk($disk)->mimeType($path) ?? 'application/octet-stream';
         $inline = str_starts_with($mime, 'image/') || $mime === 'application/pdf';

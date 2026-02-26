@@ -1,5 +1,6 @@
 import axios, { AxiosError } from 'axios'
 import { useToastStore } from '../stores/toast'
+import { useLanguageStore } from '../stores/language'
 
 const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL ?? '').replace(/\/$/, '')
 const baseURL = `${apiBaseUrl}/api/v1`
@@ -86,11 +87,12 @@ apiClient.interceptors.response.use(
     const requestId =
       (error.response?.headers as Record<string, string | undefined> | undefined)?.['x-request-id'] ||
       (error.response?.data as any)?.request_id
+    const lang = useLanguageStore()
     if (status === 401) {
       toast.push({ title: 'Session expired', message: 'Please log in again.', type: 'error' })
       await onUnauthorized()
     } else if (status === 403) {
-      toast.push({ title: 'Not allowed', message: 'You do not have permission to do that.', type: 'error' })
+      toast.push({ title: lang.t('common.accessDenied'), message: lang.t('common.accessDeniedMessage'), type: 'error' })
     } else if (status === 413) {
       toast.push({ title: 'File too large', message: 'The uploaded files exceed the allowed size limit.', type: 'error' })
     } else if (status === 429) {
