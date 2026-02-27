@@ -25,15 +25,17 @@ class KycDocumentController extends Controller
             abort(401, 'Unauthenticated');
         }
 
-        $isAdmin = $this->userHasRole($user, 'admin');
-        $isOwner = $document->user_id === $user->id;
-
-        if (! $isOwner && ! $isAdmin) {
+        // Authorization enforced via KycDocumentPolicy::view (owner OR admin).
+        // Browser requests get a redirect rather than a JSON 403.
+        if (! $user->can('view', $document)) {
             if ($this->isBrowserRequest($request)) {
                 return $this->redirectWithError($request, 'access_denied');
             }
             abort(403, 'Forbidden');
         }
+
+        // $isAdmin is still required to select the correct audit log action.
+        $isAdmin = $this->userHasRole($user, 'admin');
 
         $disk = $document->disk ?? 'private';
         $path = $document->path;

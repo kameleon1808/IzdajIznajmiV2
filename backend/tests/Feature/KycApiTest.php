@@ -29,7 +29,7 @@ class KycApiTest extends TestCase
         $payload = [
             'id_front' => UploadedFile::fake()->image('id-front.jpg'),
             'selfie' => UploadedFile::fake()->image('selfie.jpg'),
-            'proof_of_address' => UploadedFile::fake()->create('bill.pdf', 200, 'application/pdf'),
+            'proof_of_address' => $this->fakeValidPdf('bill.pdf'),
         ];
 
         $this->actingAs($seeker)
@@ -76,7 +76,7 @@ class KycApiTest extends TestCase
         $payload = [
             'id_front' => UploadedFile::fake()->image('id-front.jpg'),
             'selfie' => UploadedFile::fake()->image('selfie.jpg'),
-            'proof_of_address' => UploadedFile::fake()->create('bill.pdf', 200, 'application/pdf'),
+            'proof_of_address' => $this->fakeValidPdf('bill.pdf'),
         ];
 
         $this->actingAs($landlord)
@@ -87,10 +87,9 @@ class KycApiTest extends TestCase
             ->assertStatus(409);
     }
 
-    public function test_only_admin_can_approve_or_reject(): void
+    public function test_non_admin_cannot_approve_kyc_submission(): void
     {
         $landlord = User::factory()->create(['role' => 'landlord']);
-        $admin = User::factory()->create(['role' => 'admin']);
 
         $submission = KycSubmission::create([
             'user_id' => $landlord->id,
@@ -98,13 +97,32 @@ class KycApiTest extends TestCase
             'submitted_at' => now(),
         ]);
 
-        $this->bootstrapCsrf();
-
         $this->actingAs($landlord)
             ->patchJson("/api/v1/admin/kyc/submissions/{$submission->id}/approve")
             ->assertStatus(403);
+    }
 
-        $this->actingAs($admin)
+    public function test_admin_can_approve_kyc_submission(): void
+    {
+        $landlord = User::factory()->create(['role' => 'landlord']);
+        // MFA must be confirmed: REQUIRE_MFA_FOR_ADMINS=true in .env blocks
+        // admins without confirmed MFA even in test runs.
+        $admin = User::factory()->create([
+            'role' => 'admin',
+            'mfa_enabled' => true,
+            'mfa_confirmed_at' => now(),
+        ]);
+        $admin->assignRole('admin');
+
+        $submission = KycSubmission::create([
+            'user_id' => $landlord->id,
+            'status' => KycSubmission::STATUS_PENDING,
+            'submitted_at' => now(),
+        ]);
+
+        // EnsureMfaVerified checks session('mfa_verified_at') for MFA-enabled users.
+        $this->withSession(['mfa_verified_at' => now()->toIso8601String()])
+            ->actingAs($admin)
             ->patchJson("/api/v1/admin/kyc/submissions/{$submission->id}/approve")
             ->assertOk()
             ->assertJsonPath('status', KycSubmission::STATUS_APPROVED);
@@ -147,7 +165,7 @@ class KycApiTest extends TestCase
 
         $this->assertDatabaseHas('audit_logs', [
             'actor_user_id' => $admin->id,
-            'action' => 'kyc.document.viewed',
+            'action' => 'kyc.document.admin_downloaded',
             'subject_type' => KycDocument::class,
             'subject_id' => $document->id,
         ]);
@@ -174,6 +192,20 @@ class KycApiTest extends TestCase
             'disk' => 'private',
             'path' => $path,
         ]);
+    }
+
+    /**
+     * Create a minimal but real PDF file that passes magic-byte validation.
+     * UploadedFile::fake()->create() produces empty files (application/x-empty)
+     * which are rejected by StoreKycSubmissionRequest::detectMagicMime().
+     */
+    private function fakeValidPdf(string $name = 'document.pdf'): UploadedFile
+    {
+        $content = "%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\nxref\n0 2\ntrailer\n<< /Size 2 >>\n%%EOF\n";
+        $path = tempnam(sys_get_temp_dir(), 'test_kyc_pdf_');
+        file_put_contents($path, $content);
+
+        return new UploadedFile($path, $name, 'application/pdf', null, true);
     }
 
     private function bootstrapCsrf(): void

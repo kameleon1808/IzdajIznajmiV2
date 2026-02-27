@@ -43,6 +43,29 @@ class VerificationApiTest extends TestCase
         ]);
     }
 
+    public function test_devcode_is_absent_outside_local_and_testing(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'prod@example.com',
+            'email_verified' => false,
+        ]);
+
+        Mail::fake();
+        $this->bootstrapCsrf();
+
+        // Simulate a production-like environment where devCode must never appear.
+        $this->app['env'] = 'production';
+
+        $response = $this->actingAs($user)
+            ->postJson('/api/v1/me/verification/email/request');
+
+        // Restore test environment immediately so subsequent tests are unaffected.
+        $this->app['env'] = 'testing';
+
+        $response->assertOk();
+        $this->assertArrayNotHasKey('devCode', $response->json());
+    }
+
     private function bootstrapCsrf(): void
     {
         $this->withCredentials();
