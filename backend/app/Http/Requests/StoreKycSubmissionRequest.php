@@ -18,10 +18,10 @@ class StoreKycSubmissionRequest extends FormRequest
         $allowed = implode(',', (array) config('kyc.allowed_mimes', ['jpg', 'jpeg', 'png', 'webp', 'pdf']));
 
         return [
-            'id_front' => ['required', 'file', "mimes:{$allowed}", "max:{$maxSize}"],
-            'id_back' => ['nullable', 'file', "mimes:{$allowed}", "max:{$maxSize}"],
-            'selfie' => ['required', 'file', "mimes:{$allowed}", "max:{$maxSize}"],
-            'proof_of_address' => ['required', 'file', "mimes:{$allowed}", "max:{$maxSize}"],
+            'id_front' => ['required', 'file', "max:{$maxSize}", "mimes:{$allowed}"],
+            'id_back' => ['nullable', 'file', "max:{$maxSize}", "mimes:{$allowed}"],
+            'selfie' => ['required', 'file', "max:{$maxSize}", "mimes:{$allowed}"],
+            'proof_of_address' => ['required', 'file', "max:{$maxSize}", "mimes:{$allowed}"],
         ];
     }
 
@@ -31,6 +31,10 @@ class StoreKycSubmissionRequest extends FormRequest
             function ($validator) {
                 $fields = ['id_front', 'id_back', 'selfie', 'proof_of_address'];
                 foreach ($fields as $field) {
+                    if ($validator->errors()->has($field)) {
+                        continue;
+                    }
+
                     $file = $this->file($field);
                     if (! $file instanceof UploadedFile) {
                         continue;

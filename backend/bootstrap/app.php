@@ -92,8 +92,20 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->render(function (AuthenticationException $e, $request) {
-            if ($request->expectsJson() || $request->is('api/*')) {
-                return response()->json(['message' => 'Unauthenticated.'], 401);
+            // Browser navigating directly to an API URL — redirect to the app with an error notification.
+            if ($request->is('api/*') && str_contains($request->header('Accept', ''), 'text/html')) {
+                $appUrl = rtrim(config('app.frontend_url', config('app.url', '')), '/');
+                $referer = $request->headers->get('referer', '');
+
+                if ($referer && parse_url($referer, PHP_URL_HOST) === parse_url($appUrl, PHP_URL_HOST)) {
+                    $base = $referer;
+                } else {
+                    $base = $appUrl.'/';
+                }
+
+                $separator = str_contains($base, '?') ? '&' : '?';
+
+                return redirect($base.$separator.'error=access_denied');
             }
 
             return response()->json(['message' => 'Unauthenticated.'], 401);

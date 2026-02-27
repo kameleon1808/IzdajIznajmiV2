@@ -313,6 +313,14 @@ router.beforeEach(async (to, _from, next) => {
     return next({ path: '/landlord/applications', query: rest })
   }
 
+  if (to.query.error === 'access_denied') {
+    const languageStore = useLanguageStore()
+    const t = (key: Parameters<typeof languageStore.t>[0]) => languageStore.t(key)
+    toast.push({ title: t('common.accessDenied'), message: t('common.accessDeniedMessage'), type: 'error' })
+    const { error: _err, ...restQuery } = to.query
+    return next({ path: to.path, query: restQuery, replace: true })
+  }
+
   await auth.initialize()
 
   if (allowedRoles) {

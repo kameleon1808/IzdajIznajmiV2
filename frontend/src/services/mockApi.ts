@@ -2158,6 +2158,11 @@ export async function redactAdminKycSubmission(id: string | number, note?: strin
   return JSON.parse(JSON.stringify(submission))
 }
 
+export async function getKycAuditLog(_limit = 50): Promise<import('../types').KycAuditEntry[]> {
+  await delay()
+  return []
+}
+
 export async function setupMfa() {
   await delay()
   return {
