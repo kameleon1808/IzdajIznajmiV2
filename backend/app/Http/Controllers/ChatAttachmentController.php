@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\ChatAttachment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Symfony\Component\HttpFoundation\Response;
 
 class ChatAttachmentController extends Controller
@@ -13,13 +14,13 @@ class ChatAttachmentController extends Controller
     {
         $user = $request->user();
         abort_unless($user, 401, 'Unauthenticated');
-        abort_unless($attachment->conversation && $attachment->conversation->isParticipant($user), 403, 'Forbidden');
+        $this->authorize('view', $attachment);
 
         $disk = Storage::disk($attachment->disk ?: 'private');
         abort_unless($disk->exists($attachment->path_original), 404, 'Attachment not found');
 
         $path = $disk->path($attachment->path_original);
-        $filename = $attachment->original_name ?: basename($attachment->path_original);
+        $filename = $this->sanitizeFilename($attachment->original_name ?: basename($attachment->path_original));
         $mime = $attachment->mime_type ?: 'application/octet-stream';
 
         if ($attachment->kind === 'document') {
@@ -36,7 +37,7 @@ class ChatAttachmentController extends Controller
     {
         $user = $request->user();
         abort_unless($user, 401, 'Unauthenticated');
-        abort_unless($attachment->conversation && $attachment->conversation->isParticipant($user), 403, 'Forbidden');
+        $this->authorize('view', $attachment);
 
         abort_unless($attachment->path_thumb, 404, 'Thumbnail not found');
 
@@ -49,5 +50,14 @@ class ChatAttachmentController extends Controller
             'Content-Type' => 'image/webp',
             'Content-Disposition' => 'inline; filename="thumb-'.basename($attachment->path_thumb).'"',
         ]);
+    }
+
+    private function sanitizeFilename(?string $name): string
+    {
+        $name = $name ?: 'attachment';
+        $name = basename($name);
+        $name = Str::of($name)->replace(['"', "'"], '')->toString();
+
+        return $name ?: 'attachment';
     }
 }

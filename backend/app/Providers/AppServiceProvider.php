@@ -4,6 +4,8 @@ namespace App\Providers;
 
 use App\Models\Application;
 use App\Models\BookingRequest;
+use App\Models\ChatAttachment;
+use App\Models\KycDocument;
 use App\Models\Listing;
 use App\Models\ListingRating;
 use App\Models\RentalTransaction;
@@ -14,6 +16,8 @@ use App\Observers\ListingObserver;
 use App\Observers\ListingRatingObserver;
 use App\Policies\ApplicationPolicy;
 use App\Policies\BookingRequestPolicy;
+use App\Policies\ChatAttachmentPolicy;
+use App\Policies\KycDocumentPolicy;
 use App\Policies\ListingPolicy;
 use App\Policies\RentalTransactionPolicy;
 use App\Policies\SavedSearchPolicy;
@@ -138,6 +142,8 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(ViewingSlot::class, ViewingSlotPolicy::class);
         Gate::policy(ViewingRequest::class, ViewingRequestPolicy::class);
         Gate::policy(RentalTransaction::class, RentalTransactionPolicy::class);
+        Gate::policy(ChatAttachment::class, ChatAttachmentPolicy::class);
+        Gate::policy(KycDocument::class, KycDocumentPolicy::class);
 
         RateLimiter::for('api', function (Request $request) {
             return Limit::perMinute(240)->by($request->user()?->id ?? $request->ip());
