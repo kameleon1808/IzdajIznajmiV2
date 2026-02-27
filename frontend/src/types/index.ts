@@ -389,7 +389,9 @@ export interface ListingFilters {
   radiusKm?: number | null
 }
 
-export type KycStatus = 'none' | 'pending' | 'approved' | 'rejected' | 'withdrawn'
+export type KycStatus = 'none' | 'pending' | 'approved' | 'rejected' | 'withdrawn' | 'quarantined'
+
+export type KycAvStatus = 'pending' | 'clean' | 'infected' | 'error'
 
 export interface KycDocument {
   id: string
@@ -397,8 +399,24 @@ export interface KycDocument {
   originalName: string
   mimeType: string
   sizeBytes: number
+  avStatus?: KycAvStatus
   createdAt?: string
   downloadUrl?: string | null
+}
+
+export interface KycAuditEntry {
+  id: number
+  action: string
+  actorId: number | null
+  actorName: string
+  actorEmail?: string | null
+  documentId: number | null
+  submissionId: number | null
+  ownerId: number | null
+  docType: string | null
+  isAdmin: boolean
+  ipAddress: string | null
+  createdAt: string
 }
 
 export interface KycSubmission {

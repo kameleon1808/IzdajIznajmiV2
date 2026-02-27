@@ -25,7 +25,7 @@ const t = (key: Parameters<typeof languageStore.t>[0]) => languageStore.t(key)
 const loading = ref(true)
 const error = ref('')
 const submissions = ref<KycSubmission[]>([])
-const filter = ref<'pending' | 'approved' | 'rejected' | 'withdrawn' | 'all'>('pending')
+const filter = ref<'pending' | 'approved' | 'rejected' | 'withdrawn' | 'quarantined' | 'all'>('pending')
 
 const selected = ref<KycSubmission | null>(null)
 const detailOpen = ref(false)
@@ -64,6 +64,7 @@ const statusVariant = (status: string) => {
   if (status === 'approved') return 'accepted'
   if (status === 'rejected') return 'rejected'
   if (status === 'pending') return 'pending'
+  if (status === 'quarantined') return 'rejected'
   return 'info'
 }
 
@@ -77,8 +78,19 @@ const statusLabel = (status: string) => {
       return t('admin.kyc.status.pending')
     case 'withdrawn':
       return t('admin.kyc.status.withdrawn')
+    case 'quarantined':
+      return t('admin.kyc.status.quarantined')
     default:
       return status
+  }
+}
+
+const avStatusLabel = (avStatus?: string) => {
+  switch (avStatus) {
+    case 'clean': return t('kyc.avStatus.clean')
+    case 'infected': return t('kyc.avStatus.infected')
+    case 'error': return t('kyc.avStatus.error')
+    default: return t('kyc.avStatus.pending')
   }
 }
 
@@ -165,6 +177,7 @@ const submittedAt = computed(() => (selected.value?.submittedAt ? new Date(selec
       <router-link to="/admin/moderation" class="opacity-80 hover:opacity-100">{{ t('admin.nav.moderation') }}</router-link>
       <router-link to="/admin/ratings" class="opacity-80 hover:opacity-100">{{ t('admin.nav.ratings') }}</router-link>
       <router-link to="/admin/kyc">{{ t('admin.nav.kyc') }}</router-link>
+      <router-link to="/admin/kyc/audit-log" class="opacity-80 hover:opacity-100">{{ t('admin.kyc.auditLog') }}</router-link>
     </div>
 
     <div class="flex flex-wrap gap-2">
@@ -172,6 +185,7 @@ const submittedAt = computed(() => (selected.value?.submittedAt ? new Date(selec
       <Button size="sm" :variant="filter === 'approved' ? 'primary' : 'secondary'" @click="filter = 'approved'; load()">{{ t('admin.kyc.status.approved') }}</Button>
       <Button size="sm" :variant="filter === 'rejected' ? 'primary' : 'secondary'" @click="filter = 'rejected'; load()">{{ t('admin.kyc.status.rejected') }}</Button>
       <Button size="sm" :variant="filter === 'withdrawn' ? 'primary' : 'secondary'" @click="filter = 'withdrawn'; load()">{{ t('admin.kyc.status.withdrawn') }}</Button>
+      <Button size="sm" :variant="filter === 'quarantined' ? 'primary' : 'secondary'" @click="filter = 'quarantined'; load()">{{ t('admin.kyc.status.quarantined') }}</Button>
       <Button size="sm" :variant="filter === 'all' ? 'primary' : 'secondary'" @click="filter = 'all'; load()">{{ t('admin.kyc.all') }}</Button>
     </div>
 
@@ -227,9 +241,20 @@ const submittedAt = computed(() => (selected.value?.submittedAt ? new Date(selec
                   <p class="text-xs text-muted">{{ doc.originalName }}</p>
                 </div>
               </div>
-              <a v-if="doc.downloadUrl" :href="doc.downloadUrl" target="_blank" rel="noopener" class="text-xs font-semibold text-primary">
-                {{ t('common.open') }}
-              </a>
+              <div class="flex items-center gap-2">
+                <span
+                  v-if="doc.avStatus"
+                  class="text-xs px-2 py-0.5 rounded-full"
+                  :class="{
+                    'bg-emerald-100 text-emerald-700': doc.avStatus === 'clean',
+                    'bg-amber-100 text-amber-700': doc.avStatus === 'pending',
+                    'bg-rose-100 text-rose-700': doc.avStatus === 'infected' || doc.avStatus === 'error',
+                  }"
+                >{{ avStatusLabel(doc.avStatus) }}</span>
+                <a v-if="doc.downloadUrl" :href="doc.downloadUrl" target="_blank" rel="noopener" class="text-xs font-semibold text-primary">
+                  {{ t('common.open') }}
+                </a>
+              </div>
             </div>
             <img
               v-if="doc.downloadUrl && isImage(doc)"

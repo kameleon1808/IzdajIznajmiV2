@@ -9,6 +9,8 @@ RUN apt-get update \
     unzip \
     zip \
     ca-certificates \
+    clamav \
+  && freshclam --no-dns || true \
   && rm -rf /var/lib/apt/lists/*
 
 ADD https://github.com/mlocati/docker-php-extension-installer/releases/latest/download/install-php-extensions /usr/local/bin/

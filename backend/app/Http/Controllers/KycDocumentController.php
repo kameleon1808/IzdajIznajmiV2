@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\KycDocument;
 use App\Services\AuditLogService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -13,15 +14,26 @@ class KycDocumentController extends Controller
 {
     public function __construct(private readonly AuditLogService $auditLogs) {}
 
-    public function show(Request $request, KycDocument $document): StreamedResponse
+    public function show(Request $request, KycDocument $document): StreamedResponse|RedirectResponse
     {
         $user = $request->user();
-        abort_unless($user, 401, 'Unauthenticated');
+
+        if (! $user) {
+            if ($this->isBrowserRequest($request)) {
+                return $this->redirectWithError($request, 'access_denied');
+            }
+            abort(401, 'Unauthenticated');
+        }
 
         $isAdmin = $this->userHasRole($user, 'admin');
         $isOwner = $document->user_id === $user->id;
 
-        abort_unless($isOwner || $isAdmin, 403, 'Forbidden');
+        if (! $isOwner && ! $isAdmin) {
+            if ($this->isBrowserRequest($request)) {
+                return $this->redirectWithError($request, 'access_denied');
+            }
+            abort(403, 'Forbidden');
+        }
 
         $disk = $document->disk ?? 'private';
         $path = $document->path;
@@ -29,19 +41,20 @@ class KycDocumentController extends Controller
             abort(404, 'Document not found');
         }
 
-        if ($isAdmin) {
-            $this->auditLogs->record(
-                $user->id,
-                'kyc.document.viewed',
-                KycDocument::class,
-                $document->id,
-                [
-                    'submission_id' => $document->submission_id,
-                    'owner_id' => $document->user_id,
-                    'doc_type' => $document->doc_type,
-                ]
-            );
-        }
+        // Audit every access — admin and owner alike.
+        $action = $isAdmin ? 'kyc.document.admin_downloaded' : 'kyc.document.owner_downloaded';
+        $this->auditLogs->record(
+            $user->id,
+            $action,
+            KycDocument::class,
+            $document->id,
+            [
+                'submission_id' => $document->submission_id,
+                'owner_id' => $document->user_id,
+                'doc_type' => $document->doc_type,
+                'is_admin' => $isAdmin,
+            ]
+        );
 
         $mime = $document->mime_type ?? Storage::disk($disk)->mimeType($path) ?? 'application/octet-stream';
         $inline = str_starts_with($mime, 'image/') || $mime === 'application/pdf';
@@ -61,6 +74,28 @@ class KycDocumentController extends Controller
             'X-Content-Type-Options' => 'nosniff',
             'Cache-Control' => 'private, no-store, max-age=0',
         ]);
+    }
+
+    private function isBrowserRequest(Request $request): bool
+    {
+        return str_contains($request->header('Accept', ''), 'text/html');
+    }
+
+    private function redirectWithError(Request $request, string $error): RedirectResponse
+    {
+        $appUrl = rtrim(config('app.frontend_url', config('app.url', '')), '/');
+        $referer = $request->headers->get('referer', '');
+
+        // Only redirect back to the same host to prevent open redirects.
+        if ($referer && parse_url($referer, PHP_URL_HOST) === parse_url($appUrl, PHP_URL_HOST)) {
+            $base = $referer;
+        } else {
+            $base = $appUrl . '/';
+        }
+
+        $separator = str_contains($base, '?') ? '&' : '?';
+
+        return redirect($base.$separator.'error='.$error);
     }
 
     private function sanitizeFilename(?string $name): string

@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\KycSubmissionResource;
+use App\Models\AuditLog;
 use App\Models\KycSubmission;
 use App\Models\Notification;
 use App\Services\NotificationService;
@@ -24,6 +25,7 @@ class KycSubmissionAdminController extends Controller
             KycSubmission::STATUS_APPROVED,
             KycSubmission::STATUS_REJECTED,
             KycSubmission::STATUS_WITHDRAWN,
+            KycSubmission::STATUS_QUARANTINED,
         ];
 
         $submissions = KycSubmission::with([
@@ -59,13 +61,15 @@ class KycSubmissionAdminController extends Controller
         }
 
         $note = $request->input('note');
+        $retentionDays = (int) config('kyc.document_retention_days', 90);
 
-        DB::transaction(function () use ($submission, $admin, $note) {
+        DB::transaction(function () use ($submission, $admin, $note, $retentionDays) {
             $submission->update([
                 'status' => KycSubmission::STATUS_APPROVED,
                 'reviewed_at' => now(),
                 'reviewer_id' => $admin->id,
                 'reviewer_note' => $note,
+                'purge_after' => now()->addDays($retentionDays),
             ]);
 
             $submission->user?->update([
@@ -99,13 +103,15 @@ class KycSubmissionAdminController extends Controller
         }
 
         $note = $request->input('note');
+        $retentionDays = (int) config('kyc.document_retention_days', 90);
 
-        DB::transaction(function () use ($submission, $admin, $note) {
+        DB::transaction(function () use ($submission, $admin, $note, $retentionDays) {
             $submission->update([
                 'status' => KycSubmission::STATUS_REJECTED,
                 'reviewed_at' => now(),
                 'reviewer_id' => $admin->id,
                 'reviewer_note' => $note,
+                'purge_after' => now()->addDays($retentionDays),
             ]);
 
             $submission->user?->update([
@@ -144,6 +150,8 @@ class KycSubmissionAdminController extends Controller
                 'reviewed_at' => now(),
                 'reviewer_id' => $admin->id,
                 'reviewer_note' => $note,
+                // Documents are already deleted — no purge_after needed
+                'purge_after' => null,
             ]);
 
             $submission->user?->update([
@@ -155,6 +163,33 @@ class KycSubmissionAdminController extends Controller
         });
 
         return response()->json(new KycSubmissionResource($submission->fresh('documents', 'user', 'reviewer')));
+    }
+
+    public function auditLog(Request $request): JsonResponse
+    {
+        $limit = min((int) $request->input('limit', 50), 200);
+
+        $entries = AuditLog::with('actor:id,full_name,name,email')
+            ->whereIn('action', ['kyc.document.admin_downloaded', 'kyc.document.owner_downloaded'])
+            ->orderByDesc('created_at')
+            ->limit($limit)
+            ->get()
+            ->map(fn ($log) => [
+                'id' => $log->id,
+                'action' => $log->action,
+                'actorId' => $log->actor_user_id,
+                'actorName' => $log->actor?->full_name ?? $log->actor?->name ?? "User #{$log->actor_user_id}",
+                'actorEmail' => $log->actor?->email,
+                'documentId' => $log->subject_id,
+                'submissionId' => $log->metadata['submission_id'] ?? null,
+                'ownerId' => $log->metadata['owner_id'] ?? null,
+                'docType' => $log->metadata['doc_type'] ?? null,
+                'isAdmin' => (bool) ($log->metadata['is_admin'] ?? false),
+                'ipAddress' => $log->ip_address,
+                'createdAt' => optional($log->created_at)->toISOString(),
+            ]);
+
+        return response()->json($entries);
     }
 
     private function deleteDocuments(KycSubmission $submission): void

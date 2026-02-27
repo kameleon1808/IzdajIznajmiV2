@@ -19,6 +19,7 @@ class KycDocumentResource extends JsonResource
             'originalName' => $this->original_name,
             'mimeType' => $this->mime_type,
             'sizeBytes' => (int) $this->size_bytes,
+            'avStatus' => $this->av_status ?? 'pending',
             'createdAt' => optional($this->created_at)->toISOString(),
             'downloadUrl' => $canAccess ? route('kyc.documents.show', ['document' => $this->id], false) : null,
         ];

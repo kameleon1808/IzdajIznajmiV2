@@ -17,6 +17,7 @@ import AdminRatings from '../pages/AdminRatings.vue'
 import AdminDashboard from '../pages/AdminDashboard.vue'
 import AdminModeration from '../pages/AdminModeration.vue'
 import AdminKyc from '../pages/AdminKyc.vue'
+import AdminKycAuditLog from '../pages/AdminKycAuditLog.vue'
 import AdminTransactions from '../pages/AdminTransactions.vue'
 import AdminTransactionDetail from '../pages/AdminTransactionDetail.vue'
 import AdminUserSecurity from '../pages/AdminUserSecurity.vue'
@@ -254,6 +255,12 @@ const router = createRouter({
       meta: { topBar: { type: 'title', title: 'KYC Review', titleKey: 'titles.kycReview' }, showTabs: false, roles: ['admin'] },
     },
     {
+      path: '/admin/kyc/audit-log',
+      name: 'admin-kyc-audit-log',
+      component: AdminKycAuditLog,
+      meta: { topBar: { type: 'title', title: 'KYC Audit Log' }, showTabs: false, roles: ['admin'] },
+    },
+    {
       path: '/admin/transactions',
       name: 'admin-transactions',
       component: AdminTransactions,
@@ -304,6 +311,14 @@ router.beforeEach(async (to, _from, next) => {
   if (to.path === '/applications' && to.query.role === 'landlord') {
     const { role, ...rest } = to.query
     return next({ path: '/landlord/applications', query: rest })
+  }
+
+  if (to.query.error === 'access_denied') {
+    const languageStore = useLanguageStore()
+    const t = (key: Parameters<typeof languageStore.t>[0]) => languageStore.t(key)
+    toast.push({ title: t('common.accessDenied'), message: t('common.accessDeniedMessage'), type: 'error' })
+    const { error: _err, ...restQuery } = to.query
+    return next({ path: to.path, query: restQuery, replace: true })
   }
 
   await auth.initialize()

@@ -208,6 +208,7 @@ $apiRoutes = function () use ($authRoutes) {
                     Route::patch('/kyc/submissions/{submission}/approve', [KycSubmissionAdminController::class, 'approve']);
                     Route::patch('/kyc/submissions/{submission}/reject', [KycSubmissionAdminController::class, 'reject']);
                     Route::delete('/kyc/submissions/{submission}/redact', [KycSubmissionAdminController::class, 'redact']);
+                    Route::get('/kyc/audit-log', [KycSubmissionAdminController::class, 'auditLog']);
                     Route::get('/ratings', [RatingAdminController::class, 'index']);
                     Route::get('/ratings/{rating}', [RatingAdminController::class, 'show']);
                     Route::delete('/ratings/{rating}', [RatingAdminController::class, 'destroy']);

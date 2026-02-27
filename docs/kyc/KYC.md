@@ -23,8 +23,12 @@
 - Audit trails are retained via submission records and audit logs.
 
 ## Audit logging
-- Admin document access is logged with:
-  - `actor_user_id` (admin)
+- All document downloads (owner and admin) are logged with:
+  - `actor_user_id` (accessor)
+  - `action` = `kyc.document.owner_downloaded` or `kyc.document.admin_downloaded`
   - `subject_type` = `App\\Models\\KycDocument`
   - `subject_id` = document id
   - `ip_address`, `user_agent`, timestamps
+
+## Security hardening
+For the full security specification (file validation, storage, retention, AV scanning, audit logging), see [docs/security/KYC-DOCUMENT-SECURITY.md](../security/KYC-DOCUMENT-SECURITY.md).
