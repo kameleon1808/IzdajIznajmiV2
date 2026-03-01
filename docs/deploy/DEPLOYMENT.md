@@ -20,7 +20,7 @@ Key environment variables to verify:
 - `QUEUE_CONNECTION`, `CACHE_STORE`, `SESSION_DRIVER`
 - `GEOCODER_DRIVER` (`nominatim` in prod/staging, `fake` locally), `SENTRY_DSN` (optional)
 - `QUEUE_FAILED_JOBS_ALERT_ENABLED`, `QUEUE_FAILED_JOBS_ALERT_THRESHOLD`, `QUEUE_FAILED_JOBS_ALERT_COOLDOWN_SECONDS`
-- `SECURITY_HEADERS_ENABLED`, `SECURITY_HSTS_ENABLED`, `SECURITY_CSP_ENABLED`, `SECURITY_CSP_REPORT_ONLY`
+- `SECURITY_HEADERS_ENABLED`, `SECURITY_PERMISSIONS_POLICY`, `SECURITY_HSTS_ENABLED`, `SECURITY_HSTS_PRELOAD`, `SECURITY_CSP_ENABLED`, `SECURITY_CSP_REPORT_ONLY`, `SECURITY_CSP_POLICY`
 
 ## Directory layout on server
 ```
@@ -31,7 +31,12 @@ Key environment variables to verify:
 ```
 
 ## Nginx
-Use `ops/nginx-site.conf` as a starting point. Points SPA root to `frontend/dist`, proxies `/api` and `/sanctum` to Laravel (php-fpm), serves `/storage` from `backend/public/storage`. Set `server_name`, TLS, and PHP-FPM socket path.
+Use `ops/nginx-site.conf` as a starting point. Points SPA root to `frontend/dist`, proxies `/api` and `/sanctum` to Laravel (php-fpm), serves `/storage` from `backend/public/storage`. Set `server_name`, TLS certificate paths, and PHP-FPM socket path.
+
+TLS is pre-configured for TLS 1.2/1.3 only with ECDHE cipher suites, OCSP stapling, and disabled session tickets. HTTP is redirected to HTTPS. See `docs/security/TRANSPORT-SECURITY.md` for full details and verification commands.
+
+For Docker deployments (`docker-compose.production.yml`), use `ops/nginx-docker-production.conf`. TLS is terminated upstream (load balancer or Cloudflare Tunnel); the gateway only handles HTTP internally.
+
 If running behind another load balancer, forward `X-Forwarded-Proto` and keep `APP_URL` set to the public https URL so Sanctum cookies stay secure.
 
 ## Queues & Scheduler
@@ -94,14 +99,18 @@ ALLOW_MIGRATE=1 ROLLBACK_REF=v1.2.3 ./ops/rollback.sh
 - After deploy, expect HTTP 200; failures return 500 with minimal error strings.
 
 ## Security Headers and Cookies
-- Backend emits `X-Content-Type-Options`, `X-Frame-Options`, and `Referrer-Policy` by default (`SECURITY_HEADERS_ENABLED=true`).
-- HSTS is env-gated and off by default (`SECURITY_HSTS_ENABLED=false`); enable only on HTTPS production hosts.
-- CSP is env-gated and starts in report-only mode by default (`SECURITY_CSP_ENABLED=false`, `SECURITY_CSP_REPORT_ONLY=true`).
-- Frontend static header examples are included in `ops/nginx-site.conf`.
-- Cookie baseline:
-  - `SESSION_SECURE_COOKIE=true` in production HTTPS
-  - `SESSION_SAME_SITE=lax` (or `none` only with strict cross-site requirements + secure)
-  - `SESSION_HTTP_ONLY=true`
+Headers are emitted at two levels: Nginx (edge) and Laravel's `SecurityHeadersMiddleware` (API responses). See `docs/security/TRANSPORT-SECURITY.md` for the full reference including CSP policy, nonce usage, HSTS configuration, and verification curl commands.
+
+Summary of production defaults (from `backend/.env.example.production`):
+- `SECURITY_HEADERS_ENABLED=true` — emits `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy` on every response
+- `SECURITY_HSTS_ENABLED=true`, `SECURITY_HSTS_PRELOAD=true` — HSTS with 1-year max-age, includeSubDomains, preload (only on HTTPS + `APP_ENV=production`)
+- `SECURITY_CSP_ENABLED=true`, `SECURITY_CSP_REPORT_ONLY=false` — CSP enforced; policy includes `'nonce-{nonce}'` placeholder replaced per-request
+- `SECURITY_PERMISSIONS_POLICY` — disables camera, microphone, payment, USB; allows geolocation for self
+
+Cookie baseline:
+- `SESSION_SECURE_COOKIE=true` in production HTTPS
+- `SESSION_SAME_SITE=lax`
+- `SESSION_HTTP_ONLY=true`
 
 ## Promotion checklist (staging → production)
 1) Deploy to staging branch; wait for queues/scheduler healthy.

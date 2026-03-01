@@ -53,6 +53,13 @@ Compose bootstrap behavior:
 - Creates the SQLite file if needed
 - Runs `storage:link`
 
+**Important — `.env` changes require a container restart:**
+The backend runs `php artisan serve` which loads `.env` once at startup. After editing `backend/.env`, restart the container to pick up changes:
+```bash
+docker compose restart backend
+```
+`php artisan config:clear` alone is not sufficient for `artisan serve` — it only removes the compiled cache file but does not reload environment variables into the running process. For production (PHP-FPM), `config:cache` + queue restart is the correct flow.
+
 ## Docker Development (Windows + WSL2 terminal)
 - Keep Docker Desktop as the engine and run commands from WSL.
 - Docker Desktop -> Settings -> Resources -> WSL Integration: enable the distro.
@@ -108,11 +115,14 @@ Scheduled jobs currently used:
 - `saved-searches:match` every 15 minutes
 
 Rate limiters (defined in `AppServiceProvider`):
+- `auth`: 30/min per IP — login, register
+- `mfa_verify`: 5/min per user+IP — MFA code submission (exceeding also records a fraud signal)
+- `mfa_sensitive`: 5/min per user+IP — MFA setup/confirm/disable/recovery
 - `chat_messages`: 30/min per user/thread
 - `chat_attachments`: 10 uploads/10min per user/thread
 - `applications`: 10/hour per user/IP
-- `listings_search`: 60/min per IP
-- `geocode_suggest`: 40/min per IP
+- `listings_search`: 120/min per IP
+- `geocode_suggest`: 80/min per IP
 
 Realtime behavior:
 - Chat and notification bell use polling (not mandatory WebSocket dependencies)
@@ -126,6 +136,11 @@ php artisan optimize:clear
 ```
 
 Support runbook: `docs/ops/CHAT-REALTIME-SUPPORT.md`
+
+Security headers:
+- Baseline headers (`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, `Permissions-Policy`) are always on in dev (`SECURITY_HEADERS_ENABLED=true`).
+- HSTS and CSP are off locally by default; enable temporarily via `.env` for testing (requires `docker compose restart backend`).
+- Full reference: `docs/security/TRANSPORT-SECURITY.md`
 
 Observability:
 - Structured logs: `storage/logs/structured-YYYY-MM-DD.log`
