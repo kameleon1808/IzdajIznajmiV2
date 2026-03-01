@@ -8,6 +8,7 @@ return [
         'x_content_type_options' => env('SECURITY_X_CONTENT_TYPE_OPTIONS', 'nosniff'),
         'x_frame_options' => env('SECURITY_X_FRAME_OPTIONS', 'SAMEORIGIN'),
         'referrer_policy' => env('SECURITY_REFERRER_POLICY', 'strict-origin-when-cross-origin'),
+        'permissions_policy' => env('SECURITY_PERMISSIONS_POLICY', 'camera=(), microphone=(), geolocation=(self), payment=(), usb=(), interest-cohort=()'),
         'hsts' => [
             'enabled' => (bool) env('SECURITY_HSTS_ENABLED', false),
             'max_age' => (int) env('SECURITY_HSTS_MAX_AGE', 31536000),

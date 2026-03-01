@@ -10,6 +10,11 @@ class SecurityHeadersMiddleware
 {
     public function handle(Request $request, Closure $next): Response
     {
+        // Generate a per-request CSP nonce and store it on the request
+        // so controllers / views can access it via $request->attributes->get('csp_nonce').
+        $nonce = base64_encode(random_bytes(16));
+        $request->attributes->set('csp_nonce', $nonce);
+
         $response = $next($request);
 
         if (! config('security.headers.enabled', true)) {
@@ -22,9 +27,18 @@ class SecurityHeadersMiddleware
         $headers->set('X-Frame-Options', config('security.headers.x_frame_options', 'SAMEORIGIN'));
         $headers->set('Referrer-Policy', config('security.headers.referrer_policy', 'strict-origin-when-cross-origin'));
 
+        $permissionsPolicy = trim((string) config('security.headers.permissions_policy', ''));
+        if ($permissionsPolicy !== '') {
+            $headers->set('Permissions-Policy', $permissionsPolicy);
+        }
+
         $cspEnabled = (bool) config('security.headers.csp.enabled', false);
         $cspPolicy = trim((string) config('security.headers.csp.policy', ''));
         if ($cspEnabled && $cspPolicy !== '') {
+            // Replace {nonce} placeholder with the per-request nonce so the env var can
+            // contain e.g. "script-src 'self' 'nonce-{nonce}'" and it just works.
+            $cspPolicy = str_replace('{nonce}', $nonce, $cspPolicy);
+
             $headerName = config('security.headers.csp.report_only', true)
                 ? 'Content-Security-Policy-Report-Only'
                 : 'Content-Security-Policy';
