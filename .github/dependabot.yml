@@ -1,0 +1,75 @@
+version: 2
+
+updates:
+  # ── PHP / Composer ──────────────────────────────────────────────────────────
+  - package-ecosystem: "composer"
+    directory: "/backend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Belgrade"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "backend"
+    groups:
+      # Bundle all Laravel-ecosystem patch/minor bumps into one PR to reduce noise
+      laravel-ecosystem:
+        patterns:
+          - "laravel/*"
+          - "spatie/*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # ── JavaScript / npm ────────────────────────────────────────────────────────
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Belgrade"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "frontend"
+    groups:
+      # Group Vue-ecosystem updates (vue, vue-router, pinia, vueuse, vue-tsc)
+      vue-ecosystem:
+        patterns:
+          - "vue"
+          - "vue-*"
+          - "@vue/*"
+          - "@vueuse/*"
+          - "pinia"
+        update-types:
+          - "minor"
+          - "patch"
+      # Group all Vite/build-tool updates
+      build-tools:
+        patterns:
+          - "vite"
+          - "@vitejs/*"
+          - "typescript"
+          - "vue-tsc"
+          - "tailwindcss"
+          - "postcss"
+          - "autoprefixer"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # ── GitHub Actions ───────────────────────────────────────────────────────────
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Belgrade"
+    open-pull-requests-limit: 3
+    labels:
+      - "dependencies"
+      - "ci"
