@@ -12,6 +12,7 @@ use App\Models\Rating;
 use App\Models\Report;
 use App\Models\User;
 use App\Services\AuditLogService;
+use App\Services\SecuritySessionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -19,7 +20,10 @@ use Illuminate\Validation\Rule;
 
 class ModerationController extends Controller
 {
-    public function __construct(private AuditLogService $auditLog) {}
+    public function __construct(
+        private AuditLogService $auditLog,
+        private SecuritySessionService $sessions,
+    ) {}
 
     public function queue(Request $request): JsonResponse
     {
@@ -90,6 +94,7 @@ class ModerationController extends Controller
             if ($user) {
                 $user->is_suspicious = true;
                 $user->save();
+                $this->sessions->revokeAllSessions($user);
             }
         }
 
