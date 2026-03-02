@@ -33,6 +33,7 @@ class User extends Authenticatable
         'avatar_path',
         'email',
         'phone',
+        'phone_hash',
         'role',
         'password',
         'address_book',
@@ -55,6 +56,7 @@ class User extends Authenticatable
         'password',
         'remember_token',
         'mfa_totp_secret',
+        'phone_hash',
     ];
 
     /**
@@ -68,7 +70,10 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'date_of_birth' => 'date',
             'password' => 'hashed',
-            'address_book' => 'array',
+            // PII fields encrypted at rest (AES-256-CBC via APP_KEY)
+            'phone' => 'encrypted',
+            'residential_address' => 'encrypted',
+            'address_book' => 'encrypted:array',
             'email_verified' => 'boolean',
             'phone_verified' => 'boolean',
             'address_verified' => 'boolean',
@@ -78,6 +83,19 @@ class User extends Authenticatable
             'verified_at' => 'datetime',
             'badge_override_json' => 'array',
         ];
+    }
+
+    /**
+     * Compute an HMAC-SHA256 hash of a normalized phone number for use as a
+     * DB-level unique index (since encrypted values cannot be compared by the DB).
+     */
+    public static function hashPhone(?string $phone): ?string
+    {
+        if ($phone === null || $phone === '') {
+            return null;
+        }
+
+        return hash_hmac('sha256', mb_strtolower(trim($phone)), config('app.key'));
     }
 
     public function listings()

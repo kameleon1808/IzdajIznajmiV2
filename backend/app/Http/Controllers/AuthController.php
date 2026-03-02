@@ -36,6 +36,7 @@ class AuthController extends Controller
             $addressBook = is_array($decoded) ? $decoded : null;
         }
 
+        $phone = $data['phone'] ?? null;
         $user = User::create([
             'name' => $data['name'] ?? $data['full_name'],
             'full_name' => $data['full_name'],
@@ -44,7 +45,8 @@ class AuthController extends Controller
             'residential_address' => $data['residential_address'] ?? null,
             'employment_status' => $data['employment_status'] ?? null,
             'email' => $data['email'],
-            'phone' => $data['phone'] ?? null,
+            'phone' => $phone,
+            'phone_hash' => User::hashPhone($phone),
             'address_book' => $addressBook,
             'role' => $role,
             'password' => Hash::make($data['password']),

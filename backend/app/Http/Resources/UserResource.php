@@ -30,6 +30,7 @@ class UserResource extends JsonResource
             'roles' => $this->whenLoaded('roles', fn () => $this->getRoleNames()),
             'addressBook' => $this->address_book,
             'emailVerified' => (bool) $this->email_verified,
+            'phoneVerified' => (bool) $this->phone_verified,
             'addressVerified' => (bool) $this->address_verified,
             'isSuspicious' => (bool) $this->is_suspicious,
             'mfaEnabled' => (bool) $this->mfa_enabled,
@@ -38,6 +39,7 @@ class UserResource extends JsonResource
             'verificationStatus' => $this->verification_status ?? 'none',
             'verifiedAt' => optional($this->verified_at)->toISOString(),
             'verificationNotes' => $this->verification_notes,
+            'createdAt' => optional($this->created_at)->toISOString(),
         ];
     }
 }
