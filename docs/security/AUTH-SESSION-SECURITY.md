@@ -59,7 +59,8 @@ Both middlewares are applied to the `Route::middleware(['role:admin', 'admin_mfa
 |---------|-----------------|----------------|
 | User logs out | Current session only | `AuthController::logout` → `session()->invalidate()` + `UserSession` record deleted |
 | User changes password | **All other sessions** | `UserAccountController::updatePassword` → `SecuritySessionService::revokeOtherSessions()` |
-| Admin sets `is_suspicious = true` | **All sessions for flagged user** | `RatingAdminController::flagUser` → `SecuritySessionService::revokeAllSessions()` |
+| Admin sets `is_suspicious = true` via flag-suspicious route | **All sessions for flagged user** | `RatingAdminController::flagUser` → `SecuritySessionService::revokeAllSessions()` |
+| Admin flags user via moderation report resolution (`flag_user_id`) | **All sessions for flagged user** | `ModerationController::update` → `SecuritySessionService::revokeAllSessions()` |
 | Admin explicitly revokes all sessions | All sessions for target user | `POST /api/v1/admin/users/{user}/sessions/revoke-all` |
 | User revokes a specific session | That session only | `POST /api/v1/security/sessions/{id}/revoke` |
 | User revokes all other sessions | All sessions except current | `POST /api/v1/security/sessions/revoke-others` |
@@ -317,32 +318,37 @@ After reset the user can log in without MFA and re-enroll via `/settings/securit
    - Admin calls `PATCH /api/v1/admin/users/{user}/flag-suspicious` with `{ "is_suspicious": false }`
    - Existing sessions not touched
 
+8. **Moderation report resolution with `flag_user_id` revokes all sessions**
+   - User has 2 active sessions
+   - Admin resolves a report via `PATCH /api/v1/admin/moderation/reports/{report}` with `{ "action": "resolve", "flag_user_id": <user_id> }`
+   - Expect both sessions deleted from `sessions` + `user_sessions`
+
 ### Brute-Force Lockout
 
-8. **Lockout after N failed attempts**
+9. **Lockout after N failed attempts**
    - Make `LOGIN_MAX_ATTEMPTS` (e.g. 10) failed login attempts for the same email
    - Next attempt → expect `429 { message: "Too many failed login attempts...", retry_after_minutes: 15 }`
    - Wait for lockout window to expire → login succeeds with correct credentials
 
-9. **Counter resets on success**
-   - Make 5 failed attempts, then 1 successful login
-   - Counter cleared; can fail again up to `LOGIN_MAX_ATTEMPTS` before next lockout
+10. **Counter resets on success**
+    - Make 5 failed attempts, then 1 successful login
+    - Counter cleared; can fail again up to `LOGIN_MAX_ATTEMPTS` before next lockout
 
-10. **Lockout is per email, not per IP**
+11. **Lockout is per email, not per IP**
     - Same email from two different IPs: both contribute to the same counter
     - Different emails from the same IP: independent counters
 
 ### Trusted Device TTL
 
-11. **Expired trusted device triggers MFA challenge**
+12. **Expired trusted device triggers MFA challenge**
     - Manually set `expires_at` to a past timestamp in `trusted_devices`
     - Login → expect `202 { mfa_required: true }` despite previously trusted fingerprint
 
-12. **Non-expired trusted device skips MFA**
+13. **Non-expired trusted device skips MFA**
     - `expires_at` is in the future
     - Login → expect `200` (no MFA challenge)
 
-13. **`trusted-devices:purge` removes only expired records**
+14. **`trusted-devices:purge` removes only expired records**
     - Create 2 devices: one expired, one valid
     - Run `php artisan trusted-devices:purge`
     - Expired record deleted, valid record remains
