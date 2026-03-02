@@ -1,0 +1,61 @@
+name: Security Scanning
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  secrets-scan:
+    name: Gitleaks — secrets detection
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history so gitleaks can scan all commits on the branch
+
+      - name: Run Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # GITLEAKS_LICENSE is required only for organisations on the paid plan;
+          # for public repos or personal use the free tier works without it.
+
+  env-files-not-committed:
+    name: Verify .env files are not tracked
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Fail if any real .env file is tracked by git
+        shell: bash
+        run: |
+          # These globs must NOT appear in the git index.
+          # .env.example* and .env.*.example files are allowed.
+          patterns=(
+            "backend/.env"
+            "backend/.env.production"
+            "backend/.env.staging"
+            "frontend/.env"
+            "frontend/.env.local"
+            "frontend/.env.production"
+            ".env.production.compose"
+          )
+
+          found=0
+          for pattern in "${patterns[@]}"; do
+            if git ls-files --error-unmatch "$pattern" 2>/dev/null; then
+              echo "::error::Tracked secret file detected: $pattern"
+              found=1
+            fi
+          done
+
+          if [ $found -ne 0 ]; then
+            echo "Remove the file(s) from git tracking: git rm --cached <file>"
+            exit 1
+          fi
+
+          echo "No real .env files are tracked. ✓"
