@@ -3,6 +3,10 @@
 return [
     'require_mfa_for_admins' => (bool) env('REQUIRE_MFA_FOR_ADMINS', false),
     'trusted_device_ttl_days' => (int) env('TRUSTED_DEVICE_TTL_DAYS', 30),
+    'brute_force' => [
+        'max_attempts' => (int) env('LOGIN_MAX_ATTEMPTS', 10),
+        'lockout_minutes' => (int) env('LOGIN_LOCKOUT_MINUTES', 15),
+    ],
     'headers' => [
         'enabled' => (bool) env('SECURITY_HEADERS_ENABLED', true),
         'x_content_type_options' => env('SECURITY_X_CONTENT_TYPE_OPTIONS', 'nosniff'),

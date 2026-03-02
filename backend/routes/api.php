@@ -202,7 +202,7 @@ $apiRoutes = function () use ($authRoutes) {
 
             Route::prefix('admin')->group(function () {
                 Route::post('/impersonate/stop', [ImpersonationController::class, 'stop']);
-                Route::middleware(['role:admin', 'admin_mfa'])->group(function () {
+                Route::middleware(['role:admin', 'admin_mfa', 'mfa'])->group(function () {
                     Route::get('/kyc/submissions', [KycSubmissionAdminController::class, 'index']);
                     Route::get('/kyc/submissions/{submission}', [KycSubmissionAdminController::class, 'show']);
                     Route::patch('/kyc/submissions/{submission}/approve', [KycSubmissionAdminController::class, 'approve']);

@@ -7,12 +7,16 @@ use App\Http\Resources\AdminRatingResource;
 use App\Models\Rating;
 use App\Models\User;
 use App\Services\AuditLogService;
+use App\Services\SecuritySessionService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class RatingAdminController extends Controller
 {
-    public function __construct(private AuditLogService $auditLog) {}
+    public function __construct(
+        private AuditLogService $auditLog,
+        private SecuritySessionService $sessions,
+    ) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -59,6 +63,10 @@ class RatingAdminController extends Controller
 
         $user->is_suspicious = $data['is_suspicious'];
         $user->save();
+
+        if ($data['is_suspicious']) {
+            $this->sessions->revokeAllSessions($user);
+        }
 
         $this->auditLog->record($request->user()->id, 'admin.user.flag_suspicious', User::class, $user->id, [
             'is_suspicious' => $data['is_suspicious'],
