@@ -13,6 +13,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -63,9 +64,25 @@ class AuthController extends Controller
     {
         $credentials = $request->validated();
 
+        $lockoutKey = 'login_lockout:'.hash('sha256', strtolower($credentials['email']));
+        $maxAttempts = (int) config('security.brute_force.max_attempts', 10);
+        $lockoutMinutes = (int) config('security.brute_force.lockout_minutes', 15);
+
+        if ((int) Cache::get($lockoutKey, 0) >= $maxAttempts) {
+            return response()->json([
+                'message' => 'Too many failed login attempts. Please try again later.',
+                'retry_after_minutes' => $lockoutMinutes,
+            ], 429);
+        }
+
         if (! Auth::guard('web')->attempt($credentials)) {
+            $attempts = (int) Cache::get($lockoutKey, 0) + 1;
+            Cache::put($lockoutKey, $attempts, now()->addMinutes($lockoutMinutes));
+
             return response()->json(['message' => 'Invalid credentials'], 401);
         }
+
+        Cache::forget($lockoutKey);
 
         $request->session()->regenerate();
 

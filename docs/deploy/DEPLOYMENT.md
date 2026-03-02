@@ -167,15 +167,24 @@ chmod o+rx ~/.cloudflared
 
 ### Running
 
+> **Important:** Always include `--env-file .env.production.compose`. Omitting it causes the gateway to use wrong ports and the frontend to start in dev mode (port 5173 instead of the expected 4173), resulting in 502 errors.
+
 ```bash
-# Start full stack with public tunnel
-docker compose -f docker-compose.production.yml --profile public up -d
+# Recommended: set an alias to avoid mistakes
+alias dc-prod='docker compose --env-file .env.production.compose -f docker-compose.production.yml --profile public'
+
+# Start full stack with public tunnel (builds frontend — takes several minutes on first run)
+dc-prod up -d --build
 
 # Run migrations (first run or after schema changes)
-docker compose -f docker-compose.production.yml exec backend php artisan migrate --force
+dc-prod exec backend php artisan migrate --force
 
 # Check tunnel status
-docker compose -f docker-compose.production.yml logs tunnel --tail=20
+dc-prod logs tunnel --tail=20
+
+# Monitor frontend build progress
+dc-prod logs -f frontend
+# Wait for: "➜  Network: http://172.18.x.x:4173/" — site is live when this appears
 ```
 
 A healthy tunnel log shows:
@@ -183,6 +192,19 @@ A healthy tunnel log shows:
 INF Registered tunnel connection connIndex=0 ...
 INF Registered tunnel connection connIndex=1 ...
 ```
+
+### Dev vs production compose
+
+The repo contains two compose files:
+
+| File | Frontend | Use case |
+|---|---|---|
+| `docker-compose.yml` | `npm run dev` on port **5173** (no build) | Local development only |
+| `docker-compose.production.yml` | `npm run build && npm run preview` on port **4173** | Production / Cloudflare tunnel |
+
+The nginx gateway (`ops/nginx-docker-production.conf`) always proxies to `frontend:4173`. Starting the stack with `docker-compose.yml` by mistake will cause 502 on the frontend because port 4173 is not listening.
+
+**Always use `docker-compose.production.yml --env-file .env.production.compose` for any environment that goes through the gateway.**
 
 ### Docker projects
 
@@ -201,6 +223,7 @@ Two Compose projects use the same `docker-compose.production.yml`. They cannot r
 - Domain propagation after nameserver change can take up to 48 hours.
 
 ## Troubleshooting
+- **502 on Docker stack:** most likely cause is the frontend running in dev mode (wrong compose file used). Check with `docker inspect <frontend-container> --format '{{.Config.Cmd}}'` — it must show `npm run build && npm run preview` and port 4173, not `npm run dev` and port 5173. Fix: `dc-prod down && dc-prod up -d --build`.
 - 502/504: check php-fpm service and socket path in Nginx; ensure `storage/` is writable by `www-data`.
 - Cookies/auth: align `SANCTUM_STATEFUL_DOMAINS` with the SPA host, `SESSION_DOMAIN` with the parent domain, enable HTTPS and `SESSION_SECURE_COOKIE=true`.
 - Migrations blocked: `php artisan queue:work` should be stopped during long migrations; run `php artisan down` if necessary, then `php artisan up` after deploy.

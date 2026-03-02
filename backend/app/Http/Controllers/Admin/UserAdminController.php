@@ -23,8 +23,10 @@ class UserAdminController extends Controller
             $query->where(function ($builder) use ($search) {
                 $builder->where('name', 'like', "%{$search}%")
                     ->orWhere('full_name', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%")
-                    ->orWhere('id', $search);
+                    ->orWhere('email', 'like', "%{$search}%");
+                if (ctype_digit($search)) {
+                    $builder->orWhere('id', (int) $search);
+                }
             });
         }
 

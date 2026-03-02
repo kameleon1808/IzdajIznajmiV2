@@ -88,7 +88,13 @@ apiClient.interceptors.response.use(
       (error.response?.headers as Record<string, string | undefined> | undefined)?.['x-request-id'] ||
       (error.response?.data as any)?.request_id
     const lang = useLanguageStore()
-    if (status === 401) {
+    if (status === 419) {
+      if (!(error.config as any)?._csrfRetry) {
+        await ensureCsrfCookie()
+        ;(error.config as any)._csrfRetry = true
+        return apiClient.request(error.config!)
+      }
+    } else if (status === 401) {
       toast.push({ title: 'Session expired', message: 'Please log in again.', type: 'error' })
       await onUnauthorized()
     } else if (status === 403) {

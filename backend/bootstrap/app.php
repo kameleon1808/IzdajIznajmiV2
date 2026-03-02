@@ -4,6 +4,7 @@ use App\Console\Commands\DbReportIndexesCommand;
 use App\Console\Commands\ExpireListingsCommand;
 use App\Console\Commands\GeocodeListingsCommand;
 use App\Console\Commands\PurgeExpiredKycDocumentsCommand;
+use App\Console\Commands\PurgeExpiredTrustedDevicesCommand;
 use App\Console\Commands\RecomputeBadgesCommand;
 use App\Console\Commands\SavedSearchMatchCommand;
 use App\Console\Commands\SearchListingsReindexCommand;
@@ -50,6 +51,7 @@ return Application::configure(basePath: dirname(__DIR__))
         \App\Console\Commands\SendNotificationDigestCommand::class,
         GeocodeListingsCommand::class,
         PurgeExpiredKycDocumentsCommand::class,
+        PurgeExpiredTrustedDevicesCommand::class,
         RecomputeBadgesCommand::class,
         SavedSearchMatchCommand::class,
         SearchListingsReindexCommand::class,
@@ -62,6 +64,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command('notifications:digest --frequency=weekly')->weeklyOn(1, '09:00'); // Monday
         $schedule->command('saved-searches:match')->everyFifteenMinutes();
         $schedule->command('kyc:purge-expired')->dailyAt('04:00');
+        $schedule->command('trusted-devices:purge')->dailyAt('04:30');
     })
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->use([
