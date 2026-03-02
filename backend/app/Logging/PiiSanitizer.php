@@ -44,7 +44,7 @@ class PiiSanitizer implements ProcessorInterface
     public function __invoke(LogRecord $record): LogRecord
     {
         $context = $this->sanitize($record->context);
-        $extra   = $this->sanitize($record->extra);
+        $extra = $this->sanitize($record->extra);
 
         return $record->with(context: $context, extra: $extra);
     }
@@ -60,11 +60,13 @@ class PiiSanitizer implements ProcessorInterface
 
             if (in_array($lowerKey, self::STRIP_KEYS, true)) {
                 unset($data[$key]);
+
                 continue;
             }
 
             if (in_array($lowerKey, self::MASK_KEYS, true)) {
                 $data[$key] = $this->mask($value);
+
                 continue;
             }
 

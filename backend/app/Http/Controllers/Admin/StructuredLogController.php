@@ -9,7 +9,8 @@ use Illuminate\Http\Request;
 class StructuredLogController extends Controller
 {
     private const DEFAULT_LIMIT = 200;
-    private const MAX_LIMIT     = 500;
+
+    private const MAX_LIMIT = 500;
 
     public function index(Request $request): JsonResponse
     {
@@ -20,11 +21,11 @@ class StructuredLogController extends Controller
             abort(422, 'Invalid date format.');
         }
 
-        $limit         = min((int) ($request->input('limit', self::DEFAULT_LIMIT)), self::MAX_LIMIT);
-        $actionFilter  = $request->input('action');
-        $levelFilter   = $request->input('level');
-        $securityOnly  = filter_var($request->input('security_event'), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
-        $userIdFilter  = $request->input('user_id');
+        $limit = min((int) ($request->input('limit', self::DEFAULT_LIMIT)), self::MAX_LIMIT);
+        $actionFilter = $request->input('action');
+        $levelFilter = $request->input('level');
+        $securityOnly = filter_var($request->input('security_event'), FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
+        $userIdFilter = $request->input('user_id');
 
         $path = storage_path("logs/structured-{$date}.log");
 
@@ -32,7 +33,7 @@ class StructuredLogController extends Controller
             return response()->json([]);
         }
 
-        $lines   = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
         $entries = [];
 
         foreach ($lines as $line) {

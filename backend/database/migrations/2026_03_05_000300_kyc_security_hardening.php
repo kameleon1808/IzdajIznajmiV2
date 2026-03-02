@@ -25,7 +25,7 @@ return new class extends Migration
         // PostgreSQL stores Laravel enums as VARCHAR with a CHECK constraint
         $driver = DB::connection()->getDriverName();
         if ($driver === 'pgsql') {
-            DB::statement("ALTER TABLE kyc_submissions DROP CONSTRAINT IF EXISTS kyc_submissions_status_check");
+            DB::statement('ALTER TABLE kyc_submissions DROP CONSTRAINT IF EXISTS kyc_submissions_status_check');
             DB::statement("ALTER TABLE kyc_submissions ADD CONSTRAINT kyc_submissions_status_check CHECK (status IN ('pending', 'approved', 'rejected', 'withdrawn', 'quarantined'))");
         }
         // SQLite treats enum as TEXT — no constraint to update
@@ -48,7 +48,7 @@ return new class extends Migration
 
         $driver = DB::connection()->getDriverName();
         if ($driver === 'pgsql') {
-            DB::statement("ALTER TABLE kyc_submissions DROP CONSTRAINT IF EXISTS kyc_submissions_status_check");
+            DB::statement('ALTER TABLE kyc_submissions DROP CONSTRAINT IF EXISTS kyc_submissions_status_check');
             DB::statement("ALTER TABLE kyc_submissions ADD CONSTRAINT kyc_submissions_status_check CHECK (status IN ('pending', 'approved', 'rejected', 'withdrawn'))");
         }
         if ($driver === 'mysql') {

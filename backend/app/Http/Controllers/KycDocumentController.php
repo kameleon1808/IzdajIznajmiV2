@@ -108,7 +108,7 @@ class KycDocumentController extends Controller
         if ($referer && parse_url($referer, PHP_URL_HOST) === parse_url($appUrl, PHP_URL_HOST)) {
             $base = $referer;
         } else {
-            $base = $appUrl . '/';
+            $base = $appUrl.'/';
         }
 
         $separator = str_contains($base, '?') ? '&' : '?';

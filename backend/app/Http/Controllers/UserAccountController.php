@@ -186,22 +186,22 @@ class UserAccountController extends Controller
             // 5. Anonymize PII fields — keep the row for referential integrity.
             $anonymizedEmail = 'deleted_'.$user->id.'@deleted.local';
             $user->fill([
-                'name'                 => 'Deleted User',
-                'full_name'            => null,
-                'email'                => $anonymizedEmail,
-                'phone'                => null,
-                'phone_hash'           => null,
-                'date_of_birth'        => null,
-                'gender'               => null,
-                'residential_address'  => null,
-                'employment_status'    => null,
-                'address_book'         => null,
-                'avatar_path'          => null,
-                'verification_notes'   => null,
-                'badge_override_json'  => null,
-                'mfa_totp_secret'      => null,
+                'name' => 'Deleted User',
+                'full_name' => null,
+                'email' => $anonymizedEmail,
+                'phone' => null,
+                'phone_hash' => null,
+                'date_of_birth' => null,
+                'gender' => null,
+                'residential_address' => null,
+                'employment_status' => null,
+                'address_book' => null,
+                'avatar_path' => null,
+                'verification_notes' => null,
+                'badge_override_json' => null,
+                'mfa_totp_secret' => null,
                 // Invalidate password so no future login is possible.
-                'password'             => Hash::make(bin2hex(random_bytes(32))),
+                'password' => Hash::make(bin2hex(random_bytes(32))),
             ]);
             $user->mfa_enabled = false;
             $user->save();
@@ -212,7 +212,7 @@ class UserAccountController extends Controller
             // 7. Audit trail.
             $this->auditLog->record(null, 'user.account.deleted', User::class, $user->id, [
                 'actor_user_id' => $user->id,
-                'ip'            => $request->ip(),
+                'ip' => $request->ip(),
             ]);
 
             $this->log->warning('auth.account_deleted', [

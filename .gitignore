@@ -5,3 +5,6 @@ README-V1.md
 .env.production.compose
 backend/.env.production
 frontend/.env
+frontend/.env.production
+frontend/.env.staging
+frontend/.env.local

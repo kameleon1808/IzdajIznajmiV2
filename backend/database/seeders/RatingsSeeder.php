@@ -115,10 +115,10 @@ class RatingsSeeder extends Seeder
 
                 $rating = Rating::create([
                     'listing_id' => $listing->id,
-                    'rater_id'   => $seeker->id,
-                    'ratee_id'   => $landlord->id,
-                    'rating'     => $stars,
-                    'comment'    => ($seekerIdx % 5 === 0) ? null : $comment,
+                    'rater_id' => $seeker->id,
+                    'ratee_id' => $landlord->id,
+                    'rating' => $stars,
+                    'comment' => ($seekerIdx % 5 === 0) ? null : $comment,
                     'created_at' => $createdAt,
                     'updated_at' => $createdAt,
                 ]);
@@ -143,10 +143,10 @@ class RatingsSeeder extends Seeder
 
                 Rating::create([
                     'listing_id' => $listing->id,
-                    'rater_id'   => $landlord->id,
-                    'ratee_id'   => $seeker->id,
-                    'rating'     => $stars,
-                    'comment'    => ($seekerIdx % 4 === 0) ? null : $comment,
+                    'rater_id' => $landlord->id,
+                    'ratee_id' => $seeker->id,
+                    'rating' => $stars,
+                    'comment' => ($seekerIdx % 4 === 0) ? null : $comment,
                     'created_at' => $createdAt,
                     'updated_at' => $createdAt,
                 ]);
@@ -174,9 +174,9 @@ class RatingsSeeder extends Seeder
 
                 ListingRating::create([
                     'listing_id' => $listing->id,
-                    'seeker_id'  => $seeker->id,
-                    'rating'     => $stars,
-                    'comment'    => ($si % 3 === 0) ? null : $comment,
+                    'seeker_id' => $seeker->id,
+                    'rating' => $stars,
+                    'comment' => ($si % 3 === 0) ? null : $comment,
                     'created_at' => $createdAt,
                     'updated_at' => $createdAt,
                 ]);
@@ -196,8 +196,8 @@ class RatingsSeeder extends Seeder
             RatingReply::create([
                 'rating_id' => $data['rating']->id,
                 'author_id' => $data['landlord']->id,
-                'body'      => $landlordReplies[$replyIdx],
-                'is_admin'  => false,
+                'body' => $landlordReplies[$replyIdx],
+                'is_admin' => false,
                 'created_at' => $replyAt,
                 'updated_at' => $replyAt,
             ]);

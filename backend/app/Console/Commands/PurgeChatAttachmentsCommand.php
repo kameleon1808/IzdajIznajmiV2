@@ -70,8 +70,8 @@ class PurgeChatAttachmentsCommand extends Command
                         $errors++;
                         Log::error('attachments.purge.file_delete_failed', [
                             'attachment_id' => $attachment->id,
-                            'path'          => $path,
-                            'error'         => $e->getMessage(),
+                            'path' => $path,
+                            'error' => $e->getMessage(),
                         ]);
                     }
                 }
