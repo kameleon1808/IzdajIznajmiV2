@@ -190,6 +190,7 @@ $apiRoutes = function () use ($authRoutes) {
             Route::patch('/me/profile', [UserAccountController::class, 'updateProfile']);
             Route::post('/me/avatar', [UserAccountController::class, 'updateAvatar']);
             Route::patch('/me/password', [UserAccountController::class, 'updatePassword']);
+            Route::delete('/me', [UserAccountController::class, 'deleteAccount'])->middleware('throttle:account_deletion');
             Route::post('/me/verification/email/request', [UserVerificationController::class, 'requestEmail'])
                 ->middleware('throttle:verification_request');
             Route::post('/me/verification/email/confirm', [UserVerificationController::class, 'confirmEmail'])

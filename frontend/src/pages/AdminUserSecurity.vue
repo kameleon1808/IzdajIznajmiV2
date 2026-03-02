@@ -88,6 +88,31 @@ const setTopLandlordOverride = async (value: boolean | null) => {
   }
 }
 
+const GENDER_KEYS: Record<string, string> = {
+  muski: 'common.gender.male',
+  zenski: 'common.gender.female',
+  ne_zelim_da_kazem: 'common.gender.ratherNotToSay',
+}
+
+const EMPLOYMENT_KEYS: Record<string, string> = {
+  zaposlen: 'common.employmentStatus.employed',
+  nezaposlen: 'common.employmentStatus.unemployed',
+  student: 'common.employmentStatus.student',
+  penzioner: 'common.employmentStatus.retired',
+}
+
+const formatGender = (value: string | null | undefined): string => {
+  if (!value) return '—'
+  const key = GENDER_KEYS[value]
+  return key ? t(key as Parameters<typeof languageStore.t>[0]) : value
+}
+
+const formatEmployment = (value: string | null | undefined): string => {
+  if (!value) return '—'
+  const key = EMPLOYMENT_KEYS[value]
+  return key ? t(key as Parameters<typeof languageStore.t>[0]) : value
+}
+
 onMounted(load)
 </script>
 
@@ -110,6 +135,119 @@ onMounted(load)
           <Badge :variant="payload.user?.isSuspicious ? 'rejected' : 'accepted'">
             {{ payload.user?.isSuspicious ? t('admin.userSecurity.suspicious') : t('admin.userSecurity.normal') }}
           </Badge>
+        </div>
+      </div>
+    </div>
+
+    <!-- Personal Data (PII) — admin-only section -->
+    <div v-if="payload" class="rounded-2xl bg-white shadow-soft border border-amber-200">
+      <!-- Header with admin-only warning -->
+      <div class="flex items-center gap-2 rounded-t-2xl bg-amber-50 border-b border-amber-200 px-4 py-3">
+        <svg class="h-4 w-4 shrink-0 text-amber-600" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+        </svg>
+        <span class="text-xs font-semibold text-amber-700 uppercase tracking-wide">{{ t('admin.userSecurity.piiSection') }}</span>
+        <span class="text-xs text-amber-600">— {{ t('admin.userSecurity.piiWarning') }}</span>
+      </div>
+
+      <div class="p-4 space-y-4">
+        <!-- Identity -->
+        <div>
+          <p class="text-xs font-semibold text-muted uppercase tracking-wide mb-2">{{ t('admin.userSecurity.piiIdentity') }}</p>
+          <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <div class="rounded-xl border border-line bg-surface px-3 py-2">
+              <p class="text-xs text-muted">{{ t('admin.userSecurity.piiFullName') }}</p>
+              <p class="text-sm font-medium break-all">{{ payload.user?.fullName || '—' }}</p>
+            </div>
+            <div class="rounded-xl border border-line bg-surface px-3 py-2">
+              <p class="text-xs text-muted">{{ t('admin.userSecurity.piiDateOfBirth') }}</p>
+              <p class="text-sm font-medium">{{ payload.user?.dateOfBirth || '—' }}</p>
+            </div>
+            <div class="rounded-xl border border-line bg-surface px-3 py-2">
+              <p class="text-xs text-muted">{{ t('admin.userSecurity.piiGender') }}</p>
+              <p class="text-sm font-medium">{{ formatGender(payload.user?.gender) }}</p>
+            </div>
+            <div class="rounded-xl border border-line bg-surface px-3 py-2">
+              <p class="text-xs text-muted">{{ t('admin.userSecurity.piiEmployment') }}</p>
+              <p class="text-sm font-medium">{{ formatEmployment(payload.user?.employmentStatus) }}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Contact -->
+        <div>
+          <p class="text-xs font-semibold text-muted uppercase tracking-wide mb-2">{{ t('admin.userSecurity.piiContact') }}</p>
+          <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <div class="rounded-xl border border-line bg-surface px-3 py-2">
+              <div class="flex items-center justify-between gap-2">
+                <p class="text-xs text-muted">{{ t('admin.userSecurity.piiEmail') }}</p>
+                <Badge :variant="payload.user?.emailVerified ? 'accepted' : 'pending'" class="text-[10px]">
+                  {{ payload.user?.emailVerified ? t('admin.userSecurity.piiVerified') : t('admin.userSecurity.piiNotVerified') }}
+                </Badge>
+              </div>
+              <p class="text-sm font-medium break-all">{{ payload.user?.email || '—' }}</p>
+            </div>
+            <div class="rounded-xl border border-line bg-surface px-3 py-2">
+              <div class="flex items-center justify-between gap-2">
+                <p class="text-xs text-muted">{{ t('admin.userSecurity.piiPhone') }}</p>
+                <Badge :variant="payload.user?.phoneVerified ? 'accepted' : 'pending'" class="text-[10px]">
+                  {{ payload.user?.phoneVerified ? t('admin.userSecurity.piiVerified') : t('admin.userSecurity.piiNotVerified') }}
+                </Badge>
+              </div>
+              <p class="text-sm font-medium">{{ payload.user?.phone || '—' }}</p>
+            </div>
+            <div class="rounded-xl border border-line bg-surface px-3 py-2 sm:col-span-2">
+              <div class="flex items-center justify-between gap-2">
+                <p class="text-xs text-muted">{{ t('admin.userSecurity.piiAddress') }}</p>
+                <Badge :variant="payload.user?.addressVerified ? 'accepted' : 'pending'" class="text-[10px]">
+                  {{ payload.user?.addressVerified ? t('admin.userSecurity.piiVerified') : t('admin.userSecurity.piiNotVerified') }}
+                </Badge>
+              </div>
+              <p class="text-sm font-medium">{{ payload.user?.residentialAddress || '—' }}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Address book -->
+        <div v-if="payload.user?.addressBook?.length">
+          <p class="text-xs font-semibold text-muted uppercase tracking-wide mb-2">{{ t('admin.userSecurity.piiAddressBook') }}</p>
+          <div class="space-y-1">
+            <div
+              v-for="(entry, idx) in payload.user.addressBook"
+              :key="idx"
+              class="rounded-xl border border-line bg-surface px-3 py-2 text-sm"
+            >
+              <p v-if="entry?.label" class="text-xs text-muted">{{ entry.label }}</p>
+              <p class="font-medium">{{ entry?.address || entry }}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Verification & account info -->
+        <div>
+          <p class="text-xs font-semibold text-muted uppercase tracking-wide mb-2">{{ t('admin.userSecurity.piiAccount') }}</p>
+          <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <div class="rounded-xl border border-line bg-surface px-3 py-2">
+              <p class="text-xs text-muted">{{ t('admin.userSecurity.piiRole') }}</p>
+              <p class="text-sm font-medium capitalize">{{ payload.user?.role || '—' }}</p>
+            </div>
+            <div class="rounded-xl border border-line bg-surface px-3 py-2">
+              <p class="text-xs text-muted">{{ t('admin.userSecurity.piiRegistered') }}</p>
+              <p class="text-sm font-medium">{{ payload.user?.createdAt ? new Date(payload.user.createdAt).toLocaleDateString() : '—' }}</p>
+            </div>
+            <div class="rounded-xl border border-line bg-surface px-3 py-2">
+              <p class="text-xs text-muted">{{ t('admin.userSecurity.piiKycStatus') }}</p>
+              <p class="text-sm font-medium capitalize">{{ payload.user?.verificationStatus || '—' }}</p>
+            </div>
+            <div class="rounded-xl border border-line bg-surface px-3 py-2">
+              <p class="text-xs text-muted">{{ t('admin.userSecurity.piiKycVerifiedAt') }}</p>
+              <p class="text-sm font-medium">{{ payload.user?.verifiedAt ? new Date(payload.user.verifiedAt).toLocaleDateString() : '—' }}</p>
+            </div>
+            <div v-if="payload.user?.verificationNotes" class="rounded-xl border border-line bg-surface px-3 py-2 sm:col-span-2">
+              <p class="text-xs text-muted">{{ t('admin.userSecurity.piiKycNotes') }}</p>
+              <p class="text-sm font-medium whitespace-pre-wrap">{{ payload.user.verificationNotes }}</p>
+            </div>
+          </div>
         </div>
       </div>
     </div>

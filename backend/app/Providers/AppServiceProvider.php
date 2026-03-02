@@ -252,5 +252,11 @@ class AppServiceProvider extends ServiceProvider
 
             return Limit::perMinute(20)->by($key);
         });
+
+        RateLimiter::for('account_deletion', function (Request $request) {
+            $key = sprintf('account_deletion:%s:%s', $request->user()?->id ?? 'guest', $request->ip());
+
+            return Limit::perDay(3)->by($key);
+        });
     }
 }

@@ -28,7 +28,6 @@ class EmailVerificationCodeSender
         } catch (Throwable $e) {
             Log::error('verification_email_send_failed', [
                 'user_id' => $user->id,
-                'email' => $user->email,
                 'error' => $e->getMessage(),
             ]);
 
