@@ -28,11 +28,9 @@ class UserAccountApiTest extends TestCase
         ]);
 
         $response->assertOk()->assertJsonPath('user.fullName', 'New Name');
-        $this->assertDatabaseHas('users', [
-            'id' => $user->id,
-            'full_name' => 'New Name',
-            'phone' => '+38591111222',
-        ]);
+        $this->assertDatabaseHas('users', ['id' => $user->id, 'full_name' => 'New Name']);
+        $fresh = $user->fresh();
+        $this->assertSame('+38591111222', $fresh->phone);
     }
 
     public function test_profile_phone_must_be_unique(): void
@@ -61,10 +59,7 @@ class UserAccountApiTest extends TestCase
             'phone' => '+38591111223',
         ])->assertOk();
 
-        $this->assertDatabaseHas('users', [
-            'id' => $user->id,
-            'phone' => '+38591111223',
-        ]);
+        $this->assertSame('+38591111223', $user->fresh()->phone);
     }
 
     public function test_user_can_upload_avatar(): void

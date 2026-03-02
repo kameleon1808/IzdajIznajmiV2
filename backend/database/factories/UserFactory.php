@@ -37,6 +37,7 @@ class UserFactory extends Factory
             'email' => fake()->unique()->safeEmail(),
             'email_verified_at' => now(),
             'phone' => fake()->unique()->e164PhoneNumber(),
+            'phone_hash' => fn (array $attrs) => User::hashPhone($attrs['phone']),
             'address_book' => null,
             'role' => 'seeker',
             'password' => static::$password ??= Hash::make('password'),
