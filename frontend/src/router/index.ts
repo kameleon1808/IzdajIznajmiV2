@@ -21,6 +21,7 @@ import AdminKycAuditLog from '../pages/AdminKycAuditLog.vue'
 import AdminTransactions from '../pages/AdminTransactions.vue'
 import AdminTransactionDetail from '../pages/AdminTransactionDetail.vue'
 import AdminUserSecurity from '../pages/AdminUserSecurity.vue'
+import AdminLogs from '../pages/AdminLogs.vue'
 import AdminUsers from '../pages/AdminUsers.vue'
 import Reviews from '../pages/Reviews.vue'
 import Search from '../pages/Search.vue'
@@ -174,13 +175,13 @@ const router = createRouter({
       path: '/settings/profile',
       name: 'settings-profile',
       component: SettingsProfile,
-      meta: { topBar: { type: 'back', title: 'Profile', titleKey: 'titles.profile' }, showTabs: false },
+      meta: { topBar: { type: 'back', title: 'Profile', titleKey: 'titles.profile' }, showTabs: false, roles: ['seeker', 'landlord', 'admin'] },
     },
     {
       path: '/settings/personal',
       name: 'settings-personal',
       component: SettingsPersonalInfo,
-      meta: { topBar: { type: 'back', title: 'Personal Info', titleKey: 'titles.personalInfo' }, showTabs: false },
+      meta: { topBar: { type: 'back', title: 'Personal Info', titleKey: 'titles.personalInfo' }, showTabs: false, roles: ['seeker', 'landlord', 'admin'] },
     },
     {
       path: '/settings/legal',
@@ -198,13 +199,13 @@ const router = createRouter({
       path: '/settings/security',
       name: 'settings-security',
       component: SettingsSecurity,
-      meta: { topBar: { type: 'back', title: 'Security', titleKey: 'titles.security' }, showTabs: false },
+      meta: { topBar: { type: 'back', title: 'Security', titleKey: 'titles.security' }, showTabs: false, roles: ['seeker', 'landlord', 'admin'] },
     },
     {
       path: '/settings/notifications',
       name: 'settings-notifications',
       component: SettingsNotifications,
-      meta: { topBar: { type: 'back', title: 'Notifications', titleKey: 'titles.notifications' }, showTabs: false },
+      meta: { topBar: { type: 'back', title: 'Notifications', titleKey: 'titles.notifications' }, showTabs: false, roles: ['seeker', 'landlord', 'admin'] },
     },
     {
       path: '/notifications',
@@ -283,6 +284,12 @@ const router = createRouter({
       name: 'admin-user-security',
       component: AdminUserSecurity,
       meta: { topBar: { type: 'back', title: 'User Security', titleKey: 'titles.userSecurity' }, showTabs: false, roles: ['admin'] },
+    },
+    {
+      path: '/admin/logs',
+      name: 'admin-logs',
+      component: AdminLogs,
+      meta: { topBar: { type: 'title', title: 'Logs', titleKey: 'admin.nav.logs' }, showTabs: false, roles: ['admin'] },
     },
     {
       path: '/admin/moderation/reports/:id',

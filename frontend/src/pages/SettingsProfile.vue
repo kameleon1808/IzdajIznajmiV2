@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, reactive, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import Button from '../components/ui/Button.vue'
 import AvatarPlaceholder from '../components/ui/AvatarPlaceholder.vue'
 import ErrorBanner from '../components/ui/ErrorBanner.vue'
-import { changeMyPassword, updateMyProfile, uploadMyAvatar } from '../services'
+import { changeMyPassword, deleteAccount, updateMyProfile, uploadMyAvatar } from '../services'
 import { useAuthStore } from '../stores/auth'
 import { useToastStore } from '../stores/toast'
 import { useLanguageStore } from '../stores/language'
@@ -11,6 +12,7 @@ import { useLanguageStore } from '../stores/language'
 const auth = useAuthStore()
 const toast = useToastStore()
 const languageStore = useLanguageStore()
+const router = useRouter()
 const t = (key: Parameters<typeof languageStore.t>[0]) => languageStore.t(key)
 
 const profileForm = reactive({
@@ -121,6 +123,38 @@ const passwordForm = reactive({
 })
 const passwordSaving = ref(false)
 const passwordError = ref('')
+
+const deleteConfirmOpen = ref(false)
+const deletePassword = ref('')
+const deleteDeleting = ref(false)
+const deleteError = ref('')
+
+const openDeleteConfirm = () => {
+  deletePassword.value = ''
+  deleteError.value = ''
+  deleteConfirmOpen.value = true
+}
+
+const cancelDelete = () => {
+  deleteConfirmOpen.value = false
+  deletePassword.value = ''
+  deleteError.value = ''
+}
+
+const confirmDeleteAccount = async () => {
+  if (!deletePassword.value) return
+  deleteDeleting.value = true
+  deleteError.value = ''
+  try {
+    await deleteAccount(deletePassword.value)
+    auth.clearSession()
+    toast.push({ title: t('common.success'), message: t('settings.profile.deleteAccountSuccess'), type: 'success' })
+    await router.push('/')
+  } catch (err) {
+    deleteError.value = (err as Error).message || t('settings.profile.deleteAccountFailed')
+    deleteDeleting.value = false
+  }
+}
 const canSavePassword = computed(
   () => passwordForm.currentPassword && passwordForm.newPassword && passwordForm.confirmPassword,
 )
@@ -277,6 +311,41 @@ onBeforeUnmount(() => {
       <Button block size="lg" :variant="canSavePassword ? 'primary' : 'secondary'" :disabled="!canSavePassword || passwordSaving" @click="updatePassword">
         {{ passwordSaving ? t('common.saving') : t('settings.profile.updatePassword') }}
       </Button>
+    </div>
+
+    <div class="rounded-2xl bg-white p-4 shadow-soft border border-red-200 space-y-3">
+      <h2 class="text-base font-semibold text-red-700">{{ t('settings.profile.dangerZoneTitle') }}</h2>
+      <div v-if="!deleteConfirmOpen">
+        <p class="text-sm text-muted mb-3">{{ t('settings.profile.deleteAccountWarning') }}</p>
+        <Button block size="lg" variant="secondary" class="!border-red-300 !text-red-700 hover:!bg-red-50" @click="openDeleteConfirm">
+          {{ t('settings.profile.deleteAccountTitle') }}
+        </Button>
+      </div>
+      <div v-else class="space-y-3">
+        <p class="text-sm font-medium text-red-700">{{ t('settings.profile.deleteAccountWarning') }}</p>
+        <ErrorBanner v-if="deleteError" :message="deleteError" />
+        <label class="space-y-1 text-sm font-semibold text-slate-900">
+          {{ t('settings.profile.deleteAccountConfirmLabel') }}
+          <input
+            v-model="deletePassword"
+            type="password"
+            class="w-full rounded-xl border border-red-300 px-3 py-3 text-sm focus:border-red-500 focus:outline-none"
+            :disabled="deleteDeleting"
+          />
+        </label>
+        <Button
+          block size="lg"
+          variant="secondary"
+          class="!border-red-500 !bg-red-600 !text-white hover:!bg-red-700"
+          :disabled="!deletePassword || deleteDeleting"
+          @click="confirmDeleteAccount"
+        >
+          {{ deleteDeleting ? t('common.saving') : t('settings.profile.deleteAccountButton') }}
+        </Button>
+        <Button block size="lg" variant="secondary" :disabled="deleteDeleting" @click="cancelDelete">
+          {{ t('settings.profile.deleteAccountCancel') }}
+        </Button>
+      </div>
     </div>
   </div>
 </template>

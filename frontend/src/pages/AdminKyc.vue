@@ -178,6 +178,7 @@ const submittedAt = computed(() => (selected.value?.submittedAt ? new Date(selec
       <router-link to="/admin/ratings" class="opacity-80 hover:opacity-100">{{ t('admin.nav.ratings') }}</router-link>
       <router-link to="/admin/kyc">{{ t('admin.nav.kyc') }}</router-link>
       <router-link to="/admin/kyc/audit-log" class="opacity-80 hover:opacity-100">{{ t('admin.kyc.auditLog') }}</router-link>
+      <router-link to="/admin/logs" class="opacity-80 hover:opacity-100">{{ t('admin.nav.logs') }}</router-link>
     </div>
 
     <div class="flex flex-wrap gap-2">

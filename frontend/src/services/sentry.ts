@@ -18,6 +18,7 @@ export async function initSentry(app: App): Promise<void> {
   if (!dsn) return
 
   try {
+    // @ts-ignore — optional peer-dep; npm install required before use
     sentry = await import('@sentry/vue')
     sentry.init({
       app,

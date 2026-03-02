@@ -37,6 +37,7 @@ All security events are written to the **`structured`** log channel (`storage/lo
 | `auth.impersonation_stopped` | warning | Admin ends impersonation | `ImpersonationController::stop` |
 | `kyc.document_accessed_by_admin` | info | Admin downloads a KYC document | `KycDocumentController::show` |
 | `security.ip_failed_logins_threshold` | warning | IP-level failed login threshold exceeded | `FraudSignalService::recordFailedLoginIp` |
+| `fraud.signal_recorded` | info | Any fraud signal persisted for a user | `FraudSignalService::recordSignal` |
 | `backup.verified` | info | Backup file exists and is fresh | `VerifyBackupCommand` |
 | `backup.verify_failed` | error | Backup dir missing or no file found | `VerifyBackupCommand` |
 | `backup.stale` | error | Latest backup exceeds staleness threshold | `VerifyBackupCommand` |
@@ -70,6 +71,15 @@ All security events are written to the **`structured`** log channel (`storage/lo
 }
 ```
 
+### Log level
+
+The structured channel uses `LOG_STRUCTURED_LEVEL` (default: `info`) independently of the general
+`LOG_LEVEL` setting. This prevents the production Docker Compose override (`LOG_LEVEL=warning`) from
+silently discarding `info`-level security events.
+
+**Do not set `LOG_STRUCTURED_LEVEL` above `info`** — doing so will cause fraud signals, KYC access
+events, impersonation events, and session revocations to be silently dropped.
+
 ### Log retention
 
 Configured via `LOG_DAILY_DAYS` (default: 14 days). Increase for compliance requirements.
@@ -88,7 +98,15 @@ grep '"kyc.document_accessed_by_admin"' storage/logs/structured-*.log | jq .
 
 # Impersonation events
 grep '"auth.impersonation_' storage/logs/structured-*.log | jq .
+
+# Fraud signals
+grep '"fraud.signal_recorded"' storage/logs/structured-$(date +%Y-%m-%d).log | jq .
 ```
+
+### Admin UI log viewer
+
+Admins can browse and filter the structured log without terminal access at:
+`/admin/logs` — see `docs/security/ADMIN-LOG-VIEWER.md`.
 
 ---
 
@@ -433,4 +451,4 @@ See also: `docs/ops/BACKUPS.md`.
 
 ---
 
-*Last updated: 2026-03-02 — Security Phase 6 (Monitoring & Detection)*
+*Last updated: 2026-03-02 — Security Phase 6 hotfixes (fraud.signal_recorded, LOG_STRUCTURED_LEVEL, admin log viewer)*

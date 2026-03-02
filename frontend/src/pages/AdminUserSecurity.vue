@@ -11,10 +11,14 @@ import {
   revokeAdminUserSessions,
   updateAdminUserBadges,
 } from '../services'
+import { useAuthStore } from '../stores/auth'
+import { useToastStore } from '../stores/toast'
 import { useLanguageStore } from '../stores/language'
 
 const route = useRoute()
 const userId = computed(() => String(route.params.id ?? ''))
+const auth = useAuthStore()
+const toast = useToastStore()
 const languageStore = useLanguageStore()
 const t = (key: Parameters<typeof languageStore.t>[0]) => languageStore.t(key)
 
@@ -113,6 +117,15 @@ const formatEmployment = (value: string | null | undefined): string => {
   return key ? t(key as Parameters<typeof languageStore.t>[0]) : value
 }
 
+const loginAsUser = async () => {
+  try {
+    await auth.startImpersonation(userId.value)
+    toast.push({ title: t('common.success'), message: t('admin.userSecurity.loginAsUserSuccess'), type: 'info' })
+  } catch (err: any) {
+    toast.push({ title: t('common.error'), message: err?.message || t('admin.userSecurity.loginAsUserFailed'), type: 'error' })
+  }
+}
+
 onMounted(load)
 </script>
 
@@ -136,6 +149,9 @@ onMounted(load)
             {{ payload.user?.isSuspicious ? t('admin.userSecurity.suspicious') : t('admin.userSecurity.normal') }}
           </Badge>
         </div>
+      </div>
+      <div class="mt-3">
+        <Button size="sm" variant="secondary" @click="loginAsUser">{{ t('admin.userSecurity.loginAsUser') }}</Button>
       </div>
     </div>
 

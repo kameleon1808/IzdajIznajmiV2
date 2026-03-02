@@ -33,6 +33,14 @@ class FraudSignalService
             'created_at' => now(),
         ]);
 
+        Log::channel('structured')->info('fraud.signal_recorded', array_merge([
+            'action' => 'fraud.signal_recorded',
+            'security_event' => true,
+            'user_id' => $user->id,
+            'signal' => $key,
+            'weight' => $weight,
+        ], $meta));
+
         $this->recalculateScore($user);
 
         return $signal;

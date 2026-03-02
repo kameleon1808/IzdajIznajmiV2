@@ -57,6 +57,7 @@ const flagSuspicious = async (userId: string | number, isSuspicious: boolean) =>
       <router-link to="/admin/moderation" class="opacity-80 hover:opacity-100">{{ t('admin.nav.moderation') }}</router-link>
       <router-link to="/admin/ratings">{{ t('admin.nav.ratings') }}</router-link>
       <router-link to="/admin/kyc" class="opacity-80 hover:opacity-100">{{ t('admin.nav.kyc') }}</router-link>
+      <router-link to="/admin/logs" class="opacity-80 hover:opacity-100">{{ t('admin.nav.logs') }}</router-link>
     </div>
 
     <div class="flex items-center gap-3">

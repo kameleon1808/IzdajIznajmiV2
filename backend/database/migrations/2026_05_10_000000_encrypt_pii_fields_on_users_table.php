@@ -20,8 +20,12 @@ return new class extends Migration
     public function up(): void
     {
         // 1. Add phone_hash column (nullable until backfilled, then unique).
+        //    Also widen phone and residential_address to TEXT so the encrypted
+        //    ciphertext (240–400 chars) fits without truncation.
         Schema::table('users', function (Blueprint $table) {
             $table->string('phone_hash', 64)->nullable()->after('phone');
+            $table->text('phone')->nullable()->change();
+            $table->text('residential_address')->nullable()->change();
         });
 
         // 2. Backfill phone_hash and re-encrypt PII columns for existing rows.
@@ -68,11 +72,14 @@ return new class extends Migration
 
     public function down(): void
     {
-        // Re-add the old unique index on phone before dropping phone_hash.
+        // Re-add the old unique index on phone before dropping phone_hash,
+        // and revert column types back to string.
         Schema::table('users', function (Blueprint $table) {
             $table->unique('phone', 'users_phone_unique');
             $table->dropUnique('users_phone_hash_unique');
             $table->dropColumn('phone_hash');
+            $table->string('phone')->nullable()->change();
+            $table->string('residential_address')->nullable()->change();
         });
     }
 
