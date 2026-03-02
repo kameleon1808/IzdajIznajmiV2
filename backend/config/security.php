@@ -62,6 +62,23 @@ return [
                 'threshold' => (int) env('FRAUD_SIGNAL_SESSION_ANOMALY_THRESHOLD', 3),
                 'window_hours' => (int) env('FRAUD_SIGNAL_SESSION_ANOMALY_WINDOW_HOURS', 24),
             ],
+            // IP-level: many failed logins from one IP — no user scope, structural log only.
+            'failed_login_ip' => [
+                'threshold' => (int) env('FRAUD_SIGNAL_FAILED_LOGIN_IP_THRESHOLD', 20),
+                'window_minutes' => (int) env('FRAUD_SIGNAL_FAILED_LOGIN_IP_WINDOW', 10),
+            ],
+            // KYC submissions from the same IP for multiple different users.
+            'kyc_multi_user_ip' => [
+                'weight' => (int) env('FRAUD_SIGNAL_KYC_MULTI_USER_IP_WEIGHT', 20),
+                'threshold' => (int) env('FRAUD_SIGNAL_KYC_MULTI_USER_IP_THRESHOLD', 2),
+                'window_hours' => (int) env('FRAUD_SIGNAL_KYC_MULTI_USER_IP_WINDOW_HOURS', 24),
+                'cooldown_minutes' => (int) env('FRAUD_SIGNAL_KYC_MULTI_USER_IP_COOLDOWN', 240),
+            ],
+            // Rapid chat-attachment uploads blocked by rate limiter.
+            'rapid_uploads' => [
+                'weight' => (int) env('FRAUD_SIGNAL_RAPID_UPLOADS_WEIGHT', 5),
+                'cooldown_minutes' => (int) env('FRAUD_SIGNAL_RAPID_UPLOADS_COOLDOWN', 60),
+            ],
         ],
     ],
 ];

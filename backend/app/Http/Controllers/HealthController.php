@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Redis;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 
 class HealthController extends Controller
 {
@@ -36,6 +37,7 @@ class HealthController extends Controller
             'db' => $this->checkDatabase(),
             'cache' => $this->checkCache(),
             'queue' => $this->checkQueue(includeAlertHooks: true),
+            'storage' => $this->checkStorage(),
         ];
 
         $ok = collect($checks)->every(fn ($check) => $check['ok']);
@@ -174,6 +176,39 @@ class HealthController extends Controller
         } catch (\Throwable $e) {
             return ['ok' => false, 'driver' => $driver, 'error' => $e->getMessage()];
         }
+    }
+
+    private function checkStorage(): array
+    {
+        $disksToCheck = [
+            'private' => 'KYC documents and chat attachments',
+            'public' => 'avatars and listing images',
+        ];
+
+        $results = [];
+        $allOk = true;
+
+        foreach ($disksToCheck as $diskName => $description) {
+            try {
+                $testKey = 'health/.storage_probe_'.uniqid('', true);
+                Storage::disk($diskName)->put($testKey, '');
+                $readable = Storage::disk($diskName)->exists($testKey);
+                Storage::disk($diskName)->delete($testKey);
+
+                $results[$diskName] = ['ok' => $readable, 'disk' => $diskName, 'uses' => $description];
+                if (! $readable) {
+                    $allOk = false;
+                }
+            } catch (\Throwable $e) {
+                $results[$diskName] = ['ok' => false, 'disk' => $diskName, 'uses' => $description, 'error' => $e->getMessage()];
+                $allOk = false;
+            }
+        }
+
+        return [
+            'ok' => $allOk,
+            'disks' => $results,
+        ];
     }
 
     private function checkFailedJobs(): array

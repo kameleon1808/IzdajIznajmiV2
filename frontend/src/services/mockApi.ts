@@ -1593,6 +1593,10 @@ export async function changeMyPassword(_payload: {
   return { message: 'Password updated' }
 }
 
+export async function deleteAccount(_password: string): Promise<void> {
+  await delay()
+}
+
 const mapRating = (data: any): Rating => ({
   id: String(data.id),
   listingId: String(data.listingId ?? ''),
@@ -2262,4 +2266,9 @@ export async function clearUserSuspicion(_userId: string | number) {
 export async function updateAdminUserBadges(_userId: string | number, _payload: any) {
   await delay()
   return { badges: _payload?.topLandlord ? ['top_landlord'] : [], override: _payload ?? null, suppressed: false }
+}
+
+export async function getAdminLogs(_params?: any) {
+  await delay()
+  return []
 }

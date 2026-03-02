@@ -997,6 +997,10 @@ export const changeMyPassword = async (payload: {
   return data
 }
 
+export const deleteAccount = async (password: string): Promise<void> => {
+  await apiClient.delete('/me', { data: { password } })
+}
+
 export const requestEmailVerification = async (): Promise<{ message: string; devCode?: string; destination?: string }> => {
   const { data } = await apiClient.post('/me/verification/email/request')
   return data
@@ -1502,5 +1506,27 @@ export const updateAdminUserBadges = async (
   payload: { topLandlord?: boolean | null },
 ): Promise<{ badges: string[]; override?: Record<string, boolean> | null; suppressed?: boolean }> => {
   const { data } = await apiClient.patch(`/admin/users/${userId}/badges`, payload)
+  return data
+}
+
+export interface StructuredLogEntry {
+  message: string
+  context: Record<string, unknown>
+  level: number
+  level_name: string
+  channel: string
+  datetime: string
+  extra: Record<string, unknown>
+}
+
+export const getAdminLogs = async (params?: {
+  date?: string
+  action?: string
+  level?: string
+  security_event?: boolean
+  user_id?: number | string
+  limit?: number
+}): Promise<StructuredLogEntry[]> => {
+  const { data } = await apiClient.get('/admin/logs', { params })
   return data
 }

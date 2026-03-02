@@ -39,6 +39,7 @@ const actionLabel = (action: string) =>
       <router-link to="/admin" class="opacity-80 hover:opacity-100">{{ t('admin.nav.dashboard') }}</router-link>
       <router-link to="/admin/kyc" class="opacity-80 hover:opacity-100">{{ t('admin.nav.kyc') }}</router-link>
       <router-link to="/admin/kyc/audit-log">{{ t('admin.kyc.auditLog') }}</router-link>
+      <router-link to="/admin/logs" class="opacity-80 hover:opacity-100">{{ t('admin.nav.logs') }}</router-link>
     </div>
 
     <div class="flex items-center gap-2">

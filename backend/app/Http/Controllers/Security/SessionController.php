@@ -5,12 +5,16 @@ namespace App\Http\Controllers\Security;
 use App\Http\Controllers\Controller;
 use App\Models\UserSession;
 use App\Services\SecuritySessionService;
+use App\Services\StructuredLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class SessionController extends Controller
 {
-    public function __construct(private SecuritySessionService $sessions) {}
+    public function __construct(
+        private SecuritySessionService $sessions,
+        private StructuredLogger $log
+    ) {}
 
     public function index(Request $request): JsonResponse
     {
@@ -44,9 +48,19 @@ class SessionController extends Controller
         abort_unless($session->user_id === $user->id, 403, 'Forbidden');
 
         $currentSessionId = $request->session()->getId();
+        $isSelf = $currentSessionId === $session->session_id;
         $this->sessions->revokeSession($session);
 
-        if ($currentSessionId === $session->session_id) {
+        $this->log->info('auth.session_revoked', [
+            'severity' => 'info',
+            'security_event' => true,
+            'user_id' => $user->id,
+            'revoked_session_id' => $session->id,
+            'self_revocation' => $isSelf,
+            'trigger' => 'user_manual',
+        ]);
+
+        if ($isSelf) {
             $request->session()->invalidate();
             $request->session()->regenerateToken();
         }
@@ -61,6 +75,16 @@ class SessionController extends Controller
 
         $currentSessionId = $request->session()->getId();
         $revoked = $this->sessions->revokeOtherSessions($user, $currentSessionId);
+
+        if ($revoked > 0) {
+            $this->log->warning('auth.sessions_bulk_revoked', [
+                'severity' => 'warning',
+                'security_event' => true,
+                'user_id' => $user->id,
+                'revoked_count' => $revoked,
+                'trigger' => 'user_revoke_others',
+            ]);
+        }
 
         return response()->json(['revoked' => $revoked]);
     }

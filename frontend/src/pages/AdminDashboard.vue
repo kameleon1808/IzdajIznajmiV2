@@ -60,6 +60,7 @@ const goToUser = () => {
       <router-link to="/admin/transactions" class="opacity-80 hover:opacity-100">{{ t('admin.nav.transactions') }}</router-link>
       <router-link to="/admin/users" class="opacity-80 hover:opacity-100">{{ t('admin.nav.users') }}</router-link>
       <router-link to="/admin/kyc" class="opacity-80 hover:opacity-100">{{ t('admin.nav.kyc') }}</router-link>
+      <router-link to="/admin/logs" class="opacity-80 hover:opacity-100">{{ t('admin.nav.logs') }}</router-link>
     </div>
 
     <div class="rounded-2xl border border-line bg-white p-4 shadow-soft">

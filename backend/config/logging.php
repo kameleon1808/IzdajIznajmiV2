@@ -133,7 +133,7 @@ return [
         'structured' => [
             'driver' => 'daily',
             'path' => storage_path('logs/structured.log'),
-            'level' => env('LOG_LEVEL', 'info'),
+            'level' => env('LOG_STRUCTURED_LEVEL', 'info'),
             'days' => env('LOG_DAILY_DAYS', 14),
             'replace_placeholders' => true,
             'formatter' => JsonFormatter::class,
