@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\KycDocument;
 use App\Services\AuditLogService;
+use App\Services\StructuredLogger;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -12,7 +13,10 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class KycDocumentController extends Controller
 {
-    public function __construct(private readonly AuditLogService $auditLogs) {}
+    public function __construct(
+        private readonly AuditLogService $auditLogs,
+        private readonly StructuredLogger $log
+    ) {}
 
     public function show(Request $request, KycDocument $document): StreamedResponse|RedirectResponse
     {
@@ -57,6 +61,18 @@ class KycDocumentController extends Controller
                 'is_admin' => $isAdmin,
             ]
         );
+
+        if ($isAdmin) {
+            $this->log->info('kyc.document_accessed_by_admin', [
+                'severity' => 'info',
+                'security_event' => true,
+                'user_id' => $user->id,
+                'document_id' => $document->id,
+                'submission_id' => $document->submission_id,
+                'owner_user_id' => $document->user_id,
+                'doc_type' => $document->doc_type,
+            ]);
+        }
 
         $mime = $document->mime_type ?? Storage::disk($disk)->mimeType($path) ?? 'application/octet-stream';
         $inline = str_starts_with($mime, 'image/') || $mime === 'application/pdf';

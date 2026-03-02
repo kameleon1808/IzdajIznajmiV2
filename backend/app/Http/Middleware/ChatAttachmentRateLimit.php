@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Services\FraudSignalService;
 use Closure;
 use Illuminate\Cache\RateLimiter;
 use Illuminate\Http\Request;
@@ -9,7 +10,10 @@ use Symfony\Component\HttpFoundation\Response;
 
 class ChatAttachmentRateLimit
 {
-    public function __construct(private RateLimiter $limiter) {}
+    public function __construct(
+        private RateLimiter $limiter,
+        private FraudSignalService $fraudSignals
+    ) {}
 
     public function handle(Request $request, Closure $next): Response
     {
@@ -30,6 +34,14 @@ class ChatAttachmentRateLimit
 
         if ($this->limiter->tooManyAttempts($key, $max)) {
             $retryAfter = $this->limiter->availableIn($key);
+
+            $user = $request->user();
+            if ($user) {
+                $this->fraudSignals->recordRapidUploads($user, [
+                    'thread_id' => $threadId,
+                    'limit' => $max,
+                ]);
+            }
 
             return response()->json(
                 ['message' => 'Too many attachments. Please slow down.'],

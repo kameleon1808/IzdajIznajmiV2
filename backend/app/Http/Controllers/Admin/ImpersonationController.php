@@ -6,13 +6,17 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\UserResource;
 use App\Models\User;
 use App\Services\AuditLogService;
+use App\Services\StructuredLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class ImpersonationController extends Controller
 {
-    public function __construct(private AuditLogService $auditLog) {}
+    public function __construct(
+        private AuditLogService $auditLog,
+        private StructuredLogger $log
+    ) {}
 
     public function start(Request $request, User $user): JsonResponse
     {
@@ -30,6 +34,13 @@ class ImpersonationController extends Controller
 
         $this->auditLog->record($admin->id, 'impersonation.start', User::class, $user->id, [
             'impersonator_id' => $admin->id,
+        ]);
+
+        $this->log->warning('auth.impersonation_started', [
+            'severity' => 'warning',
+            'security_event' => true,
+            'user_id' => $admin->id,
+            'impersonated_user_id' => $user->id,
         ]);
 
         return response()->json([
@@ -54,6 +65,12 @@ class ImpersonationController extends Controller
             Auth::guard('web')->login($admin);
             $session->regenerate();
             $this->auditLog->record($admin->id, 'impersonation.stop', User::class, $impersonatedId);
+            $this->log->warning('auth.impersonation_stopped', [
+                'severity' => 'warning',
+                'security_event' => true,
+                'user_id' => $admin->id,
+                'impersonated_user_id' => $impersonatedId,
+            ]);
         } else {
             Auth::guard('web')->logout();
             $session->invalidate();

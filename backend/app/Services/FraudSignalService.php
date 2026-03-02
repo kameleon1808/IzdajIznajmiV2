@@ -7,6 +7,7 @@ use App\Models\FraudSignal;
 use App\Models\Notification;
 use App\Models\User;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 class FraudSignalService
 {
@@ -97,6 +98,98 @@ class FraudSignalService
             $this->notifyAdminsOfSignal($user, 'MFA rate limit reached', [
                 'signal' => 'failed_mfa_rate_limited',
                 'count' => $meta['count'] ?? null,
+            ]);
+        }
+    }
+
+    /**
+     * Record an IP-level failed login anomaly.
+     *
+     * Tracks failed login attempts from the same IP in a rolling window.
+     * When the threshold is exceeded the event is written to the structured
+     * security log and sent to Sentry. Because no authenticated user is
+     * involved we cannot create a user-scoped FraudSignal here.
+     */
+    public function recordFailedLoginIp(string $ip): void
+    {
+        $settings = config('security.fraud.signals.failed_login_ip', []);
+        $threshold = (int) ($settings['threshold'] ?? 20);
+        $windowMinutes = (int) ($settings['window_minutes'] ?? 10);
+
+        $cacheKey = 'fraud:failed_login_ip:'.hash('sha256', $ip);
+        $count = Cache::increment($cacheKey);
+        if (! is_int($count)) {
+            $count = (int) Cache::get($cacheKey, 0) + 1;
+        }
+        Cache::put($cacheKey, $count, now()->addMinutes($windowMinutes));
+
+        if ($count === $threshold) {
+            Log::channel('structured')->warning('security.ip_failed_logins_threshold', [
+                'action' => 'security.ip_failed_logins_threshold',
+                'severity' => 'warning',
+                'security_event' => true,
+                'ip_hash' => hash('sha256', $ip),
+                'attempt_count' => $count,
+                'window_minutes' => $windowMinutes,
+            ]);
+        }
+    }
+
+    /**
+     * Record a KYC multi-user IP signal on the submitting user.
+     *
+     * When the same IP is used to submit KYC for multiple distinct users
+     * within the configured window we flag the submitting user with a
+     * fraud signal and notify admins.
+     */
+    public function recordKycMultiUserIp(User $user, string $ip): void
+    {
+        $settings = config('security.fraud.signals.kyc_multi_user_ip', []);
+        $threshold = (int) ($settings['threshold'] ?? 2);
+        $windowHours = (int) ($settings['window_hours'] ?? 24);
+        $cooldown = (int) ($settings['cooldown_minutes'] ?? 240);
+        $weight = (int) ($settings['weight'] ?? 20);
+
+        $ipHash = hash('sha256', $ip);
+        $cacheKey = 'fraud:kyc_submit_ip:'.$ipHash;
+
+        $userIds = Cache::get($cacheKey, []);
+        if (! in_array($user->id, $userIds, true)) {
+            $userIds[] = $user->id;
+        }
+        Cache::put($cacheKey, $userIds, now()->addHours($windowHours));
+
+        if (count($userIds) >= $threshold) {
+            $signal = $this->recordSignal($user, 'kyc_multi_user_ip', $weight, [
+                'ip_hash' => $ipHash,
+                'distinct_users' => count($userIds),
+            ], $cooldown);
+
+            if ($signal) {
+                $this->notifyAdminsOfSignal($user, 'KYC from shared IP', [
+                    'signal' => 'kyc_multi_user_ip',
+                    'ip_hash' => $ipHash,
+                    'distinct_users' => count($userIds),
+                ]);
+            }
+        }
+    }
+
+    /**
+     * Record a rapid chat-attachment upload signal on the authenticated user.
+     *
+     * Called when the ChatAttachmentRateLimit middleware blocks a request.
+     */
+    public function recordRapidUploads(User $user, array $meta = []): void
+    {
+        $settings = config('security.fraud.signals.rapid_uploads', []);
+        $cooldown = (int) ($settings['cooldown_minutes'] ?? 60);
+        $weight = (int) ($settings['weight'] ?? 5);
+
+        $signal = $this->recordSignal($user, 'rapid_uploads', $weight, $meta, $cooldown);
+        if ($signal) {
+            $this->notifyAdminsOfSignal($user, 'Rapid file uploads blocked', [
+                'signal' => 'rapid_uploads',
             ]);
         }
     }

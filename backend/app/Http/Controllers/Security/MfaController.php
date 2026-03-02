@@ -7,6 +7,7 @@ use App\Http\Resources\UserResource;
 use App\Services\FraudSignalService;
 use App\Services\MfaService;
 use App\Services\SecuritySessionService;
+use App\Services\StructuredLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -16,7 +17,8 @@ class MfaController extends Controller
     public function __construct(
         private MfaService $mfa,
         private SecuritySessionService $sessions,
-        private FraudSignalService $fraudSignals
+        private FraudSignalService $fraudSignals,
+        private StructuredLogger $log
     ) {}
 
     public function setup(Request $request): JsonResponse
@@ -87,6 +89,12 @@ class MfaController extends Controller
 
         if (! $valid) {
             $this->fraudSignals->recordFailedMfaAttempt($user);
+            $this->log->warning('auth.mfa_failed', [
+                'severity' => 'warning',
+                'security_event' => true,
+                'user_id' => $user->id,
+                'used_recovery_code' => ! empty($data['recovery_code']),
+            ]);
 
             return response()->json(['message' => 'Invalid MFA code.'], 422);
         }

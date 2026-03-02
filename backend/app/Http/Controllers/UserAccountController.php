@@ -7,6 +7,7 @@ use App\Models\ChatAttachment;
 use App\Models\User;
 use App\Services\AuditLogService;
 use App\Services\SecuritySessionService;
+use App\Services\StructuredLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -21,7 +22,8 @@ class UserAccountController extends Controller
 {
     public function __construct(
         private AuditLogService $auditLog,
-        private SecuritySessionService $sessions
+        private SecuritySessionService $sessions,
+        private StructuredLogger $log
     ) {}
 
     public function updateProfile(Request $request): JsonResponse
@@ -211,6 +213,12 @@ class UserAccountController extends Controller
             $this->auditLog->record(null, 'user.account.deleted', User::class, $user->id, [
                 'actor_user_id' => $user->id,
                 'ip'            => $request->ip(),
+            ]);
+
+            $this->log->warning('auth.account_deleted', [
+                'severity' => 'warning',
+                'security_event' => true,
+                'user_id' => $user->id,
             ]);
         });
 

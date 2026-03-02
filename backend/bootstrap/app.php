@@ -12,6 +12,7 @@ use App\Console\Commands\RecomputeBadgesCommand;
 use App\Console\Commands\SavedSearchMatchCommand;
 use App\Console\Commands\SearchListingsReindexCommand;
 use App\Console\Commands\SearchListingsSyncMissingCommand;
+use App\Console\Commands\VerifyBackupCommand;
 use App\Http\Middleware\ChatAttachmentRateLimit;
 use App\Http\Middleware\RequestIdMiddleware;
 use App\Http\Middleware\SecurityHeadersMiddleware;
@@ -62,6 +63,7 @@ return Application::configure(basePath: dirname(__DIR__))
         SavedSearchMatchCommand::class,
         SearchListingsReindexCommand::class,
         SearchListingsSyncMissingCommand::class,
+        VerifyBackupCommand::class,
     ])
     ->withSchedule(function (Schedule $schedule) {
         $schedule->command('listings:expire')->dailyAt('02:00');
@@ -75,6 +77,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command('attachments:purge-old')->dailyAt('05:00');
         $schedule->command('audit-logs:purge-old')->dailyAt('05:15');
         $schedule->command('notifications:purge-old')->dailyAt('05:30');
+        // Backup health verification
+        $schedule->command('backup:verify')->dailyAt('06:00');
     })
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->use([
@@ -101,7 +105,10 @@ return Application::configure(basePath: dirname(__DIR__))
             'mfa' => \App\Http\Middleware\EnsureMfaVerified::class,
             'admin_mfa' => \App\Http\Middleware\RequireMfaForAdmin::class,
             'session_activity' => \App\Http\Middleware\SessionActivity::class,
+            'sentry_user' => \App\Http\Middleware\SetSentryUserContext::class,
         ]);
+
+        $middleware->appendToGroup('api', \App\Http\Middleware\SetSentryUserContext::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->render(function (AuthenticationException $e, $request) {

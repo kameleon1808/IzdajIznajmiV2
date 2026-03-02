@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Models\UserSession;
 use App\Services\FraudSignalService;
 use App\Services\SecuritySessionService;
+use App\Services\StructuredLogger;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -23,7 +24,8 @@ class AuthController extends Controller
 {
     public function __construct(
         private SecuritySessionService $sessions,
-        private FraudSignalService $fraudSignals
+        private FraudSignalService $fraudSignals,
+        private StructuredLogger $log
     ) {}
 
     public function register(RegisterRequest $request): JsonResponse
@@ -71,6 +73,13 @@ class AuthController extends Controller
         $lockoutMinutes = (int) config('security.brute_force.lockout_minutes', 15);
 
         if ((int) Cache::get($lockoutKey, 0) >= $maxAttempts) {
+            $this->log->warning('auth.login_blocked', [
+                'severity' => 'warning',
+                'security_event' => true,
+                'reason' => 'brute_force_lockout_active',
+                'lockout_minutes' => $lockoutMinutes,
+            ]);
+
             return response()->json([
                 'message' => 'Too many failed login attempts. Please try again later.',
                 'retry_after_minutes' => $lockoutMinutes,
@@ -80,6 +89,24 @@ class AuthController extends Controller
         if (! Auth::guard('web')->attempt($credentials)) {
             $attempts = (int) Cache::get($lockoutKey, 0) + 1;
             Cache::put($lockoutKey, $attempts, now()->addMinutes($lockoutMinutes));
+
+            $this->log->warning('auth.login_failed', [
+                'severity' => 'warning',
+                'security_event' => true,
+                'attempt_count' => $attempts,
+                'max_attempts' => $maxAttempts,
+            ]);
+
+            if ($attempts >= $maxAttempts) {
+                $this->log->warning('auth.brute_force_lockout', [
+                    'severity' => 'warning',
+                    'security_event' => true,
+                    'attempt_count' => $attempts,
+                    'lockout_minutes' => $lockoutMinutes,
+                ]);
+            }
+
+            $this->fraudSignals->recordFailedLoginIp($request->ip());
 
             return response()->json(['message' => 'Invalid credentials'], 401);
         }

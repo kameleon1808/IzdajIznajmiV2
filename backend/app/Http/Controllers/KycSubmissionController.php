@@ -9,6 +9,7 @@ use App\Models\KycDocument;
 use App\Models\KycSubmission;
 use App\Models\Notification;
 use App\Models\User;
+use App\Services\FraudSignalService;
 use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -19,7 +20,10 @@ use Illuminate\Support\Str;
 
 class KycSubmissionController extends Controller
 {
-    public function __construct(private readonly NotificationService $notifications) {}
+    public function __construct(
+        private readonly NotificationService $notifications,
+        private readonly FraudSignalService $fraudSignals
+    ) {}
 
     public function store(StoreKycSubmissionRequest $request): JsonResponse
     {
@@ -51,6 +55,9 @@ class KycSubmissionController extends Controller
 
             return $submission;
         });
+
+        // Check for KYC submissions from the same IP for multiple users (anomaly signal).
+        $this->fraudSignals->recordKycMultiUserIp($user, $request->ip());
 
         // Dispatch AV scan for each stored document (outside transaction, after commit)
         if (config('kyc.av_scan_enabled')) {
