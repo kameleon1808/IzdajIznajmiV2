@@ -15,8 +15,8 @@ const t = (key: Parameters<typeof languageStore.t>[0]) => languageStore.t(key)
 const router = useRouter()
 const route = useRoute()
 
-const email = ref('tena@demo.com')
-const password = ref('password')
+const email = ref('')
+const password = ref('')
 const error = ref('')
 const mfaError = ref('')
 const mfaCode = ref('')
@@ -83,7 +83,6 @@ const resetMfa = () => {
 <template>
   <div class="space-y-4">
     <h1 class="text-xl font-semibold text-slate-900">{{ t('auth.login') }}</h1>
-    <p class="text-sm text-muted">{{ t('auth.loginHint') }}</p>
 
     <ErrorBanner v-if="error" :message="error" />
 

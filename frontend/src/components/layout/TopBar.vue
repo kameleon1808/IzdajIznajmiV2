@@ -115,9 +115,8 @@ const goProfile = () => {
     </div>
 
     <div v-else-if="variant === 'title'" class="flex items-center">
-      <div class="flex w-full items-center justify-between rounded-2xl bg-surface-2 px-4 py-3 shadow-soft border border-border">
+      <div class="flex w-full items-center rounded-2xl bg-surface-2 px-4 py-3 shadow-soft border border-border">
         <span class="text-base font-semibold text-text">{{ titleText }}</span>
-        <NotificationBell />
       </div>
     </div>
 
