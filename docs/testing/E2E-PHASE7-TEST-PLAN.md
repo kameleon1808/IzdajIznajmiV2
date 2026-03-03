@@ -1,111 +1,111 @@
 # E2E Test Plan — Security Phase 7: Dependency & Code Hygiene
 
-Verifikacijski test plan za Phase 7. Ova faza ne dodaje nove UI ekrane — testovi provjeravaju da li **CI security gate-ovi rade ispravno**, da li su **tajne zaštićene** i da li **lokalni audit alati** daju očekivane rezultate.
+Verification test plan for Phase 7. This phase adds no new UI screens — tests verify that **CI security gates work correctly**, that **secrets are protected**, and that **local audit tools produce the expected results**.
 
-**Preduvjeti:**
-- Pristup GitHub repozitoriju (Actions tab)
-- Lokalno: `composer` dostupan u `backend/`, `npm` dostupan u `frontend/`
-- Lokalno: Docker ili direktan pristup backend-u za Artisan komande
-
----
-
-## T-01 — Composer audit u CI prolazi na čistom kodu
-
-**Cilj**: Provjera da `composer audit` korak postoji u backend CI i da prolazi.
-
-| # | Akcija | Očekivani rezultat |
-|---|---|---|
-| 1 | Na GitHubu: otvori **Actions → Backend CI**, posljednji run na `main` | Workflow run vidljiv |
-| 2 | Otvori step **Security audit (Composer)** | Step je izvršen (nije skipnut) |
-| 3 | Provjeri output step-a | Ili `"No security vulnerability advisories found"`, ili lista advisorija s exit kodom ≠ 0 |
+**Prerequisites:**
+- Access to the GitHub repository (Actions tab)
+- Local: `composer` available in `backend/`, `npm` available in `frontend/`
+- Local: Docker or direct backend access for Artisan commands
 
 ---
 
-## T-02 — Composer audit blokira pipeline na kritičnoj ranjivosti
+## T-01 — Composer audit passes in CI on clean code
 
-**Cilj**: Provjera da pipeline pada ako postoji advisory u production dependency-ima.
+**Goal**: Verify that the `composer audit` step exists in backend CI and passes.
 
-**Napomena**: Testira se lokalno — ne commitovati pokvarenu `composer.json`.
-
-| # | Akcija | Očekivani rezultat |
+| # | Action | Expected result |
 |---|---|---|
-| 1 | Lokalno, u `backend/`: pokreni `composer audit --no-dev --format=plain` | Ako nema advisorija: exit 0, poruka "No security vulnerability advisories found" |
-| 2 | (Simulacija) Privremeno dodaj poznati ranjivi paket (npr. starija verzija), pokreni `composer audit` ponovo | Exit kod ≠ 0, ispisan advisory s CVE brojem i affected verzijom |
-| 3 | Vrati `composer.json` na original | — |
+| 1 | On GitHub: open **Actions → Backend CI**, latest run on `main` | Workflow run visible |
+| 2 | Open step **Security audit (Composer)** | Step was executed (not skipped) |
+| 3 | Check step output | Either `"No security vulnerability advisories found"`, or a list of advisories with exit code ≠ 0 |
 
 ---
 
-## T-03 — npm audit u CI prolazi na čistom kodu
+## T-02 — Composer audit blocks the pipeline on a critical vulnerability
 
-**Cilj**: Provjera da `npm audit` korak postoji u frontend CI i da prolazi.
+**Goal**: Verify that the pipeline fails when a production dependency has an advisory.
 
-| # | Akcija | Očekivani rezultat |
+**Note**: Tested locally — do not commit a broken `composer.json`.
+
+| # | Action | Expected result |
 |---|---|---|
-| 1 | Na GitHubu: otvori **Actions → Frontend CI**, posljednji run na `main` | Workflow run vidljiv |
-| 2 | Otvori step **Security audit (npm)** | Step je izvršen |
-| 3 | Provjeri output step-a | Ili `"found 0 vulnerabilities"`, ili lista s `high`/`critical` koja blokira pipeline |
+| 1 | Locally, in `backend/`: run `composer audit --no-dev --format=plain` | If no advisories: exit 0, message "No security vulnerability advisories found" |
+| 2 | (Simulation) Temporarily add a known vulnerable package (e.g. an older version), run `composer audit` again | Exit code ≠ 0, advisory printed with CVE number and affected version |
+| 3 | Revert `composer.json` to the original | — |
 
 ---
 
-## T-04 — npm audit lokalno
+## T-03 — npm audit passes in CI on clean code
 
-**Cilj**: Provjera lokalnog alata za frontend vulnerability scanning.
+**Goal**: Verify that the `npm audit` step exists in frontend CI and passes.
 
-| # | Akcija | Očekivani rezultat |
+| # | Action | Expected result |
 |---|---|---|
-| 1 | U `frontend/`: pokreni `npm audit --omit=dev` | Ispis: broj ranjivosti po severity (low/moderate/high/critical) |
-| 2 | Pokreni `npm audit --audit-level=high --omit=dev` | Exit 0 ako nema high/critical; exit ≠ 0 ako ima |
-| 3 | (Opcionalno) Pokreni `npm audit --audit-level=high` (uključuje devDependencies) | Može biti razlika — devOnly ranjivosti nisu blokirajuće za produkciju |
+| 1 | On GitHub: open **Actions → Frontend CI**, latest run on `main` | Workflow run visible |
+| 2 | Open step **Security audit (npm)** | Step was executed |
+| 3 | Check step output | Either `"found 0 vulnerabilities"`, or a list of `high`/`critical` issues that block the pipeline |
 
 ---
 
-## T-05 — Gitleaks workflow detektuje tajne u PR-u
+## T-04 — npm audit locally
 
-**Cilj**: Provjera da Gitleaks workflow postoji i da skenira push/PR.
+**Goal**: Verify the local frontend vulnerability scanning tool.
 
-| # | Akcija | Očekivani rezultat |
+| # | Action | Expected result |
 |---|---|---|
-| 1 | Na GitHubu: otvori **Actions → Security Scanning**, posljednji run | Prikazana dva joba: `Gitleaks — secrets detection` i `Verify .env files are not tracked` |
-| 2 | Otvori job `Gitleaks — secrets detection`, provjeri log | `"X commits scanned"`, `"leaks found: 0"` (ili `"leaks found: N"` s detaljima ako postoje) |
-| 3 | (Simulacija — na feature grani, NIKAD na main) Commituj fajl s lažnim sekretom oblika `password=abc123secret`, puši granu, otvori PR | Gitleaks job pada, GitHub Actions prikazuje `❌ leaks found` |
-| 4 | Ukloni fajl, force-puši granu | Gitleaks ponovo prolazi |
+| 1 | In `frontend/`: run `npm audit --omit=dev` | Output: vulnerability count by severity (low/moderate/high/critical) |
+| 2 | Run `npm audit --audit-level=high --omit=dev` | Exit 0 if no high/critical; exit ≠ 0 if any exist |
+| 3 | (Optional) Run `npm audit --audit-level=high` (includes devDependencies) | May differ — devOnly vulnerabilities are not blocking for production |
 
 ---
 
-## T-06 — Env guard blokira commitovane .env fajlove
+## T-05 — Gitleaks workflow detects secrets in a PR
 
-**Cilj**: Provjera da CI job `env-files-not-committed` detektuje tracking .env fajlova.
+**Goal**: Verify that the Gitleaks workflow exists and scans every push/PR.
 
-| # | Akcija | Očekivani rezultat |
+| # | Action | Expected result |
 |---|---|---|
-| 1 | Na GitHubu: otvori job `Verify .env files are not tracked` u **Security Scanning** workflowu | Step `Fail if any real .env file is tracked by git` je izvršen |
-| 2 | Provjeri output step-a | `"No real .env files are tracked. ✓"`, exit 0 |
-| 3 | Lokalno: provjeri da su env fajlovi gitignored | `git check-ignore -v backend/.env backend/.env.production frontend/.env` — svaki fajl treba biti naveden u `.gitignore` outputu |
-| 4 | (Simulacija) Pokreni `git ls-files backend/.env` | Prazan output — fajl nije trackovan |
+| 1 | On GitHub: open **Actions → Security Scanning**, latest run | Two jobs shown: `Gitleaks — secrets detection` and `Verify .env files are not tracked` |
+| 2 | Open job `Gitleaks — secrets detection`, check the log | `"X commits scanned"`, `"leaks found: 0"` (or `"leaks found: N"` with details if any exist) |
+| 3 | (Simulation — on a feature branch, NEVER on main) Commit a file with a fake secret like `password=abc123secret`, push the branch, open a PR | Gitleaks job fails, GitHub Actions shows `❌ leaks found` |
+| 4 | Remove the file, force-push the branch | Gitleaks passes again |
 
 ---
 
-## T-07 — Dependabot konfiguracija je aktivna
+## T-06 — Env guard blocks committed .env files
 
-**Cilj**: Provjera da Dependabot konfiguracija postoji i da GitHub prepoznaje ekosisteme.
+**Goal**: Verify that the CI job `env-files-not-committed` detects tracked .env files.
 
-| # | Akcija | Očekivani rezultat |
+| # | Action | Expected result |
 |---|---|---|
-| 1 | Na GitHubu: otvori **Insights → Dependency graph → Dependabot** | Prikazani ekosistemi: `composer` (`/backend`), `npm` (`/frontend`), `github-actions` (`/`) |
-| 2 | Provjeri da status nije `"Dependabot alerts disabled"` | Alertovi uključeni — Dependabot prati ranjivosti |
-| 3 | Lokalno: provjeri sadržaj `.github/dependabot.yml` | Tri `package-ecosystem` sekcije: `composer`, `npm`, `github-actions`; schedule `weekly`, timezone `Europe/Belgrade` |
-| 4 | (Nakon prvog ponedjeljka od merge-a) Provjeri **Pull requests** tab | Dependabot je kreirao PR-ove za dostupne update-ove |
+| 1 | On GitHub: open job `Verify .env files are not tracked` in the **Security Scanning** workflow | Step `Fail if any real .env file is tracked by git` was executed |
+| 2 | Check step output | `"No real .env files are tracked. ✓"`, exit 0 |
+| 3 | Locally: verify that env files are gitignored | `git check-ignore -v backend/.env backend/.env.production frontend/.env` — each file should appear in the `.gitignore` output |
+| 4 | (Simulation) Run `git ls-files backend/.env` | Empty output — file is not tracked |
 
 ---
 
-## T-08 — Pre-release security scan (lokalni runbook)
+## T-07 — Dependabot configuration is active
 
-**Cilj**: Provjera da kompletan lokalni sigurnosni scan prolazi bez grešaka.
+**Goal**: Verify that the Dependabot configuration exists and GitHub recognises the ecosystems.
 
-| # | Akcija | Očekivani rezultat |
+| # | Action | Expected result |
 |---|---|---|
-| 1 | `cd backend && composer audit --no-dev` | Exit 0, nema advisorija |
-| 2 | `cd frontend && npm audit --omit=dev --audit-level=high` | Exit 0, nema high/critical |
-| 3 | Provjeri da nema trackovanog .env fajla: `git ls-files \| grep -E '^(backend/\.env\|frontend/\.env\|\.env\.production)'` | Prazan output |
-| 4 | `cd backend && php artisan test` | Svi testovi prolaze |
-| 5 | `cd frontend && npm run test && npm run build` | Testovi i build prolaze |
+| 1 | On GitHub: open **Insights → Dependency graph → Dependabot** | Ecosystems shown: `composer` (`/backend`), `npm` (`/frontend`), `github-actions` (`/`) |
+| 2 | Verify that the status is not `"Dependabot alerts disabled"` | Alerts enabled — Dependabot is tracking vulnerabilities |
+| 3 | Locally: check the contents of `.github/dependabot.yml` | Three `package-ecosystem` sections: `composer`, `npm`, `github-actions`; schedule `weekly`, timezone `Europe/Belgrade` |
+| 4 | (After the first Monday since merge) Check the **Pull requests** tab | Dependabot has opened PRs for available updates |
+
+---
+
+## T-08 — Pre-release security scan (local runbook)
+
+**Goal**: Verify that the full local security scan completes without errors.
+
+| # | Action | Expected result |
+|---|---|---|
+| 1 | `cd backend && composer audit --no-dev` | Exit 0, no advisories |
+| 2 | `cd frontend && npm audit --omit=dev --audit-level=high` | Exit 0, no high/critical |
+| 3 | Verify no tracked .env files: `git ls-files \| grep -E '^(backend/\.env\|frontend/\.env\|\.env\.production)'` | Empty output |
+| 4 | `cd backend && php artisan test` | All tests pass |
+| 5 | `cd frontend && npm run test && npm run build` | Tests and build pass |

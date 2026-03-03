@@ -1,139 +1,139 @@
 # E2E Test Plan — Security Phase 6: Monitoring & Detection
 
-Verifikacijski test plan za sve što je implementirano u Phase 6.
-Phase 6 ne dodaje nove UI ekrane — testovi provjeravaju da li normalni tokovi **generišu očekivane strukturirane logove, fraud signale, Sentry kontekst i health/backup odgovore**.
+Verification test plan for everything implemented in Phase 6.
+Phase 6 adds no new UI screens — tests verify that normal user flows **generate the expected structured logs, fraud signals, Sentry context, and health/backup responses**.
 
-**Preduvjeti:**
-- Docker Compose stack pokrenut: `docker compose up -d`
-- Test korisnici (kreirati prije testa):
-  - `seeker@test.com` / `Password1!` — uloga: seeker
-  - `landlord@test.com` / `Password1!` — uloga: landlord
-  - `admin@test.com` / `Password1!` — uloga: admin (MFA omogućen)
+**Prerequisites:**
+- Docker Compose stack running: `docker compose up -d`
+- Test users (create before testing):
+  - `seeker@test.com` / `Password1!` — role: seeker
+  - `landlord@test.com` / `Password1!` — role: landlord
+  - `admin@test.com` / `Password1!` — role: admin (MFA enabled)
 
-> **Napomena**: `storage/` je Docker named volume (`backend-storage`), nije bind mount.
-> Folder `backend/storage/logs` na hostu je **prazan** — logovi se nalaze unutar kontejnera.
+> **Note**: `storage/` is a Docker named volume (`backend-storage`), not a bind mount.
+> The `backend/storage/logs` folder on the host is **empty** — logs live inside the container.
 
-**Kako pratiti strukturirani log (pokrenuti u zasebnom terminalu):**
+**How to follow the structured log (run in a separate terminal):**
 ```bash
 docker compose exec backend tail -f storage/logs/structured-$(date +%F).log
 ```
 
-Svaki entry je JSON objekt. Relevantna polja: `action`, `user_id`, `ip`, `security_event`.
+Each entry is a JSON object. Relevant fields: `action`, `user_id`, `ip`, `security_event`.
 
 ---
 
-## T-01 — Logovanje neuspješne prijave (auth.login_failed)
+## T-01 — Log a failed login (auth.login_failed)
 
-**Cilj**: Provjera da neuspješna prijava generiše strukturirani log entry.
+**Goal**: Verify that a failed login generates a structured log entry.
 
-| # | Akcija | Očekivani rezultat |
+| # | Action | Expected result |
 |---|---|---|
-| 1 | Otvori `/login` | Formular za prijavu |
-| 2 | Unesi `seeker@test.com` + pogrešna lozinka, klikni **Prijavi se** | Greška "Invalid credentials" na stranici |
-| 3 | Provjeri strukturirani log | Entry s `"action": "auth.login_failed"`, `"security_event": true`, `"attempt_count": 1`, `"ip": "<tvoja IP>"` |
+| 1 | Open `/login` | Login form |
+| 2 | Enter `seeker@test.com` + wrong password, click **Sign in** | "Invalid credentials" error on the page |
+| 3 | Check the structured log | Entry with `"action": "auth.login_failed"`, `"security_event": true`, `"attempt_count": 1`, `"ip": "<your IP>"` |
 
 ---
 
-## T-02 — Logovanje brute-force lockout-a (auth.brute_force_lockout)
+## T-02 — Log a brute-force lockout (auth.brute_force_lockout)
 
-**Cilj**: Provjera da 10 uzastopnih neuspješnih pokušaja generiše lockout log.
+**Goal**: Verify that 10 consecutive failed attempts generate a lockout log entry.
 
-**Napomena**: `LOGIN_MAX_ATTEMPTS=10` (može se privremeno smanjiti na 3 za testiranje).
+**Note**: `LOGIN_MAX_ATTEMPTS=10` (can be temporarily reduced to 3 for testing).
 
-| # | Akcija | Očekivani rezultat |
+| # | Action | Expected result |
 |---|---|---|
-| 1 | Ponovi neuspješnu prijavu za isti email 10× | Nakon 10. pokušaja: greška "Too many login attempts" |
-| 2 | Provjeri strukturirani log | Entry s `"action": "auth.brute_force_lockout"`, `"security_event": true`, `"attempt_count": 10` |
-| 3 | Pokušaj se odmah ponovo prijaviti (čak i s ispravnom lozinkom) | Entry s `"action": "auth.login_blocked"`, `"security_event": true` |
+| 1 | Repeat failed login for the same email 10× | After the 10th attempt: "Too many login attempts" error |
+| 2 | Check the structured log | Entry with `"action": "auth.brute_force_lockout"`, `"security_event": true`, `"attempt_count": 10` |
+| 3 | Attempt to log in immediately again (even with correct credentials) | Entry with `"action": "auth.login_blocked"`, `"security_event": true` |
 
 ---
 
-## T-03 — Logovanje neuspješnog MFA (auth.mfa_failed)
+## T-03 — Log a failed MFA attempt (auth.mfa_failed)
 
-**Preduvjet**: `admin@test.com` ima uključen MFA.
+**Prerequisite**: `admin@test.com` has MFA enabled.
 
-| # | Akcija | Očekivani rezultat |
+| # | Action | Expected result |
 |---|---|---|
-| 1 | Prijavi se s `admin@test.com` | Prikazan MFA challenge ekran |
-| 2 | Unesi pogrešan 6-cifreni kod, klikni **Potvrdi** | Greška "Invalid MFA code" |
-| 3 | Provjeri strukturirani log | Entry s `"action": "auth.mfa_failed"`, `"security_event": true`, `"used_recovery_code": false`, `"user_id": <admin ID>` |
-| 4 | Ponovi s recovery kodom koji ne postoji | Entry s `"used_recovery_code": true` |
+| 1 | Sign in as `admin@test.com` | MFA challenge screen shown |
+| 2 | Enter a wrong 6-digit code, click **Confirm** | "Invalid MFA code" error |
+| 3 | Check the structured log | Entry with `"action": "auth.mfa_failed"`, `"security_event": true`, `"used_recovery_code": false`, `"user_id": <admin ID>` |
+| 4 | Repeat with a non-existent recovery code | Entry with `"used_recovery_code": true` |
 
 ---
 
-## T-04 — Logovanje brisanja naloga (auth.account_deleted)
+## T-04 — Log account deletion (auth.account_deleted)
 
-**Preduvjet**: Kreirati test korisnika `delete_me@test.com` / `Password1!`.
+**Prerequisite**: Create a test user `delete_me@test.com` / `Password1!`.
 
-| # | Akcija | Očekivani rezultat |
+| # | Action | Expected result |
 |---|---|---|
-| 1 | Prijavi se kao `delete_me@test.com` | Uspješna prijava |
-| 2 | Idi na **Postavke → Nalog** | Sekcija za brisanje naloga |
-| 3 | Klikni **Obriši nalog**, unesi lozinku `Password1!`, potvrdi | Odjava i preusmjeren na `/` |
-| 4 | Provjeri strukturirani log | Entry s `"action": "auth.account_deleted"`, `"security_event": true`, `"user_id": <ID>` |
+| 1 | Sign in as `delete_me@test.com` | Successful login |
+| 2 | Go to **Settings → Account** | Account deletion section |
+| 3 | Click **Delete account**, enter password `Password1!`, confirm | Logged out and redirected to `/` |
+| 4 | Check the structured log | Entry with `"action": "auth.account_deleted"`, `"security_event": true`, `"user_id": <ID>` |
 
 ---
 
-## T-05 — Logovanje opoziva sesije (auth.session_revoked)
+## T-05 — Log a session revocation (auth.session_revoked)
 
-| # | Akcija | Očekivani rezultat |
+| # | Action | Expected result |
 |---|---|---|
-| 1 | Prijavi se kao `seeker@test.com` u **dva različita browsera/incognito** | Oba prijavljena |
-| 2 | U browseru A: idi na **Postavke → Sigurnost → Aktivne sesije** | Lista sesija — vidljive 2+ sesije |
-| 3 | Klikni **Odjavi** pored sesije iz browsera B | Sesija uklonjena iz liste |
-| 4 | Provjeri strukturirani log | Entry s `"action": "auth.session_revoked"`, `"security_event": true`, `"self_revocation": false` |
+| 1 | Sign in as `seeker@test.com` in **two different browsers/incognito windows** | Both signed in |
+| 2 | In browser A: go to **Settings → Security → Active sessions** | Session list — 2+ sessions visible |
+| 3 | Click **Sign out** next to the session from browser B | Session removed from the list |
+| 4 | Check the structured log | Entry with `"action": "auth.session_revoked"`, `"security_event": true`, `"self_revocation": false` |
 
 ---
 
-## T-06 — Logovanje masovnog opoziva sesija (auth.sessions_bulk_revoked)
+## T-06 — Log a bulk session revocation (auth.sessions_bulk_revoked)
 
-| # | Akcija | Očekivani rezultat |
+| # | Action | Expected result |
 |---|---|---|
-| 1 | Prijavi se kao `seeker@test.com` u 3 browsera/incognito prozora | Sva tri prijavljena |
-| 2 | U jednom browseru: idi na **Postavke → Sigurnost**, klikni **Odjavi sve ostale sesije** | Ostale 2 sesije odjavljene |
-| 3 | Provjeri u preostalim browserima | Preusmjereni na `/login` |
-| 4 | Provjeri strukturirani log | Entry s `"action": "auth.sessions_bulk_revoked"`, `"revoked_count": 2` |
+| 1 | Sign in as `seeker@test.com` in 3 browsers/incognito windows | All three signed in |
+| 2 | In one browser: go to **Settings → Security**, click **Sign out all other sessions** | The other 2 sessions are revoked |
+| 3 | Check the remaining browsers | Redirected to `/login` |
+| 4 | Check the structured log | Entry with `"action": "auth.sessions_bulk_revoked"`, `"revoked_count": 2` |
 
 ---
 
-## T-07 — Logovanje admin impersonacije (auth.impersonation_started / stopped)
+## T-07 — Log admin impersonation (auth.impersonation_started / stopped)
 
-**Preduvjet**: Admin impersonation feature je dostupan iz admin panela.
+**Prerequisite**: Admin impersonation feature is available from the admin panel.
 
-| # | Akcija | Očekivani rezultat |
+| # | Action | Expected result |
 |---|---|---|
-| 1 | Prijavi se kao `admin@test.com` (sa MFA) | Admin dashboard |
-| 2 | Idi na **Admin → Korisnici**, pronađi `seeker@test.com`, klikni **Impersonuj** | Prijavljen kao seeker, banner "Impersonuješ korisnika X" |
-| 3 | Provjeri strukturirani log | Entry s `"action": "auth.impersonation_started"`, `"admin_id": <admin ID>`, `"target_user_id": <seeker ID>` |
-| 4 | Klikni **Završi impersonaciju** | Vraćen na admin nalog |
-| 5 | Provjeri strukturirani log | Entry s `"action": "auth.impersonation_stopped"` |
+| 1 | Sign in as `admin@test.com` (with MFA) | Admin dashboard |
+| 2 | Go to **Admin → Users**, find `seeker@test.com`, click **Impersonate** | Signed in as seeker, banner "Impersonating user X" |
+| 3 | Check the structured log | Entry with `"action": "auth.impersonation_started"`, `"admin_id": <admin ID>`, `"target_user_id": <seeker ID>` |
+| 4 | Click **Stop impersonation** | Returned to admin account |
+| 5 | Check the structured log | Entry with `"action": "auth.impersonation_stopped"` |
 
 ---
 
-## T-08 — Logovanje admin pristupa KYC dokumentu (kyc.document_accessed_by_admin)
+## T-08 — Log admin KYC document access (kyc.document_accessed_by_admin)
 
-**Preduvjet**: Seeker je uploadovao KYC dokument.
+**Prerequisite**: A seeker has uploaded a KYC document.
 
-| # | Akcija | Očekivani rezultat |
+| # | Action | Expected result |
 |---|---|---|
-| 1 | Prijavi se kao `admin@test.com` | Admin dashboard |
-| 2 | Idi na **Admin → KYC** | Lista KYC podnesaka |
-| 3 | Otvori podnesak `seeker@test.com`, klikni na dokument (sliku/PDF) | Dokument prikazan |
-| 4 | Provjeri strukturirani log | Entry s `"action": "kyc.document_accessed_by_admin"`, `"security_event": true`, `"admin_id": <admin ID>`, `"owner_id": <seeker ID>` |
+| 1 | Sign in as `admin@test.com` | Admin dashboard |
+| 2 | Go to **Admin → KYC** | KYC submission list |
+| 3 | Open `seeker@test.com`'s submission, click the document (image/PDF) | Document displayed |
+| 4 | Check the structured log | Entry with `"action": "kyc.document_accessed_by_admin"`, `"security_event": true`, `"admin_id": <admin ID>`, `"owner_id": <seeker ID>` |
 
 ---
 
-## T-09 — Health endpoint: provjera storage diska
+## T-09 — Health endpoint: storage disk check
 
-**Cilj**: Provjera da `/health/ready` uključuje status storage diskova (dodata u Phase 6).
+**Goal**: Verify that `/health/ready` includes the storage disk status (added in Phase 6).
 
-| # | Akcija | Očekivani rezultat |
+| # | Action | Expected result |
 |---|---|---|
-| 1 | Otvori u browseru ili `curl`: `http://localhost:8000/api/v1/health/ready` | JSON odgovor |
-| 2 | Provjeri polje `checks.storage` u odgovoru | `{"ok": true, "disks": {"private": true, "public": true}}` |
-| 3 | (Opcionalno) Privremeno oduzmi dozvole na storage direktoriju, ponovi zahtjev | `{"ok": false, ...}`, HTTP status 503 |
+| 1 | Open in browser or via `curl`: `http://localhost:8000/api/v1/health/ready` | JSON response |
+| 2 | Check the `checks.storage` field in the response | `{"ok": true, "disks": {"private": true, "public": true}}` |
+| 3 | (Optional) Temporarily remove permissions on the storage directory, repeat the request | `{"ok": false, ...}`, HTTP status 503 |
 
-**Primjer očekivanog odgovora:**
+**Example expected response:**
 ```json
 {
   "status": "ok",
@@ -148,58 +148,58 @@ Svaki entry je JSON objekt. Relevantna polja: `action`, `user_id`, `ip`, `securi
 
 ---
 
-## T-10 — Backup verification komanda
+## T-10 — Backup verification command
 
-**Cilj**: Provjera `php artisan backup:verify` komande.
+**Goal**: Verify the `php artisan backup:verify` command.
 
-| # | Akcija | Očekivani rezultat |
+| # | Action | Expected result |
 |---|---|---|
-| 1 | Pokušaj bez backup direktorija: `php artisan backup:verify --backup-dir=/tmp/nonexistent` | Greška: "Backup directory does not exist", exit code 1 |
-| 2 | Kreiraj testni backup: `mkdir -p /tmp/test_backups && gzip -c /dev/null > /tmp/test_backups/test.sql.gz` | Fajl kreiran |
-| 3 | Pokreni: `php artisan backup:verify --backup-dir=/tmp/test_backups` | "Backup OK — test.sql.gz (0.0 hours old)" |
-| 4 | Provjeri strukturirani log | Entry s `"action": "backup.verified"`, `"backup_file": "test.sql.gz"` |
-| 5 | Stvori stari backup: `touch -d '2 days ago' /tmp/test_backups/old.sql.gz` i ukloni novi | Greška: "Latest backup is stale", exit code 1 |
-| 6 | Provjeri strukturirani log za stale backup | Entry s `"action": "backup.stale"`, `"security_event": true` |
+| 1 | Run without a backup directory: `php artisan backup:verify --backup-dir=/tmp/nonexistent` | Error: "Backup directory does not exist", exit code 1 |
+| 2 | Create a test backup: `mkdir -p /tmp/test_backups && gzip -c /dev/null > /tmp/test_backups/test.sql.gz` | File created |
+| 3 | Run: `php artisan backup:verify --backup-dir=/tmp/test_backups` | "Backup OK — test.sql.gz (0.0 hours old)" |
+| 4 | Check the structured log | Entry with `"action": "backup.verified"`, `"backup_file": "test.sql.gz"` |
+| 5 | Create a stale backup: `touch -d '2 days ago' /tmp/test_backups/old.sql.gz` and remove the new one | Error: "Latest backup is stale", exit code 1 |
+| 6 | Check the structured log for the stale backup | Entry with `"action": "backup.stale"`, `"security_event": true` |
 
 ---
 
 ## T-11 — Sentry user context (backend middleware)
 
-**Preduvjet**: Sentry je konfigurisan (`SENTRY_ENABLED=true`, validan `SENTRY_DSN`) — **testirati samo u staging okruženju**.
+**Prerequisite**: Sentry is configured (`SENTRY_ENABLED=true`, valid `SENTRY_DSN`) — **test in staging environment only**.
 
-| # | Akcija | Očekivani rezultat |
+| # | Action | Expected result |
 |---|---|---|
-| 1 | Prijavi se kao `seeker@test.com` | Uspješna prijava |
-| 2 | Izazovi Sentry error (npr. pristup nepostojećem resursu koji baca exception) | Error pojavljuje se u Sentry dashboardu |
-| 3 | Otvori event u Sentry UI | Polje `user.id` sadrži seeker ID, `user.segment` sadrži "seeker" — **bez emaila, bez telefona** |
+| 1 | Sign in as `seeker@test.com` | Successful login |
+| 2 | Trigger a Sentry error (e.g. access a non-existent resource that throws an exception) | Error appears in the Sentry dashboard |
+| 3 | Open the event in the Sentry UI | Field `user.id` contains the seeker ID, `user.segment` contains "seeker" — **no email, no phone** |
 
 ---
 
 ## T-12 — Fraud signal: KYC multi-user IP
 
-**Cilj**: Provjera da KYC podnošenje s iste IP adrese za 2+ korisnika aktivira fraud signal.
+**Goal**: Verify that KYC submission from the same IP for 2+ users triggers a fraud signal.
 
-**Napomena**: `FRAUD_SIGNAL_KYC_MULTI_USER_IP_THRESHOLD=2` (zadana vrijednost).
+**Note**: `FRAUD_SIGNAL_KYC_MULTI_USER_IP_THRESHOLD=2` (default value).
 
-| # | Akcija | Očekivani rezultat |
+| # | Action | Expected result |
 |---|---|---|
-| 1 | Prijavi se kao `seeker@test.com`, podnesi KYC dokument | KYC podnesak kreiran |
-| 2 | Odjavi se, prijavi se kao `landlord@test.com` (ista IP), podnesi KYC | KYC podnesak kreiran |
-| 3 | Provjeri strukturirani log | Entry s `"action": "fraud.signal_recorded"`, `"signal": "kyc_multi_user_ip"`, `"ip_hash": "..."` |
-| 4 | Provjeri admin notifikacije (Admin → Notifikacije) | Nova notifikacija o fraud signalu za `landlord@test.com` |
-| 5 | Provjeri fraud score za `landlord@test.com` u admin panelu | Score povećan za 20 bodova |
+| 1 | Sign in as `seeker@test.com`, submit a KYC document | KYC submission created |
+| 2 | Sign out, sign in as `landlord@test.com` (same IP), submit KYC | KYC submission created |
+| 3 | Check the structured log | Entry with `"action": "fraud.signal_recorded"`, `"signal": "kyc_multi_user_ip"`, `"ip_hash": "..."` |
+| 4 | Check admin notifications (Admin → Notifications) | New notification about the fraud signal for `landlord@test.com` |
+| 5 | Check the fraud score for `landlord@test.com` in the admin panel | Score increased by 20 points |
 
 ---
 
 ## T-13 — Fraud signal: rapid attachment uploads
 
-**Cilj**: Provjera da prekoračenje limita za upload attachmenta aktivira fraud signal.
+**Goal**: Verify that exceeding the attachment upload rate limit triggers a fraud signal.
 
-**Napomena**: `CHAT_ATTACHMENTS_PER_10_MINUTES=10` — privremeno smanjiti na 2 za testiranje.
+**Note**: `CHAT_ATTACHMENTS_PER_10_MINUTES=10` — temporarily reduce to 2 for testing.
 
-| # | Akcija | Očekivani rezultat |
+| # | Action | Expected result |
 |---|---|---|
-| 1 | Prijavi se kao `seeker@test.com`, otvori chat thread | Chat interfejs |
-| 2 | Uploaduj attachment 3× u kratkom roku (ako je limit=2) | Treći upload odbijen s greškom o rate limitu |
-| 3 | Provjeri strukturirani log | Entry s `"action": "fraud.signal_recorded"`, `"signal": "rapid_uploads"`, `"user_id": <seeker ID>` |
-| 4 | Provjeri fraud score za `seeker@test.com` u admin panelu | Score povećan za 5 bodova |
+| 1 | Sign in as `seeker@test.com`, open a chat thread | Chat interface |
+| 2 | Upload an attachment 3× in quick succession (if limit=2) | Third upload rejected with a rate limit error |
+| 3 | Check the structured log | Entry with `"action": "fraud.signal_recorded"`, `"signal": "rapid_uploads"`, `"user_id": <seeker ID>` |
+| 4 | Check the fraud score for `seeker@test.com` in the admin panel | Score increased by 5 points |
