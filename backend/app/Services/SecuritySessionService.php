@@ -41,6 +41,9 @@ class SecuritySessionService
 
     public function touchSession(Request $request): void
     {
+        if (! $request->hasSession()) {
+            return;
+        }
         $sessionId = $request->session()->getId();
         $user = $request->user();
         if (! $sessionId || ! $user) {
