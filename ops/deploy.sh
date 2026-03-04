@@ -5,7 +5,7 @@ ENVIRONMENT=${ENVIRONMENT:-production}
 APP_DIR=${APP_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}
 PHP_BIN=${PHP_BIN:-php}
 COMPOSER_BIN=${COMPOSER_BIN:-composer}
-FRONTEND_BUILD=${FRONTEND_BUILD:-0}
+FRONTEND_BUILD=${FRONTEND_BUILD:-1}
 HEALTH_URL=${HEALTH_URL:-http://127.0.0.1/api/v1/health}
 APP_VERSION=${APP_VERSION:-$(git -C "$APP_DIR" rev-parse --short HEAD 2>/dev/null || echo dev)}
 
@@ -60,9 +60,12 @@ fi
 cd "$APP_DIR"
 
 if [[ "$FRONTEND_BUILD" == "1" ]]; then
-  if [[ -d frontend ]]; then
+  if [[ -d "$APP_DIR/frontend" ]]; then
+    if [[ ! -f "$APP_DIR/frontend/.env.production" ]]; then
+      echo "[deploy] WARNING: frontend/.env.production not found. Copy frontend/.env.example and fill in real values." >&2
+    fi
     echo "[deploy] building frontend (npm ci && npm run build)"
-    cd frontend
+    cd "$APP_DIR/frontend"
     npm ci
     npm run build
     cd "$APP_DIR"
