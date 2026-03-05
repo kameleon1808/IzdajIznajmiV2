@@ -95,12 +95,12 @@ docker compose down -v
 ### Docker Projects — Overview
 
 Two Docker Compose projects use the same `docker-compose.production.yml`.
-**Important: they cannot run at the same time — both bind port 80.**
+Both can run simultaneously — production uses port 80 (via tunnel), dev uses port 8090.
 
-| Project | Name | Purpose |
-|---|---|---|
-| `izdajiznajmiv2` | main production | publicly available at `izdajiznajmi.com` (named tunnel) |
-| `izdaji_prod` | development/testing | local at `localhost`, start on demand |
+| Project | Name | Purpose | Gateway port |
+|---|---|---|---|
+| `izdajiznajmiv2` | main production | publicly available at `izdajiznajmi.com` (named tunnel) | 80 |
+| `izdaji_dev` | development/testing | local at `http://localhost:8090`, can run alongside prod | 8090 |
 
 ---
 
@@ -136,13 +136,13 @@ docker compose -f docker-compose.production.yml logs tunnel --tail=50
 
 ---
 
-### Development/Testing Stack (`izdaji_prod`)
+### Development/Testing Stack (`izdaji_dev`)
 
-> Locally available at `http://localhost`. Start on demand — stop the production stack first.
+> Locally available at `http://localhost:8090`. Can run simultaneously with the production stack.
 
 Optional alias:
 ```bash
-DC="docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml"
+DC="docker compose -p izdaji_dev --env-file .env.production.compose -f docker-compose.production.yml"
 ```
 
 - Prepare env:
@@ -151,19 +151,19 @@ cp .env.production.compose.example .env.production.compose
 ```
 - Start (local only, no tunnel):
 ```bash
-docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml up -d --build
+docker compose -p izdaji_dev --env-file .env.production.compose -f docker-compose.production.yml up -d --build
 ```
 - Initial migrations + seed:
 ```bash
-docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml exec backend php artisan migrate:fresh --seed
+docker compose -p izdaji_dev --env-file .env.production.compose -f docker-compose.production.yml exec backend php artisan migrate:fresh --seed
 ```
 - Health check:
 ```bash
-curl -f http://localhost/api/v1/health
+curl -f http://localhost:8090/api/v1/health
 ```
 - Stop:
 ```bash
-docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml down
+docker compose -p izdaji_dev --env-file .env.production.compose -f docker-compose.production.yml down
 ```
 
 ---
@@ -223,44 +223,53 @@ Practical rule:
 
 Quick runtime verification:
 ```bash
-docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml exec backend php artisan tinker --execute="dump(config('mail.default')); dump(config('mail.mailers.smtp.host')); dump(config('mail.mailers.smtp.port'));"
+docker compose -p izdaji_dev --env-file .env.production.compose -f docker-compose.production.yml exec backend php artisan tinker --execute="dump(config('mail.default')); dump(config('mail.mailers.smtp.host')); dump(config('mail.mailers.smtp.port'));"
 ```
 
 If mail still shows `log/127.0.0.1/2525`:
 ```bash
-docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml exec backend php artisan optimize:clear
-docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml up -d --force-recreate backend queue scheduler reverb
+docker compose -p izdaji_dev --env-file .env.production.compose -f docker-compose.production.yml exec backend php artisan optimize:clear
+docker compose -p izdaji_dev --env-file .env.production.compose -f docker-compose.production.yml up -d --force-recreate backend queue scheduler reverb
 ```
 
 ## Important: How File Changes Become Visible
-- Production test stack uses bind mounts for `./backend` and `./frontend`.
-- Local file edits are immediately visible to those running containers.
-- Result: the same source tree can affect both local and production-test URLs.
+- Backend (`./backend`) uses a bind mount — PHP file edits are immediately visible inside the container without restart.
+- Frontend uses a bind mount (`./frontend`) inside the `frontend` container. The container runs `npm run build` at startup and then serves the result via `vite preview` on port 4173. nginx proxies all non-API traffic to it. A rebuild inside the container is required for frontend changes to take effect.
+- Both stacks (`izdaji_dev` and `izdajiznajmiv2`) share the same `./backend` and `./frontend` source on disk. A backend file change affects whichever stacks are currently running.
 - For full isolation, use a separate clone or image-only deployment without bind mounts.
 
 ## When Extra Actions Are Required
-- Backend `.php` changes: usually visible immediately after refresh.
-- Frontend changes in production stack: rebuild frontend service (no HMR in production mode):
+
+Use `ops/sync.sh` to sync changes to a running stack in one command:
 ```bash
-docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml up -d --build frontend
+./ops/sync.sh dev          # frontend rebuild + artisan cache/migrate/queue:restart → izdaji_dev
+./ops/sync.sh prod         # frontend rebuild + artisan cache/migrate/queue:restart → izdajiznajmiv2
+./ops/sync.sh all          # both stacks
+./ops/sync.sh dev --backend-only   # skip frontend rebuild (only artisan commands)
+./ops/sync.sh dev --frontend-only  # only rebuild frontend in container
+./ops/sync.sh dev --skip-migrate   # skip migrations
 ```
-- Alternative if frontend container is already running:
+
+Or manually:
+
+- Backend `.php` changes: usually visible immediately after refresh. No container restart needed.
+- Frontend changes: rebuild inside the container (vite preview picks up new dist automatically):
 ```bash
-docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml exec frontend npm run build
+docker compose -p izdaji_dev --env-file .env.production.compose -f docker-compose.production.yml exec frontend npm run build
 ```
 - When changing `.env`, `config/*`, routes, or middleware:
 ```bash
-docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml exec backend php artisan optimize:clear
-docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml exec backend php artisan event:clear
-docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml up -d --force-recreate backend queue scheduler reverb
+docker compose -p izdaji_dev --env-file .env.production.compose -f docker-compose.production.yml exec backend php artisan optimize:clear
+docker compose -p izdaji_dev --env-file .env.production.compose -f docker-compose.production.yml exec backend php artisan event:clear
+docker compose -p izdaji_dev --env-file .env.production.compose -f docker-compose.production.yml up -d --force-recreate backend queue scheduler reverb
 ```
 - When changing event/listener wiring (for example notifications/chat events), verify registrations:
 ```bash
-docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml exec backend php artisan event:list
+docker compose -p izdaji_dev --env-file .env.production.compose -f docker-compose.production.yml exec backend php artisan event:list
 ```
 - When changing migrations:
 ```bash
-docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml exec backend php artisan migrate --force
+docker compose -p izdaji_dev --env-file .env.production.compose -f docker-compose.production.yml exec backend php artisan migrate --force
 ```
 
 ## Docker Compose Watch

@@ -154,7 +154,7 @@ Coverage includes:
 ## 6) Operations runbook (for future maintainers)
 Use alias:
 ```bash
-DC="docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml"
+DC="docker compose -p izdaji_dev --env-file .env.production.compose -f docker-compose.production.yml"
 ```
 
 ### 6.1 Deploy/refresh after env or config changes

@@ -2,7 +2,7 @@
 
 > **Docker napomena:** U produkcijskom/staging okruženju sve `php artisan` komande pokretati kao:
 > ```bash
-> DC="docker compose -p izdaji_prod --env-file .env.production.compose -f docker-compose.production.yml"
+> DC="docker compose -p izdaji_dev --env-file .env.production.compose -f docker-compose.production.yml"
 > $DC exec backend php artisan <komanda>
 > ```
 > `php artisan tinker --execute="..."` ne ispisuje return value automatski — koristiti `echo` ili `var_dump`.

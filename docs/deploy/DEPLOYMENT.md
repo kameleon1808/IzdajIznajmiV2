@@ -208,18 +208,17 @@ The nginx gateway (`ops/nginx-docker-production.conf`) always proxies to `fronte
 
 ### Docker projects
 
-Two Compose projects use the same `docker-compose.production.yml`. They cannot run at the same time (both bind port 80).
+Two Compose projects use the same `docker-compose.production.yml`. They can run simultaneously — production uses port 80 (via Cloudflare Tunnel), dev uses port 8090.
 
-| Project name | Command flag | Purpose |
-|---|---|---|
-| `izdajiznajmiv2` | _(no `-p` flag)_ | Main production — public on `izdajiznajmi.com` |
-| `izdaji_prod` | `-p izdaji_prod` | Development/testing — local only (`localhost`) |
+| Project name | Command flag | Purpose | Gateway port |
+|---|---|---|---|
+| `izdajiznajmiv2` | _(no `-p` flag)_ | Main production — public on `izdajiznajmi.com` | 80 |
+| `izdaji_dev` | `-p izdaji_dev` | Development/testing — local at `http://localhost:8090` | 8090 |
 
 ### Caveats
 
 - The machine must remain on and connected for the site to be accessible.
 - Cloudflare Tunnel credentials (`~/.cloudflared/`) must be preserved; re-run setup if they are lost.
-- Both Docker projects bind port 80 on the host — stop one before starting the other.
 - Domain propagation after nameserver change can take up to 48 hours.
 
 ## Troubleshooting
